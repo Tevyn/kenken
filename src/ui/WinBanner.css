@@ -1,5 +1,5 @@
 .kk-win-banner {
-  width: min(92vw, 34rem);
+  width: min(100%, 34rem);
   margin: 0 auto;
   padding: 12px 16px;
   border-radius: 8px;

@@ -1,5 +1,5 @@
 .kk-board {
-  --board-max: min(92vw, 34rem);
+  --board-max: min(100cqw, 34rem);
   --cell: clamp(26px, calc(var(--board-max) / var(--size)), 68px);
 
   display: grid;

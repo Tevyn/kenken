@@ -6,6 +6,14 @@
   padding: 20px 12px 40px;
   min-height: 100svh;
   box-sizing: border-box;
+
+  /*
+   * Establish an inline-size container so children can size themselves from
+   * the actual available width. Using vw here instead would include the
+   * scrollbar and ignore this element's own padding, making wide boards
+   * overhang the viewport on narrow screens.
+   */
+  container-type: inline-size;
 }
 
 .kk-app__header {
@@ -24,6 +32,9 @@
   align-items: center;
   gap: 18px;
   width: 100%;
+  /* Last-resort guard: never let an extreme viewport break the page layout. */
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .kk-app__loading,

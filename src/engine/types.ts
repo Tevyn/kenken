@@ -81,12 +81,32 @@ export function cageIdByCell(puzzle: Puzzle): number[] {
   return map;
 }
 
-/** Human-readable cage label, e.g. `"12+"`, `"3-"`, `"2/"`, `"5"`. */
+/**
+ * Operator glyphs as printed on a KenKen grid. The stored `Op` uses ASCII so
+ * it stays easy to serialize, but puzzles are conventionally printed with the
+ * real multiplication, division and minus signs.
+ */
+const OP_GLYPH: Record<Exclude<Op, '='>, string> = {
+  '+': '+',
+  '-': '−',
+  '*': '×',
+  '/': '÷',
+};
+
+/** Human-readable cage label, e.g. `"12+"`, `"3−"`, `"2÷"`, `"5"`. */
 export function cageLabel(cage: Cage): string {
-  return cage.op === '=' ? String(cage.target) : `${cage.target}${cage.op}`;
+  return cage.op === '=' ? String(cage.target) : `${cage.target}${OP_GLYPH[cage.op]}`;
 }
 
-/** The cell a cage's label should be drawn in: its top-left-most cell. */
+/**
+ * The cell a cage's label should be drawn in: its top-left-most cell.
+ *
+ * `Cage.cells` is documented as sorted ascending, so this is normally
+ * `cells[0]`, but the minimum is taken explicitly so a mis-ordered cage
+ * renders its label in the right place rather than somewhere arbitrary.
+ */
 export function cageAnchor(cage: Cage): CellIndex {
-  return cage.cells[0];
+  let min = cage.cells[0];
+  for (const cell of cage.cells) if (cell < min) min = cell;
+  return min;
 }
