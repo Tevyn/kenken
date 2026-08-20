@@ -1,0 +1,15 @@
+.kk-win-banner {
+  width: min(92vw, 34rem);
+  margin: 0 auto;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: var(--success-bg);
+  color: var(--success);
+  border: 1px solid var(--success);
+  text-align: center;
+  font-weight: 600;
+}
+
+.kk-win-banner p {
+  margin: 0;
+}

@@ -1,0 +1,15 @@
+.kk-board {
+  --board-max: min(92vw, 34rem);
+  --cell: clamp(26px, calc(var(--board-max) / var(--size)), 68px);
+
+  display: grid;
+  grid-template-columns: repeat(var(--size), var(--cell));
+  grid-template-rows: repeat(var(--size), var(--cell));
+  width: fit-content;
+  margin: 0 auto;
+  background: var(--cell-bg);
+  border: max(2px, calc(var(--cell) * 0.06)) solid var(--cell-border-heavy);
+  border-radius: 8px;
+  overflow: hidden;
+  touch-action: manipulation;
+}

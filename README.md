@@ -1,32 +1,78 @@
-# React + TypeScript + Vite
+# KenKen
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A web version of the KenKen puzzle game (also known as Calcudoku or MathDoku),
+with an in-browser puzzle generator.
 
-Currently, two official plugins are available:
+## Rules
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Fill an N×N grid with the digits 1..N so that:
 
-## React Compiler
+1. No digit repeats in any row or column (a Latin square).
+2. Each heavily-outlined **cage** satisfies its arithmetic clue — the target
+   number and operator printed in its top-left corner.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Cage arithmetic:
 
-## Expanding the Oxlint configuration
+| Clue | Meaning |
+|---|---|
+| `12+` | The cage's cells sum to 12. |
+| `48×` | The cage's cells multiply to 48. |
+| `3−`  | Two cells whose difference is 3 (in either order). |
+| `2÷`  | Two cells where one divides the other exactly, quotient 2. |
+| `5`   | A single-cell "freebie" — the cell is 5. |
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+A digit **may** repeat within a cage, as long as it does not repeat within a
+row or column.
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+See [`docs/KENKEN.md`](docs/KENKEN.md) for the full research reference on
+rules, generation, solving, and difficulty rating.
+
+## Running it
+
+```bash
+npm install
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Then open the printed URL.
+
+| Command | What it does |
+|---|---|
+| `npm run dev` | Start the dev server. |
+| `npm run build` | Typecheck and produce a production build in `dist/`. |
+| `npm run preview` | Serve the production build locally. |
+| `npm test` | Run the test suite in watch mode. |
+| `npm run test:run` | Run the test suite once. |
+| `npm run test:coverage` | Run tests with coverage for the engine and game logic. |
+| `npm run typecheck` | Typecheck without emitting. |
+| `npm run lint` | Lint with oxlint. |
+
+## How to play
+
+Pick a grid size and difficulty, press **New puzzle**, then fill the grid.
+
+- Click or tap a cell to select it; arrow keys move the selection.
+- Type `1`–`9` (or use the on-screen keypad) to enter a digit.
+- `Backspace` / `Delete` clears a cell.
+- `Space` toggles **pencil-mark mode**, where digits are recorded as small
+  candidate notes instead of an answer.
+- `Ctrl`/`Cmd`+`Z` undoes, `Ctrl`/`Cmd`+`Shift`+`Z` (or `Ctrl`+`Y`) redoes.
+
+The board is fully playable by touch — a 9×9 fits a 375px-wide phone screen.
+
+## Project layout
+
+```
+src/
+  engine/     Puzzle generation and solving. No React, no DOM, no dependencies.
+  game/       Game state reducer (entries, pencil marks, undo/redo) and its hook.
+  ui/         Presentational React components. Pure functions of a Puzzle + state.
+  fixtures/   A fixed, uniqueness-verified puzzle used in tests.
+docs/
+  KENKEN.md      Research reference: rules, generation, solving, difficulty.
+  ENGINE_API.md  The engine's public API contract.
+```
+
+The engine is deterministic: a puzzle is fully reproducible from its `seed`,
+`size`, and `difficulty`. Every generated puzzle is verified to have exactly
+one solution before it is returned.

@@ -1,0 +1,50 @@
+.kk-keypad {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(92vw, 34rem);
+  margin: 0 auto;
+}
+
+.kk-keypad__digits {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(44px, 1fr));
+  gap: 8px;
+}
+
+.kk-keypad__digit,
+.kk-keypad__action {
+  font-family: inherit;
+  font-size: clamp(16px, 4.5vw, 20px);
+  font-weight: 600;
+  padding: 12px 8px;
+  min-height: 48px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.kk-keypad__digit:hover,
+.kk-keypad__action:hover {
+  border-color: var(--accent);
+}
+
+.kk-keypad__digit:active,
+.kk-keypad__action:active {
+  background: var(--cell-selected);
+}
+
+.kk-keypad__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.kk-keypad__action--mode[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}

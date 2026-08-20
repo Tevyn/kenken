@@ -1,121 +1,111 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
+import { useCallback, useState } from 'react'
+import type { Difficulty, Puzzle } from './engine/types'
+import { generatePuzzle } from './engine'
+import { SAMPLE_PUZZLE } from './fixtures/samplePuzzle'
+import { useGame } from './game/useGame'
+import { Board } from './ui/Board'
+import { Controls } from './ui/Controls'
+import { Keypad } from './ui/Keypad'
+import { WinBanner } from './ui/WinBanner'
 import './App.css'
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [size, setSize] = useState(SAMPLE_PUZZLE.size)
+  const [difficulty, setDifficulty] = useState<Difficulty>(SAMPLE_PUZZLE.difficulty)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const game = useGame(SAMPLE_PUZZLE)
+
+  const newPuzzle = game.newPuzzle
+
+  const generate = useCallback(
+    (nextSize: number, nextDifficulty: Difficulty) => {
+      setLoading(true)
+      setError(null)
+      // Flip the loading flag, then let the browser paint before the (possibly ~1s)
+      // synchronous generation work, so the UI doesn't appear to freeze.
+      setTimeout(() => {
+        let next: Puzzle | null = null
+        try {
+          next = generatePuzzle({ size: nextSize, difficulty: nextDifficulty })
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to generate puzzle.')
+        }
+        if (next) newPuzzle(next)
+        setLoading(false)
+      }, 0)
+    },
+    [newPuzzle],
+  )
+
+  const handleSizeChange = useCallback(
+    (nextSize: number) => {
+      setSize(nextSize)
+      generate(nextSize, difficulty)
+    },
+    [difficulty, generate],
+  )
+
+  const handleDifficultyChange = useCallback(
+    (nextDifficulty: Difficulty) => {
+      setDifficulty(nextDifficulty)
+      generate(size, nextDifficulty)
+    },
+    [size, generate],
+  )
+
+  const handleNewPuzzle = useCallback(() => generate(size, difficulty), [generate, size, difficulty])
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div className="kk-app">
+      <header className="kk-app__header">
+        <h1>KenKen</h1>
+      </header>
 
-      <div className="ticks"></div>
+      <Controls
+        size={size}
+        difficulty={difficulty}
+        onSizeChange={handleSizeChange}
+        onDifficultyChange={handleDifficultyChange}
+        onNewPuzzle={handleNewPuzzle}
+        onUndo={game.undo}
+        onRedo={game.redo}
+        canUndo={game.canUndo}
+        canRedo={game.canRedo}
+        disabled={loading}
+      />
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+      {error && (
+        <p role="alert" className="kk-app__error">
+          {error}
+        </p>
+      )}
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+      {loading ? (
+        <p className="kk-app__loading" role="status">
+          Generating…
+        </p>
+      ) : (
+        <main className="kk-app__main">
+          <Board
+            puzzle={game.state.puzzle}
+            values={game.state.values}
+            marks={game.state.marks}
+            selected={game.state.selected}
+            onSelect={game.select}
+          />
+          <WinBanner visible={game.state.status === 'solved'} />
+          <Keypad
+            size={game.state.puzzle.size}
+            mode={game.state.mode}
+            onDigit={game.enterDigit}
+            onErase={game.erase}
+            onToggleMode={game.toggleMode}
+          />
+        </main>
+      )}
+    </div>
   )
 }
 
