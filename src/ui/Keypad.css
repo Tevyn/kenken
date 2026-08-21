@@ -1,7 +1,9 @@
 .kk-keypad {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  /* ~2.5x the 8px internal row gap, so the action row and digit pad read as
+     two distinct groups rather than one continuous grid of keys. */
+  gap: 20px;
   width: min(100%, 34rem);
   margin: 0 auto;
 }
@@ -24,27 +26,95 @@
   background: var(--surface);
   color: var(--text);
   cursor: pointer;
-  transition: background-color 0.15s, border-color 0.15s;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
 }
 
 .kk-keypad__digit:hover,
-.kk-keypad__action:hover {
+.kk-keypad__action:hover:not(:disabled) {
   border-color: var(--accent);
 }
 
 .kk-keypad__digit:active,
-.kk-keypad__action:active {
+/* Exclude the modifier states below (pressed-on, armed) so this generic
+   rule can never outrank them on specificity: (0,3,0) beat their (0,2,0),
+   which blanked the icon (accent-contrast text on cell-selected bg) at the
+   exact moment a toggle was pressed while already on/armed. */
+.kk-keypad__action:active:not(:disabled):not([aria-pressed='true']):not(.kk-keypad__action--armed) {
   background: var(--cell-selected);
 }
 
+/*
+ * The five icon actions, sized as touch targets rather than by their glyph.
+ * Painted as one recessed strip (not five bordered keys) so the row reads
+ * as a toolbar rather than "row 1 of the digits".
+ */
 .kk-keypad__actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(5, minmax(44px, 1fr));
   gap: 8px;
+  background: var(--bg);
+  border-radius: 12px;
+  padding: 4px;
+}
+
+/* Fixed 48px squares once there's room to spare, so the glyph isn't lost in
+   a 100px+ slab. Touch targets stay >=44px; below this the row still
+   stretches to fill the width, which is fine on a phone. */
+@media (min-width: 600px) {
+  .kk-keypad__actions {
+    grid-template-columns: repeat(5, 48px);
+    justify-content: space-between;
+  }
+}
+
+.kk-keypad__action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  padding: 12px 4px;
+  /* No per-button border/fill by default: a row of glyphs, not a row of
+     keys. Modifier rules below (mode/hint/armed) still paint their own
+     background to stay visible against the strip. */
+  border-color: transparent;
+  background: transparent;
+}
+
+.kk-keypad__action:disabled,
+.kk-keypad__action[aria-disabled='true'] {
+  /* Blanket opacity dropped stroke contrast well under the 3:1
+     graphical-object floor (2.19:1 light / 2.69:1 dark). Swapping to
+     explicit tokens keeps the icon legible while still reading as inert. */
+  color: var(--text-muted);
+  border-color: var(--border);
+  background: var(--bg);
+  cursor: not-allowed;
+  /* Belt-and-suspenders for aria-disabled (no native click-blocking like
+     the disabled attribute): also neutralizes hover/active for it. */
+  pointer-events: none;
 }
 
 .kk-keypad__action--mode[aria-pressed='true'] {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--accent-contrast);
+}
+
+/* Tinted with the hint palette so the button matches what it puts on the board. */
+.kk-keypad__action--hint {
+  border-color: var(--hint-panel-border);
+  background: var(--hint-panel-bg);
+  color: var(--hint-cage-outline);
+}
+
+/* Armed: a hint is on the board and the next press applies it. */
+.kk-keypad__action--armed {
+  background: var(--hint-focus-ring);
+  border-color: var(--hint-focus-ring);
+  color: var(--accent-contrast);
+}
+
+.kk-keypad__action--armed:active {
+  background: var(--hint-focus-bg);
+  color: var(--hint-cage-outline);
 }

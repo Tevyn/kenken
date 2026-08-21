@@ -1,22 +1,36 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { describe, expect, it } from 'vitest'
 import { createErrorChecker } from '../engine'
 import { SAMPLE_PUZZLE } from '../fixtures/samplePuzzle'
 import { useGame } from '../game/useGame'
 import { Board } from './Board'
+import { Controls } from './Controls'
+import type { OpenMenu } from './Controls'
 import { HintPanel } from './HintPanel'
 import { Keypad } from './Keypad'
 import { WinBanner } from './WinBanner'
 
 /** A minimal wiring of useGame + Board + Keypad, standing in for App.tsx's game view. */
 function TestGame() {
-  const game = useGame(SAMPLE_PUZZLE)
+  // Same arrangement as App: the open popover is owned above the game, because
+  // an open panel suspends the board's keyboard shortcuts.
+  const [openMenu, setOpenMenu] = useState<OpenMenu>(null)
+  const game = useGame(SAMPLE_PUZZLE, { suspended: openMenu !== null })
   const checkErrors = useMemo(() => createErrorChecker(game.state.puzzle), [game.state.puzzle])
   const errors = useMemo(() => checkErrors(game.state.values), [checkErrors, game.state.values])
   return (
     <div>
+      <Controls
+        size={game.state.puzzle.size}
+        difficulty={game.state.puzzle.difficulty}
+        onStartGame={() => {}}
+        autoClearMarks={game.state.autoClearMarks}
+        onAutoClearMarksChange={game.setAutoClearMarks}
+        openMenu={openMenu}
+        onOpenMenuChange={setOpenMenu}
+      />
       <Board
         puzzle={game.state.puzzle}
         values={game.state.values}
@@ -34,26 +48,25 @@ function TestGame() {
         onDigit={game.enterDigit}
         onErase={game.erase}
         onToggleMode={game.toggleMode}
+        onUndo={game.undo}
+        onRedo={game.redo}
+        canUndo={game.canUndo}
+        canRedo={game.canRedo}
+        onHint={game.pressHint}
+        hintPending={game.hintPending}
       />
-      <button type="button" onClick={game.undo}>
-        Undo
-      </button>
-      <button type="button" onClick={game.redo}>
-        Redo
-      </button>
-      <button type="button" onClick={game.pressHint}>
-        {game.hintPending ? 'Apply' : 'Hint'}
-      </button>
-      <label>
-        <input
-          type="checkbox"
-          checked={game.state.autoClearMarks}
-          onChange={(event) => game.setAutoClearMarks(event.target.checked)}
-        />
-        Auto-clear marks
-      </label>
     </div>
   )
+}
+
+/** The hint button, by whichever of its two labels it is currently wearing. */
+function hintButton(pending = false): HTMLElement {
+  return screen.getByRole('button', { name: pending ? 'Apply hint' : 'Hint' })
+}
+
+/** The pencil-mark toggle: one button, `aria-pressed` tells you which way it is. */
+function marksButton(): HTMLElement {
+  return screen.getByRole('button', { name: 'Pencil-mark mode' })
 }
 
 /** Cell 0 always shows its cage label ("1-"), so assert on the value span, not raw text. */
@@ -150,7 +163,7 @@ describe('Board + Keypad + useGame integration', () => {
     const { container } = render(<TestGame />)
     const cells = screen.getAllByRole('gridcell')
 
-    await user.click(screen.getByRole('button', { name: 'Hint' }))
+    await user.click(hintButton())
     expect(container.querySelector('.kk-hint__text')).toHaveTextContent(
       'The cage marked 2 has only one cell, so it has to be 2.',
     )
@@ -159,7 +172,7 @@ describe('Board + Keypad + useGame integration', () => {
     expect(valueOf(cells[14])).toBeNull()
     expect(cells.every((cell) => valueOf(cell) === null)).toBe(true)
 
-    await user.click(screen.getByRole('button', { name: 'Apply' }))
+    await user.click(hintButton(true))
     expect(valueOf(cells[14])).toBe('2')
     expect(container.querySelector('.kk-hint__text')).not.toBeInTheDocument()
 
@@ -175,10 +188,10 @@ describe('Board + Keypad + useGame integration', () => {
 
     // Take and apply the freebie first so the next hint is the three-cell
     // "only one way to fill the 2x cage" placement over cells 0, 1 and 5.
-    await user.click(screen.getByRole('button', { name: 'Hint' }))
-    await user.click(screen.getByRole('button', { name: 'Apply' }))
-    await user.click(screen.getByRole('button', { name: 'Hint' }))
-    await user.click(screen.getByRole('button', { name: 'Apply' }))
+    await user.click(hintButton())
+    await user.click(hintButton(true))
+    await user.click(hintButton())
+    await user.click(hintButton(true))
     expect([valueOf(cells[0]), valueOf(cells[1]), valueOf(cells[5])]).toEqual(['1', '2', '1'])
 
     await user.keyboard('{Control>}z{/Control}')
@@ -191,7 +204,7 @@ describe('Board + Keypad + useGame integration', () => {
     render(<TestGame />)
     const cells = screen.getAllByRole('gridcell')
 
-    await user.click(screen.getByRole('button', { name: 'Hint' }))
+    await user.click(hintButton())
     expect(cells[14].className).toContain('kk-cell--hint-focus')
     expect(cells[14].className).toContain('kk-cell--hint-cage')
     expect(cells[14].getAttribute('aria-label')).toMatch(/, hint focus$/)
@@ -203,7 +216,7 @@ describe('Board + Keypad + useGame integration', () => {
     expect(cells[0].className).not.toContain('kk-cell--hint-focus')
 
     // Applying clears the highlight along with the explanation.
-    await user.click(screen.getByRole('button', { name: 'Apply' }))
+    await user.click(hintButton(true))
     expect(cells[14].className).not.toContain('kk-cell--hint-focus')
     expect(cells[0].className).not.toContain('kk-cell--hint-dim')
   })
@@ -213,8 +226,8 @@ describe('Board + Keypad + useGame integration', () => {
     const { container } = render(<TestGame />)
     const cells = screen.getAllByRole('gridcell')
 
-    await user.click(screen.getByRole('button', { name: 'Hint' }))
-    expect(screen.getByRole('button', { name: 'Apply' })).toBeInTheDocument()
+    await user.click(hintButton())
+    expect(hintButton(true)).toBeInTheDocument()
 
     await user.click(cells[0])
     await user.keyboard('1')
@@ -223,7 +236,7 @@ describe('Board + Keypad + useGame integration', () => {
     expect(cells[14].className).not.toContain('kk-cell--hint-focus')
     // Back to "Hint": the next press explains afresh rather than applying a
     // hint that was computed against a grid that no longer exists.
-    expect(screen.getByRole('button', { name: 'Hint' })).toBeInTheDocument()
+    expect(hintButton()).toBeInTheDocument()
     expect(valueOf(cells[14])).toBeNull()
   })
 
@@ -251,17 +264,17 @@ describe('Board + Keypad + useGame integration', () => {
     // Cell 0 is 1 in the solution; 2 is legal in its cage, so nothing else flags it.
     await user.click(cells[0])
     await user.keyboard('2')
-    await user.click(screen.getByRole('button', { name: 'Hint' }))
+    await user.click(hintButton())
 
     expect(container.querySelector('.kk-hint__text')).toHaveTextContent(
       /row 1, column 1 doesn’t fit|row 1, column 1 doesn't fit/,
     )
     expect(cells[0].className).toContain('kk-cell--hint-focus')
     // A message has nothing to apply, so the button never offers to.
-    expect(screen.getByRole('button', { name: 'Hint' })).toBeInTheDocument()
+    expect(hintButton()).toBeInTheDocument()
 
     // Pressing again re-runs rather than applying anything.
-    await user.click(screen.getByRole('button', { name: 'Hint' }))
+    await user.click(hintButton())
     expect(container.querySelector('.kk-hint__text')).toBeInTheDocument()
     expect(valueOf(cells[0])).toBe('2')
   })
@@ -286,7 +299,7 @@ describe('Board + Keypad + useGame integration', () => {
     const cells = screen.getAllByRole('gridcell')
 
     // Cells 1 and 2 both share row 0 with cell 0.
-    await user.click(screen.getByRole('button', { name: 'Marks: Off' }))
+    await user.click(marksButton())
     await user.click(cells[1])
     await user.keyboard('3')
     await user.click(cells[2])
@@ -294,7 +307,7 @@ describe('Board + Keypad + useGame integration', () => {
     expect(marksOf(cells[1])).toEqual(['3'])
     expect(marksOf(cells[2])).toEqual(['4'])
 
-    await user.click(screen.getByRole('button', { name: 'Marks: On' }))
+    await user.click(marksButton())
     await user.click(cells[0])
     await user.keyboard('3')
 
@@ -304,23 +317,105 @@ describe('Board + Keypad + useGame integration', () => {
     expect(marksOf(cells[2])).toEqual(['4'])
   })
 
-  it('unchecking auto-clear marks leaves peer pencil marks in place after entering a value', async () => {
+  it('switching auto-clear marks off leaves peer pencil marks in place after entering a value', async () => {
     const user = userEvent.setup()
     render(<TestGame />)
     const cells = screen.getAllByRole('gridcell')
 
-    await user.click(screen.getByLabelText('Auto-clear marks'))
-    expect(screen.getByLabelText('Auto-clear marks')).not.toBeChecked()
+    await user.click(screen.getByRole('button', { name: 'Settings' }))
+    await user.click(screen.getByRole('switch', { name: 'Auto-clear marks' }))
+    expect(screen.getByRole('switch', { name: 'Auto-clear marks' })).not.toBeChecked()
 
-    await user.click(screen.getByRole('button', { name: 'Marks: Off' }))
+    // No need to dismiss the popover first: the next press outside it closes
+    // it, which hands the keyboard back to the board.
+    await user.click(marksButton())
     await user.click(cells[1])
     await user.keyboard('3')
     expect(marksOf(cells[1])).toEqual(['3'])
 
-    await user.click(screen.getByRole('button', { name: 'Marks: On' }))
+    await user.click(marksButton())
     await user.click(cells[0])
     await user.keyboard('3')
 
     expect(marksOf(cells[1])).toEqual(['3'])
+  })
+
+  // Space is the pencil-mark shortcut, so it must reach the focused switch and
+  // not the board. This one is covered twice over — by the `<input>` guard and
+  // by the popover suspending the shortcuts — and has to hold either way.
+  it('Space toggles the focused auto-clear switch without toggling pencil-mark mode', async () => {
+    const user = userEvent.setup()
+    render(<TestGame />)
+
+    await user.click(screen.getByRole('button', { name: 'Settings' }))
+    const toggle = screen.getByRole('switch', { name: 'Auto-clear marks' })
+    expect(toggle).toHaveFocus()
+    expect(toggle).toBeChecked()
+    expect(marksButton()).toHaveAttribute('aria-pressed', 'false')
+
+    await user.keyboard(' ')
+
+    expect(toggle).not.toBeChecked()
+    expect(marksButton()).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  /*
+   * The wizard panel is nothing but `<button>`s, so nothing about the focused
+   * element says "leave the keyboard alone" — the app has to say so explicitly.
+   */
+  describe('an open popover owns the keyboard', () => {
+    it('digits, H and Backspace never reach the hidden board', async () => {
+      const user = userEvent.setup()
+      const { container } = render(<TestGame />)
+      const cells = screen.getAllByRole('gridcell')
+
+      await user.click(cells[0])
+      await user.keyboard('1')
+      expect(valueOf(cells[0])).toBe('1')
+
+      await user.click(screen.getByRole('button', { name: 'New game' }))
+      expect(screen.getByRole('dialog')).toBeInTheDocument()
+
+      await user.keyboard('4')
+      expect(valueOf(cells[0])).toBe('1')
+
+      await user.keyboard('h')
+      expect(container.querySelector('.kk-hint__text')).not.toBeInTheDocument()
+      expect(hintButton()).toBeInTheDocument()
+
+      await user.keyboard('{Backspace}')
+      expect(valueOf(cells[0])).toBe('1')
+
+      // Arrows belong to the panel too, so the selection stays where it was.
+      await user.keyboard('{ArrowRight}')
+      expect(cells[0].className).toContain('kk-cell--selected')
+      expect(cells[1].className).not.toContain('kk-cell--selected')
+
+      // Escape closes the panel, and only then does the board answer again.
+      await user.keyboard('{Escape}')
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      await user.click(cells[0])
+      await user.keyboard('{Backspace}')
+      expect(valueOf(cells[0])).toBeNull()
+    })
+
+    it('Space activates the focused wizard option instead of flipping pencil-mark mode', async () => {
+      const user = userEvent.setup()
+      render(<TestGame />)
+
+      await user.click(screen.getByRole('button', { name: 'New game' }))
+      // The panel opens on the size being played, which is the 4x4 fixture.
+      const current = screen.getByRole('button', { name: '4 by 4' })
+      expect(current).toHaveFocus()
+      expect(marksButton()).toHaveAttribute('aria-pressed', 'false')
+
+      await user.keyboard(' ')
+
+      // Space pressed the button, so the wizard advanced to step two...
+      expect(screen.getByRole('button', { name: 'Easy' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: '4 by 4' })).not.toBeInTheDocument()
+      // ...and the game's own Space shortcut never fired.
+      expect(marksButton()).toHaveAttribute('aria-pressed', 'false')
+    })
   })
 })

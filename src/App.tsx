@@ -6,20 +6,28 @@ import { loadAutoClearMarks, saveAutoClearMarks } from './game/preferences'
 import { useGame } from './game/useGame'
 import { Board } from './ui/Board'
 import { Controls } from './ui/Controls'
+import type { OpenMenu } from './ui/Controls'
 import { HintPanel } from './ui/HintPanel'
 import { Keypad } from './ui/Keypad'
 import { WinBanner } from './ui/WinBanner'
 import './App.css'
 
 function App() {
-  const [size, setSize] = useState(SAMPLE_PUZZLE.size)
-  const [difficulty, setDifficulty] = useState<Difficulty>(SAMPLE_PUZZLE.difficulty)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  /*
+   * Which header popover is open lives here, not in `Controls`: an open panel
+   * is modal enough to own the keyboard, so the game's shortcuts have to know
+   * about it.
+   */
+  const [openMenu, setOpenMenu] = useState<OpenMenu>(null)
 
   // Lazy initialiser so storage is read once, at mount, rather than on every render.
   const [initialAutoClearMarks] = useState(loadAutoClearMarks)
-  const game = useGame(SAMPLE_PUZZLE, { autoClearMarks: initialAutoClearMarks })
+  const game = useGame(SAMPLE_PUZZLE, {
+    autoClearMarks: initialAutoClearMarks,
+    suspended: openMenu !== null,
+  })
 
   const newPuzzle = game.newPuzzle
   const setAutoClearMarks = game.setAutoClearMarks
@@ -38,7 +46,16 @@ function App() {
   const checkErrors = useMemo(() => createErrorChecker(game.state.puzzle), [game.state.puzzle])
   const errors = useMemo(() => checkErrors(game.state.values), [checkErrors, game.state.values])
 
-  const generate = useCallback(
+  /*
+   * The one commit point for a new game: the wizard collects both choices and
+   * hands them over together, so nothing regenerates while the player is still
+   * deciding.
+   *
+   * Nothing here records the requested size or difficulty — the puzzle in the
+   * reducer is the only record of what is being played, so a generation failure
+   * leaves the board and the wizard agreeing about the puzzle still on screen.
+   */
+  const handleStartGame = useCallback(
     (nextSize: number, nextDifficulty: Difficulty) => {
       setLoading(true)
       setError(null)
@@ -58,46 +75,21 @@ function App() {
     [newPuzzle],
   )
 
-  const handleSizeChange = useCallback(
-    (nextSize: number) => {
-      setSize(nextSize)
-      generate(nextSize, difficulty)
-    },
-    [difficulty, generate],
-  )
-
-  const handleDifficultyChange = useCallback(
-    (nextDifficulty: Difficulty) => {
-      setDifficulty(nextDifficulty)
-      generate(size, nextDifficulty)
-    },
-    [size, generate],
-  )
-
-  const handleNewPuzzle = useCallback(() => generate(size, difficulty), [generate, size, difficulty])
-
   return (
     <div className="kk-app">
       <header className="kk-app__header">
-        <h1>KenKen</h1>
+        <h1 className="kk-app__title">KenKen</h1>
+        <Controls
+          size={game.state.puzzle.size}
+          difficulty={game.state.puzzle.difficulty}
+          onStartGame={handleStartGame}
+          autoClearMarks={game.state.autoClearMarks}
+          onAutoClearMarksChange={handleAutoClearMarksChange}
+          openMenu={openMenu}
+          onOpenMenuChange={setOpenMenu}
+          disabled={loading}
+        />
       </header>
-
-      <Controls
-        size={size}
-        difficulty={difficulty}
-        onSizeChange={handleSizeChange}
-        onDifficultyChange={handleDifficultyChange}
-        onNewPuzzle={handleNewPuzzle}
-        onUndo={game.undo}
-        onRedo={game.redo}
-        canUndo={game.canUndo}
-        canRedo={game.canRedo}
-        onHint={game.pressHint}
-        hintPending={game.hintPending}
-        autoClearMarks={game.state.autoClearMarks}
-        onAutoClearMarksChange={handleAutoClearMarksChange}
-        disabled={loading}
-      />
 
       {error && (
         <p role="alert" className="kk-app__error">
@@ -105,36 +97,52 @@ function App() {
         </p>
       )}
 
-      {loading ? (
-        <p className="kk-app__loading" role="status">
-          Generating…
-        </p>
-      ) : (
-        <main className="kk-app__main">
-          <Board
-            puzzle={game.state.puzzle}
-            values={game.state.values}
-            marks={game.state.marks}
-            selected={game.state.selected}
-            errors={errors}
-            highlight={game.highlight}
-            onSelect={game.select}
-          />
-          <HintPanel
-            phase={game.state.hint}
-            onDismiss={game.dismissHint}
-            onReveal={game.revealCell}
-          />
-          <WinBanner visible={game.state.status === 'solved'} />
-          <Keypad
-            size={game.state.puzzle.size}
-            mode={game.state.mode}
-            onDigit={game.enterDigit}
-            onErase={game.erase}
-            onToggleMode={game.toggleMode}
-          />
-        </main>
-      )}
+      {/*
+        Generating never unmounts the game. Replacing it with one line of text
+        collapsed the page to a fraction of its height and bounced it back a
+        second later; the board it is about to replace is a better placeholder
+        than empty space, so it stays put and dims instead.
+      */}
+      <main className="kk-app__main" aria-busy={loading || undefined}>
+        <div className="kk-app__stage">
+          <div className={loading ? 'kk-app__view kk-app__view--busy' : 'kk-app__view'}>
+            <Board
+              puzzle={game.state.puzzle}
+              values={game.state.values}
+              marks={game.state.marks}
+              selected={game.state.selected}
+              errors={errors}
+              highlight={game.highlight}
+              onSelect={game.select}
+            />
+            <HintPanel
+              phase={game.state.hint}
+              onDismiss={game.dismissHint}
+              onReveal={game.revealCell}
+            />
+            <WinBanner visible={game.state.status === 'solved'} />
+            <Keypad
+              size={game.state.puzzle.size}
+              mode={game.state.mode}
+              onDigit={game.enterDigit}
+              onErase={game.erase}
+              onToggleMode={game.toggleMode}
+              onUndo={game.undo}
+              onRedo={game.redo}
+              canUndo={game.canUndo}
+              canRedo={game.canRedo}
+              onHint={game.pressHint}
+              hintPending={game.hintPending}
+            />
+          </div>
+
+          {loading && (
+            <p className="kk-app__loading" role="status">
+              Generating…
+            </p>
+          )}
+        </div>
+      </main>
     </div>
   )
 }

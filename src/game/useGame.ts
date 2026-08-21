@@ -16,6 +16,16 @@ function isTypingTarget(target: EventTarget | null): boolean {
 export interface UseGameOptions {
   /** Initial value of the auto-clear-pencil-marks preference. Defaults to true. */
   autoClearMarks?: boolean
+  /**
+   * Hand the keyboard back to the rest of the page.
+   *
+   * While true the window handler returns before it inspects the key — no
+   * dispatch and, just as importantly, no `preventDefault`, so a focused
+   * `<button>` inside an open popover still activates on Space. The owner sets
+   * this whenever something modal is on screen; unlike `autoClearMarks` it is
+   * read on every render, not just at mount.
+   */
+  suspended?: boolean
 }
 
 function directionForKey(key: string): Direction | null {
@@ -45,7 +55,10 @@ function directionForKey(key: string): Direction | null {
  * - H: hint. The first press explains a step, the second applies it.
  * - Escape: dismiss the hint currently on screen.
  *
- * Ignored while a text input, textarea, select, or contenteditable element is focused.
+ * Ignored while a text input, textarea, select, or contenteditable element is
+ * focused, and ignored entirely while `options.suspended` is set — that is how
+ * an open popover takes the keyboard, since its panel is all `<button>`s and
+ * tag-name sniffing would never notice it.
  *
  * `options.autoClearMarks` seeds the auto-clear preference and is read once, at
  * mount: the caller owns the persisted value and drives later changes through
@@ -53,6 +66,7 @@ function directionForKey(key: string): Direction | null {
  */
 export function useGame(initialPuzzle: Puzzle, options?: UseGameOptions) {
   const initialAutoClearMarks = options?.autoClearMarks ?? true
+  const suspended = options?.suspended ?? false
   const [state, dispatch] = useReducer(gameReducer, initialPuzzle, (puzzle: Puzzle) =>
     createInitialState(puzzle, initialAutoClearMarks),
   )
@@ -118,6 +132,9 @@ export function useGame(initialPuzzle: Puzzle, options?: UseGameOptions) {
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
+      // Before anything else, and before any preventDefault: while suspended the
+      // key belongs to whatever is on top of the board.
+      if (suspended) return
       if (isTypingTarget(event.target)) return
 
       const isMeta = event.ctrlKey || event.metaKey
@@ -177,7 +194,7 @@ export function useGame(initialPuzzle: Puzzle, options?: UseGameOptions) {
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [pressHint])
+  }, [pressHint, suspended])
 
   const canUndo = state.past.length > 0
   const canRedo = state.future.length > 0

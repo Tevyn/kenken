@@ -1,0 +1,130 @@
+.kk-newgame__trigger {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.kk-newgame__trigger:hover:not(:disabled):not([aria-disabled='true']) {
+  border-color: var(--accent);
+  filter: brightness(1.08);
+}
+
+.kk-newgame__trigger:active:not(:disabled):not([aria-disabled='true']) {
+  background: var(--accent);
+  filter: brightness(0.92);
+}
+
+.kk-newgame__step {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  /*
+   * Both steps are a heading row over two rows of options, but reserving the
+   * height anyway keeps the panel from resizing under the pointer if one of
+   * them ever grows.
+   */
+  min-height: 124px;
+  /* Let the size grid use the width the panel is allowed, not just 3 buttons'. */
+  min-width: min(17rem, calc(100vw - 56px));
+}
+
+.kk-newgame__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+/* The size committed in step one, restated because there is no way back. */
+.kk-newgame__chosen {
+  color: var(--text-h);
+}
+
+.kk-newgame__sep {
+  margin: 0 0.4em;
+  opacity: 0.6;
+}
+
+.kk-newgame__dots {
+  display: inline-flex;
+  flex: none;
+  gap: 5px;
+}
+
+.kk-newgame__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border);
+}
+
+.kk-newgame__dot--on {
+  background: var(--accent);
+}
+
+.kk-newgame__options {
+  display: grid;
+  /* 4 + 3 across two rows: no lone button with half a panel beside it. */
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.kk-newgame__options--difficulty {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.kk-newgame__option {
+  min-height: 44px;
+  padding: 8px 6px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 10px;
+  /* Options sit on the panel, so they take the panel's border colour, not the page's. */
+  border: 1px solid var(--border-popover);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.kk-newgame__option:hover {
+  border-color: var(--accent);
+}
+
+.kk-newgame__option:active {
+  background: var(--accent-soft);
+}
+
+/* The size currently being played, so the wizard opens oriented. */
+.kk-newgame__option[aria-current='true'] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--text-h);
+}
+
+/*
+ * Step two's marker has to say "this is what you are playing now", not "this
+ * is what you just picked" — so it is a quiet dot, not the filled pill that
+ * step one uses for the size you chose a moment ago.
+ */
+.kk-newgame__options--difficulty .kk-newgame__option[aria-current='true'] {
+  background: transparent;
+  border-color: var(--border-popover);
+  color: var(--text);
+}
+
+.kk-newgame__options--difficulty .kk-newgame__option[aria-current='true']::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: 0.08em;
+}
+
+.kk-newgame__options--difficulty .kk-newgame__option[aria-current='true']:hover {
+  border-color: var(--accent);
+}

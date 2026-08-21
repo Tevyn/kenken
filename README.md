@@ -49,7 +49,9 @@ Then open the printed URL.
 
 ## How to play
 
-Pick a grid size and difficulty, press **New puzzle**, then fill the grid.
+Press **New game** in the header, pick a grid size, then a difficulty — the
+puzzle is generated as soon as you choose one. Dismissing the menu (`Escape`,
+or a tap outside it) leaves the puzzle you are on alone.
 
 - Click or tap a cell to select it; arrow keys move the selection.
 - Type `1`–`9` (or use the on-screen keypad) to enter a digit.
@@ -57,9 +59,13 @@ Pick a grid size and difficulty, press **New puzzle**, then fill the grid.
 - `Space` toggles **pencil-mark mode**, where digits are recorded as small
   candidate notes instead of an answer.
 - `Ctrl`/`Cmd`+`Z` undoes, `Ctrl`/`Cmd`+`Shift`+`Z` (or `Ctrl`+`Y`) redoes.
+- The row above the keypad holds undo, redo, erase, pencil-mark mode, and the
+  hint button. `H` asks for a hint: the first press explains a step, the second
+  applies it, and `Escape` dismisses it.
 - **Auto-clear marks**, on by default, erases a cell's pencil marks from its
-  row and column peers as soon as a matching digit is entered. Toggle it in
-  the settings; your choice is remembered between sessions.
+  row and column peers as soon as a matching digit is entered. Switch it on or
+  off under the gear icon in the header; your choice is remembered between
+  sessions.
 
 The board is fully playable by touch — a 9×9 fits a 375px-wide phone screen.
 

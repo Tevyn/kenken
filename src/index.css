@@ -8,6 +8,18 @@
 
   --accent: #7c3aed;
   --accent-contrast: #ffffff;
+  /* Accent at low strength: "this is the current choice" without shouting. */
+  --accent-soft: #ede4fe;
+
+  /*
+   * Lifts a popover surface off the page it floats over. In light that is a
+   * cast shadow; the panel itself can sit flat on the page colour.
+   */
+  --shadow-popover: 0 12px 28px #1c1a2226, 0 2px 6px #1c1a221a;
+  --surface-popover: #ffffff;
+  --border-popover: #dcdae3;
+  /* Nothing to add on a white panel — the shadow already does the work. */
+  --popover-highlight: #ffffff00;
 
   --cell-bg: #ffffff;
   --cell-border: #c7c4d1;
@@ -59,6 +71,17 @@
 
     --accent: #a78bfa;
     --accent-contrast: #141319;
+    --accent-soft: #332a52;
+
+    /*
+     * A black shadow on a near-black page is invisible, so dark elevates with
+     * light instead: the panel surface steps up off `--bg`, its border comes
+     * with it, and a hairline highlight catches the top edge.
+     */
+    --shadow-popover: 0 16px 34px #00000073, 0 2px 6px #00000059;
+    --surface-popover: #2e2b3a;
+    --border-popover: #423e52;
+    --popover-highlight: #ffffff1f;
 
     --cell-bg: #1d1b24;
     --cell-border: #3d3a49;
