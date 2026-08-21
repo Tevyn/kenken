@@ -96,6 +96,33 @@ describe('useGame keyboard handling', () => {
   })
 })
 
+describe('useGame auto-clear preference', () => {
+  it('defaults to on and flips with setAutoClearMarks', () => {
+    const { result } = renderHook(() => useGame(SAMPLE_PUZZLE))
+    expect(result.current.state.autoClearMarks).toBe(true)
+
+    act(() => result.current.setAutoClearMarks(false))
+    expect(result.current.state.autoClearMarks).toBe(false)
+
+    act(() => result.current.setAutoClearMarks(true))
+    expect(result.current.state.autoClearMarks).toBe(true)
+  })
+
+  it('honours the initial value the caller supplies', () => {
+    const { result } = renderHook(() => useGame(SAMPLE_PUZZLE, { autoClearMarks: false }))
+    expect(result.current.state.autoClearMarks).toBe(false)
+
+    // With it off, entering a 3 next door leaves the pencilled 3 in place.
+    act(() => result.current.select(0))
+    act(() => result.current.setMode('mark'))
+    act(() => result.current.enterDigit(3))
+    act(() => result.current.setMode('value'))
+    act(() => result.current.select(1))
+    act(() => result.current.enterDigit(3))
+    expect(result.current.state.marks[0]).toEqual([3])
+  })
+})
+
 describe('useGame hints', () => {
   it('H explains a step, and a second H applies it', () => {
     const { result } = renderHook(() => useGame(SAMPLE_PUZZLE))

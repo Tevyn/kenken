@@ -45,6 +45,14 @@ export interface GameState {
   hint: HintPhase
   /** Ring buffer of the last `RECENT_HINT_LIMIT` applied hint signatures. */
   recentHints: string[]
+  /**
+   * Whether entering a value also strips that digit from the pencil marks of
+   * the cell's row and column peers. This is a preference rather than board
+   * state, so like `selected` and `mode` it deliberately stays out of
+   * `HistorySnapshot`: undoing a sweep brings the marks back while the setting
+   * itself remains on.
+   */
+  autoClearMarks: boolean
 }
 
 /** The portion of state that undo/redo travels through. Selection and mode are excluded. */
@@ -68,6 +76,7 @@ export type GameAction =
   | { type: 'ERASE' }
   | { type: 'SET_MODE'; mode: Mode }
   | { type: 'TOGGLE_MODE' }
+  | { type: 'SET_AUTO_CLEAR_MARKS'; enabled: boolean }
   | { type: 'UNDO' }
   | { type: 'REDO' }
   | { type: 'RESET' }
@@ -92,7 +101,7 @@ function emptyValues(size: number): Grid {
   return new Array<number | null>(size * size).fill(null)
 }
 
-export function createInitialState(puzzle: Puzzle): GameState {
+export function createInitialState(puzzle: Puzzle, autoClearMarks = true): GameState {
   return {
     puzzle,
     values: emptyValues(puzzle.size),
@@ -104,6 +113,7 @@ export function createInitialState(puzzle: Puzzle): GameState {
     future: [],
     hint: IDLE_HINT,
     recentHints: [],
+    autoClearMarks,
   }
 }
 
@@ -144,6 +154,24 @@ function peersOf(cell: CellIndex, size: number): CellIndex[] {
   for (let c = 0; c < size; c++) if (c !== col) peers.push(row * size + c)
   for (let r = 0; r < size; r++) if (r !== row) peers.push(r * size + col)
   return peers
+}
+
+/**
+ * Drop `value` from the pencil marks of `cell`'s row and column peers, and
+ * report whether anything was actually there to drop. Cages are left alone on
+ * purpose: a digit may legally repeat inside a cage, so only the line
+ * constraints justify erasing a player's mark. `marks` must already be a copy;
+ * the entries themselves are replaced rather than mutated.
+ */
+function clearPeerMarks(marks: Marks, cell: CellIndex, value: number, size: number): boolean {
+  let cleared = false
+  for (const peer of peersOf(cell, size)) {
+    if (marks[peer].includes(value)) {
+      marks[peer] = marks[peer].filter((d) => d !== value)
+      cleared = true
+    }
+  }
+  return cleared
 }
 
 /**
@@ -216,6 +244,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         values[selected] = value
         const marks = state.marks.slice()
         marks[selected] = []
+        // Same `pushHistory` step as the value itself, so one undo takes back
+        // the entry and the peer cleanup together.
+        if (state.autoClearMarks) clearPeerMarks(marks, selected, value, state.puzzle.size)
         const status: Status = isGridSolved(state.puzzle, values) ? 'solved' : 'playing'
         return { ...state, ...history, values, marks, status, hint: IDLE_HINT }
       }
@@ -245,6 +276,28 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'TOGGLE_MODE':
       return { ...state, mode: state.mode === 'value' ? 'mark' : 'value' }
+
+    /*
+     * Switching the preference on catches the board up with what it would have
+     * looked like had it been on all along, in one undoable step. Switching it
+     * off only stops future cleanups — marks already cleared stay cleared,
+     * since the player can always undo or write them back by hand.
+     */
+    case 'SET_AUTO_CLEAR_MARKS': {
+      if (action.enabled === state.autoClearMarks) return state
+      if (!action.enabled) return { ...state, autoClearMarks: false }
+
+      const marks = state.marks.slice()
+      let cleared = false
+      for (let cell = 0; cell < state.values.length; cell++) {
+        const value = state.values[cell]
+        if (value == null) continue
+        if (clearPeerMarks(marks, cell, value, state.puzzle.size)) cleared = true
+      }
+      // A sweep with nothing to clean must not leave a dead undo entry behind.
+      if (!cleared) return { ...state, autoClearMarks: true }
+      return { ...state, ...pushHistory(state), marks, autoClearMarks: true, hint: IDLE_HINT }
+    }
 
     case 'UNDO': {
       if (state.past.length === 0) return state
@@ -282,7 +335,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'NEW_PUZZLE':
-      return createInitialState(action.puzzle)
+      return createInitialState(action.puzzle, state.autoClearMarks)
 
     case 'REQUEST_HINT': {
       const { result } = action
@@ -315,11 +368,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           values[cell] = value
           marks[cell] = []
         }
-        for (const { cell, value } of apply.cells) {
-          for (const peer of peersOf(cell, size)) {
-            if (marks[peer].includes(value)) marks[peer] = marks[peer].filter((d) => d !== value)
-          }
-        }
+        // Never gated on `autoClearMarks`: a hint teaches the bookkeeping that
+        // goes with a placement whether or not the player has it automated.
+        for (const { cell, value } of apply.cells) clearPeerMarks(marks, cell, value, size)
         const status: Status = isGridSolved(state.puzzle, values) ? 'solved' : 'playing'
         return { ...state, ...history, values, marks, status, recentHints, hint: IDLE_HINT }
       }

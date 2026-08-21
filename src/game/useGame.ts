@@ -13,6 +13,11 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return EDITABLE_TAGS.has(target.tagName)
 }
 
+export interface UseGameOptions {
+  /** Initial value of the auto-clear-pencil-marks preference. Defaults to true. */
+  autoClearMarks?: boolean
+}
+
 function directionForKey(key: string): Direction | null {
   switch (key) {
     case 'ArrowUp':
@@ -41,9 +46,16 @@ function directionForKey(key: string): Direction | null {
  * - Escape: dismiss the hint currently on screen.
  *
  * Ignored while a text input, textarea, select, or contenteditable element is focused.
+ *
+ * `options.autoClearMarks` seeds the auto-clear preference and is read once, at
+ * mount: the caller owns the persisted value and drives later changes through
+ * `setAutoClearMarks`.
  */
-export function useGame(initialPuzzle: Puzzle) {
-  const [state, dispatch] = useReducer(gameReducer, initialPuzzle, createInitialState)
+export function useGame(initialPuzzle: Puzzle, options?: UseGameOptions) {
+  const initialAutoClearMarks = options?.autoClearMarks ?? true
+  const [state, dispatch] = useReducer(gameReducer, initialPuzzle, (puzzle: Puzzle) =>
+    createInitialState(puzzle, initialAutoClearMarks),
+  )
 
   // `pressHint` has to read the live grid but must stay identity-stable for the
   // keyboard listener, so it reads state through a ref rather than closing over it.
@@ -58,6 +70,10 @@ export function useGame(initialPuzzle: Puzzle) {
   const erase = useCallback(() => dispatch({ type: 'ERASE' }), [])
   const setMode = useCallback((mode: Mode) => dispatch({ type: 'SET_MODE', mode }), [])
   const toggleMode = useCallback(() => dispatch({ type: 'TOGGLE_MODE' }), [])
+  const setAutoClearMarks = useCallback(
+    (enabled: boolean) => dispatch({ type: 'SET_AUTO_CLEAR_MARKS', enabled }),
+    [],
+  )
   const undo = useCallback(() => dispatch({ type: 'UNDO' }), [])
   const redo = useCallback(() => dispatch({ type: 'REDO' }), [])
   const reset = useCallback(() => dispatch({ type: 'RESET' }), [])
@@ -179,6 +195,7 @@ export function useGame(initialPuzzle: Puzzle) {
       erase,
       setMode,
       toggleMode,
+      setAutoClearMarks,
       undo,
       redo,
       reset,
@@ -199,6 +216,7 @@ export function useGame(initialPuzzle: Puzzle) {
       erase,
       setMode,
       toggleMode,
+      setAutoClearMarks,
       undo,
       redo,
       reset,

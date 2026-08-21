@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import type { Difficulty, Puzzle } from './engine/types'
 import { createErrorChecker, generatePuzzle } from './engine'
 import { SAMPLE_PUZZLE } from './fixtures/samplePuzzle'
+import { loadAutoClearMarks, saveAutoClearMarks } from './game/preferences'
 import { useGame } from './game/useGame'
 import { Board } from './ui/Board'
 import { Controls } from './ui/Controls'
@@ -16,9 +17,20 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const game = useGame(SAMPLE_PUZZLE)
+  // Lazy initialiser so storage is read once, at mount, rather than on every render.
+  const [initialAutoClearMarks] = useState(loadAutoClearMarks)
+  const game = useGame(SAMPLE_PUZZLE, { autoClearMarks: initialAutoClearMarks })
 
   const newPuzzle = game.newPuzzle
+  const setAutoClearMarks = game.setAutoClearMarks
+
+  const handleAutoClearMarksChange = useCallback(
+    (enabled: boolean) => {
+      setAutoClearMarks(enabled)
+      saveAutoClearMarks(enabled)
+    },
+    [setAutoClearMarks],
+  )
 
   // Live error checking. The cage-combination tables are enumerated once per
   // puzzle and reused for every keystroke; the errors themselves are derived
@@ -82,6 +94,8 @@ function App() {
         canRedo={game.canRedo}
         onHint={game.pressHint}
         hintPending={game.hintPending}
+        autoClearMarks={game.state.autoClearMarks}
+        onAutoClearMarksChange={handleAutoClearMarksChange}
         disabled={loading}
       />
 

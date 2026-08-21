@@ -15,6 +15,8 @@ function baseProps() {
     onHint: vi.fn(),
     canUndo: true,
     canRedo: false,
+    autoClearMarks: true,
+    onAutoClearMarksChange: vi.fn(),
   }
 }
 
@@ -77,5 +79,32 @@ describe('Controls', () => {
     expect(props.onSizeChange).toHaveBeenCalledWith(6)
     await user.selectOptions(screen.getByLabelText('Difficulty'), 'hard')
     expect(props.onDifficultyChange).toHaveBeenCalledWith('hard')
+  })
+
+  it('auto-clear-marks checkbox reflects the prop when off', () => {
+    render(<Controls {...baseProps()} autoClearMarks={false} />)
+    expect(screen.getByLabelText('Auto-clear marks')).not.toBeChecked()
+  })
+
+  it('auto-clear-marks checkbox reflects the prop when on', () => {
+    render(<Controls {...baseProps()} autoClearMarks />)
+    expect(screen.getByLabelText('Auto-clear marks')).toBeChecked()
+  })
+
+  it('clicking the auto-clear-marks checkbox or its label calls onAutoClearMarksChange with the negated value', async () => {
+    const user = userEvent.setup()
+    const props = baseProps()
+    render(<Controls {...props} autoClearMarks />)
+
+    await user.click(screen.getByLabelText('Auto-clear marks'))
+    expect(props.onAutoClearMarksChange).toHaveBeenNthCalledWith(1, false)
+
+    await user.click(screen.getByText('Auto-clear marks'))
+    expect(props.onAutoClearMarksChange).toHaveBeenNthCalledWith(2, false)
+  })
+
+  it('auto-clear-marks checkbox is not disabled while a puzzle is generating', () => {
+    render(<Controls {...baseProps()} disabled />)
+    expect(screen.getByLabelText('Auto-clear marks')).toBeEnabled()
   })
 })

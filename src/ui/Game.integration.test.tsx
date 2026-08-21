@@ -44,6 +44,14 @@ function TestGame() {
       <button type="button" onClick={game.pressHint}>
         {game.hintPending ? 'Apply' : 'Hint'}
       </button>
+      <label>
+        <input
+          type="checkbox"
+          checked={game.state.autoClearMarks}
+          onChange={(event) => game.setAutoClearMarks(event.target.checked)}
+        />
+        Auto-clear marks
+      </label>
     </div>
   )
 }
@@ -51,6 +59,13 @@ function TestGame() {
 /** Cell 0 always shows its cage label ("1-"), so assert on the value span, not raw text. */
 function valueOf(cell: HTMLElement): string | null {
   return cell.querySelector('.kk-cell__value')?.textContent ?? null
+}
+
+/** The pencil-mark digits currently displayed in a cell, in ascending order. */
+function marksOf(cell: HTMLElement): string[] {
+  return Array.from(cell.querySelectorAll('.kk-cell__mark'))
+    .map((mark) => mark.textContent ?? '')
+    .filter((text) => text !== '')
 }
 
 describe('Board + Keypad + useGame integration', () => {
@@ -263,5 +278,49 @@ describe('Board + Keypad + useGame integration', () => {
     }
 
     expect(screen.getByRole('status')).toHaveTextContent(/solved/i)
+  })
+
+  it('entering a value clears the matching pencil mark from row/column peers, leaving unrelated marks', async () => {
+    const user = userEvent.setup()
+    render(<TestGame />)
+    const cells = screen.getAllByRole('gridcell')
+
+    // Cells 1 and 2 both share row 0 with cell 0.
+    await user.click(screen.getByRole('button', { name: 'Marks: Off' }))
+    await user.click(cells[1])
+    await user.keyboard('3')
+    await user.click(cells[2])
+    await user.keyboard('4')
+    expect(marksOf(cells[1])).toEqual(['3'])
+    expect(marksOf(cells[2])).toEqual(['4'])
+
+    await user.click(screen.getByRole('button', { name: 'Marks: On' }))
+    await user.click(cells[0])
+    await user.keyboard('3')
+
+    // The 3 pencilled into cell 1 is now impossible in this row and disappears...
+    expect(marksOf(cells[1])).toEqual([])
+    // ...but cell 2's unrelated 4 is untouched.
+    expect(marksOf(cells[2])).toEqual(['4'])
+  })
+
+  it('unchecking auto-clear marks leaves peer pencil marks in place after entering a value', async () => {
+    const user = userEvent.setup()
+    render(<TestGame />)
+    const cells = screen.getAllByRole('gridcell')
+
+    await user.click(screen.getByLabelText('Auto-clear marks'))
+    expect(screen.getByLabelText('Auto-clear marks')).not.toBeChecked()
+
+    await user.click(screen.getByRole('button', { name: 'Marks: Off' }))
+    await user.click(cells[1])
+    await user.keyboard('3')
+    expect(marksOf(cells[1])).toEqual(['3'])
+
+    await user.click(screen.getByRole('button', { name: 'Marks: On' }))
+    await user.click(cells[0])
+    await user.keyboard('3')
+
+    expect(marksOf(cells[1])).toEqual(['3'])
   })
 })

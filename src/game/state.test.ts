@@ -10,6 +10,21 @@ function fresh(): GameState {
 
 const SOLUTION = SAMPLE_PUZZLE.solution
 
+/** Drop pencil marks straight into a state, rather than toggling 20 keys. */
+function withMarks(state: GameState, at: Record<number, number[]>): GameState {
+  return { ...state, marks: state.marks.map((m, i) => at[i] ?? m) }
+}
+
+/** Select a cell and type into it, the way the keyboard handler would. */
+function enter(state: GameState, index: number, value: number): GameState {
+  return gameReducer(gameReducer(state, { type: 'SELECT', index }), { type: 'DIGIT', value })
+}
+
+/** Turn auto-clearing off, so marks can be left deliberately stale. */
+function turnOff(state: GameState): GameState {
+  return gameReducer(state, { type: 'SET_AUTO_CLEAR_MARKS', enabled: false })
+}
+
 describe('createInitialState', () => {
   it('starts empty, unselected, in value mode, playing', () => {
     const state = fresh()
@@ -20,6 +35,12 @@ describe('createInitialState', () => {
     expect(state.status).toBe('playing')
     expect(state.past).toEqual([])
     expect(state.future).toEqual([])
+  })
+
+  it('auto-clears marks by default, and honours an explicit preference', () => {
+    expect(fresh().autoClearMarks).toBe(true)
+    expect(createInitialState(SAMPLE_PUZZLE, false).autoClearMarks).toBe(false)
+    expect(createInitialState(SAMPLE_PUZZLE, true).autoClearMarks).toBe(true)
   })
 })
 
@@ -145,6 +166,108 @@ describe('DIGIT (mark mode)', () => {
     state = gameReducer(state, { type: 'SET_MODE', mode: 'mark' })
     state = gameReducer(state, { type: 'DIGIT', value: 2 })
     expect(state.marks[0]).toEqual([])
+  })
+})
+
+describe('auto-clearing pencil marks', () => {
+  // Cell 5 is row 1, column 1, so its peers are cells 4, 6, 7 and 1, 9, 13.
+  // Cell 10 is in neither that row nor that column: it is the control.
+  function withPeerMarks(state: GameState): GameState {
+    return withMarks(state, { 4: [1, 2], 6: [2, 3], 13: [1, 3, 4], 10: [3] })
+  }
+
+  function turn(state: GameState, enabled: boolean): GameState {
+    return gameReducer(state, { type: 'SET_AUTO_CLEAR_MARKS', enabled })
+  }
+
+  it('strips the entered digit from row and column peers only', () => {
+    const state = enter(withPeerMarks(fresh()), 5, 3)
+    expect(state.marks[6]).toEqual([2]) // row peer, its other digits survive
+    expect(state.marks[13]).toEqual([1, 4]) // column peer, likewise
+    expect(state.marks[4]).toEqual([1, 2]) // row peer that never held a 3
+    expect(state.marks[10]).toEqual([3]) // unrelated cell: untouched
+  })
+
+  it('undoes the entry and every mark it stripped in a single step', () => {
+    const start = withPeerMarks(fresh())
+    const after = enter(start, 5, 3)
+    expect(after.past).toHaveLength(1)
+
+    const undone = gameReducer(after, { type: 'UNDO' })
+    expect(undone.values).toEqual(start.values)
+    expect(undone.marks).toEqual(start.marks)
+    expect(undone.past).toHaveLength(0)
+  })
+
+  it('leaves peer marks alone while the setting is off', () => {
+    const state = enter(turn(withPeerMarks(fresh()), false), 5, 3)
+    expect(state.values[5]).toBe(3)
+    expect(state.marks[6]).toEqual([2, 3])
+    expect(state.marks[13]).toEqual([1, 3, 4])
+  })
+
+  it('never sweeps on a pencil mark, only on a value', () => {
+    let state = gameReducer(withPeerMarks(fresh()), { type: 'SET_MODE', mode: 'mark' })
+    state = enter(state, 5, 3)
+    expect(state.marks[5]).toEqual([3])
+    expect(state.marks[6]).toEqual([2, 3])
+    expect(state.marks[13]).toEqual([1, 3, 4])
+  })
+
+  it('sweeps the whole board when switched on, and the sweep is undoable', () => {
+    // Build a board with stale marks by filling cells with the setting off.
+    let stale = enter(turn(fresh(), false), 5, 3)
+    stale = enter(stale, 15, 1) // row 3 and column 3 peers: 12, 13, 14 and 3, 7, 11
+    stale = withPeerMarks(withMarks(stale, { 3: [1, 4], 12: [1, 2] }))
+
+    const swept = turn(stale, true)
+    expect(swept.autoClearMarks).toBe(true)
+    expect(swept.marks[6]).toEqual([2]) // cleaned by the 3 at cell 5
+    expect(swept.marks[13]).toEqual([4]) // cleaned by both entries
+    expect(swept.marks[12]).toEqual([2]) // cleaned by the 1 at cell 15
+    expect(swept.marks[3]).toEqual([4])
+    expect(swept.marks[10]).toEqual([3]) // contradicts nothing on the board
+    expect(swept.past).toHaveLength(stale.past.length + 1)
+
+    const undone = gameReducer(swept, { type: 'UNDO' })
+    expect(undone.marks).toEqual(stale.marks)
+    // The preference is not board state, so undoing the sweep leaves it on.
+    expect(undone.autoClearMarks).toBe(true)
+  })
+
+  it('adds no undo entry when the sweep has nothing to clean', () => {
+    const off = turn(withPeerMarks(fresh()), false)
+    const on = turn(off, true)
+    expect(on.autoClearMarks).toBe(true)
+    expect(on.marks).toEqual(off.marks)
+    expect(on.past).toHaveLength(off.past.length)
+  })
+
+  it('switching it off restores nothing and takes no history slot', () => {
+    const after = enter(withPeerMarks(fresh()), 5, 3)
+    const off = turn(after, false)
+    expect(off.autoClearMarks).toBe(false)
+    expect(off.marks[6]).toEqual([2])
+    expect(off.past).toHaveLength(after.past.length)
+  })
+
+  it('setting it to the value it already holds is a no-op', () => {
+    const on = fresh()
+    expect(turn(on, true)).toBe(on)
+    const off = turn(on, false)
+    expect(turn(off, false)).toBe(off)
+  })
+
+  it('RESET and NEW_PUZZLE preserve the setting', () => {
+    const off = turn(fresh(), false)
+    expect(gameReducer(off, { type: 'RESET' }).autoClearMarks).toBe(false)
+    expect(gameReducer(off, { type: 'NEW_PUZZLE', puzzle: SAMPLE_PUZZLE }).autoClearMarks).toBe(
+      false,
+    )
+
+    const on = fresh()
+    expect(gameReducer(on, { type: 'RESET' }).autoClearMarks).toBe(true)
+    expect(gameReducer(on, { type: 'NEW_PUZZLE', puzzle: SAMPLE_PUZZLE }).autoClearMarks).toBe(true)
   })
 })
 
@@ -349,11 +472,6 @@ function fakeHint(overrides: Partial<Hint> = {}): Hint {
   }
 }
 
-/** Drop pencil marks straight into a state, rather than toggling 20 keys. */
-function withMarks(state: GameState, at: Record<number, number[]>): GameState {
-  return { ...state, marks: state.marks.map((m, i) => at[i] ?? m) }
-}
-
 function shown(state: GameState, hint: Hint): GameState {
   return gameReducer(state, { type: 'REQUEST_HINT', result: { kind: 'hint', hint } })
 }
@@ -397,6 +515,24 @@ describe('REQUEST_HINT / DISMISS_HINT', () => {
     expect(gameReducer(state, { type: 'DISMISS_HINT' }).hint).toEqual({ kind: 'idle' })
     const idle = fresh()
     expect(gameReducer(idle, { type: 'DISMISS_HINT' })).toBe(idle)
+  })
+
+  // A shown hint is dismissed by whatever changes the board under it, and only
+  // by that — so an auto-clear sweep dismisses one exactly when it has marks to
+  // clear, and a sweep that finds nothing leaves the explanation on screen.
+  it('a sweep dismisses a shown hint only when it actually changes the board', () => {
+    const stale = enter(withMarks(turnOff(fresh()), { 6: [1, 2] }), 5, 1)
+    const swept = gameReducer(shown(stale, fakeHint()), {
+      type: 'SET_AUTO_CLEAR_MARKS',
+      enabled: true,
+    })
+    expect(swept.marks[6]).toEqual([2])
+    expect(swept.hint).toEqual({ kind: 'idle' })
+
+    const hint = fakeHint()
+    const clean = shown(turnOff(fresh()), hint)
+    const noop = gameReducer(clean, { type: 'SET_AUTO_CLEAR_MARKS', enabled: true })
+    expect(noop.hint).toEqual({ kind: 'shown', hint })
   })
 })
 

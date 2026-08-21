@@ -57,6 +57,9 @@ Pick a grid size and difficulty, press **New puzzle**, then fill the grid.
 - `Space` toggles **pencil-mark mode**, where digits are recorded as small
   candidate notes instead of an answer.
 - `Ctrl`/`Cmd`+`Z` undoes, `Ctrl`/`Cmd`+`Shift`+`Z` (or `Ctrl`+`Y`) redoes.
+- **Auto-clear marks**, on by default, erases a cell's pencil marks from its
+  row and column peers as soon as a matching digit is entered. Toggle it in
+  the settings; your choice is remembered between sessions.
 
 The board is fully playable by touch — a 9×9 fits a 375px-wide phone screen.
 

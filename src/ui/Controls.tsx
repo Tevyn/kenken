@@ -17,6 +17,9 @@ export interface ControlsProps {
   onHint: () => void
   /** True once a hint is explained and the next press will apply it. */
   hintPending?: boolean
+  /** Whether entering a value also strips it from the row/column peers' pencil marks. */
+  autoClearMarks: boolean
+  onAutoClearMarksChange: (enabled: boolean) => void
   /** True while a puzzle is generating; disables the controls that would trigger another. */
   disabled?: boolean
 }
@@ -36,6 +39,8 @@ export function Controls({
   canRedo,
   onHint,
   hintPending = false,
+  autoClearMarks,
+  onAutoClearMarksChange,
   disabled = false,
 }: ControlsProps) {
   function handleSizeChange(event: ChangeEvent<HTMLSelectElement>) {
@@ -44,6 +49,10 @@ export function Controls({
 
   function handleDifficultyChange(event: ChangeEvent<HTMLSelectElement>) {
     onDifficultyChange(event.target.value as Difficulty)
+  }
+
+  function handleAutoClearMarksChange(event: ChangeEvent<HTMLInputElement>) {
+    onAutoClearMarksChange(event.target.checked)
   }
 
   return (
@@ -73,6 +82,17 @@ export function Controls({
             </option>
           ))}
         </select>
+      </div>
+
+      <div className="kk-controls__field kk-controls__field--checkbox">
+        <input
+          type="checkbox"
+          id="kk-auto-clear-marks"
+          checked={autoClearMarks}
+          onChange={handleAutoClearMarksChange}
+          title="Erase pencil marks that a newly entered digit rules out in that row and column"
+        />
+        <label htmlFor="kk-auto-clear-marks">Auto-clear marks</label>
       </div>
 
       <div className="kk-controls__buttons">
