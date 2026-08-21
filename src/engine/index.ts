@@ -9,14 +9,46 @@
  *   difficulty.ts  per-tier generation parameters and puzzle scoring
  *   generator.ts   the generate -> verify -> repair pipeline
  *   codec.ts       compact serialization
+ *   errors.ts      live, solution-free error detection for a player's grid
+ *   candidates.ts  reporting-oriented candidate bookkeeping for the hint engine
+ *   unitSums.ts    the N(N+1)/2 innie/outie deductions
+ *   hints.ts       the hint ladder: find, explain, highlight, apply
  */
 
 import type { CellIndex, Grid, Puzzle } from './types';
 import { cageSatisfied } from './cages';
 import { solve } from './solver';
+import { findGridErrors } from './errors';
 
 export { generatePuzzle } from './generator';
 export { encodePuzzle, decodePuzzle } from './codec';
+export { createErrorChecker, findGridErrors, DEFAULT_ERROR_COMBO_CAP } from './errors';
+export type { ErrorChecker, ErrorCheckOptions, GridErrors } from './errors';
+export {
+  ENABLED_TECHNIQUES,
+  TECHNIQUE_RANK,
+  candidateSets,
+  detectContext,
+  detectorFor,
+  findHint,
+  hintSignature,
+  pickHint,
+  revealHint,
+  visibleSets,
+} from './hints';
+export type {
+  DetectContext,
+  Detector,
+  Hint,
+  HintApply,
+  HintHighlight,
+  HintOptions,
+  HintResult,
+  MarkSets,
+  TechniqueId,
+} from './hints';
+export { unitTotal } from './unitSums';
+export type { UnitSumInnie, UnitSumOutie } from './unitSums';
 
 /**
  * Find solutions to a puzzle's cage constraints (ignores `puzzle.solution`).
@@ -64,57 +96,13 @@ export function isSolved(puzzle: Puzzle, grid: Grid): boolean {
  * Cells that currently violate a constraint: a duplicate digit in their row or
  * column, or membership in a fully-filled cage whose arithmetic is wrong.
  * Empty cells are never reported.
+ *
+ * This is the "immediately obvious" subset of `findGridErrors` — it deliberately
+ * says nothing about partially-filled cages, however doomed they may be. Use
+ * `createErrorChecker` for the full live check.
  */
 export function findConflicts(puzzle: Puzzle, grid: Grid): Set<CellIndex> {
-  const size = puzzle.size;
-  const conflicts = new Set<CellIndex>();
-  if (grid.length !== size * size) return conflicts;
-
-  // Duplicate digits within a row or a column.
-  for (let line = 0; line < size; line++) {
-    const rowCells: number[] = [];
-    const colCells: number[] = [];
-    for (let k = 0; k < size; k++) {
-      rowCells.push(line * size + k);
-      colCells.push(k * size + line);
-    }
-    markDuplicates(rowCells, grid, conflicts);
-    markDuplicates(colCells, grid, conflicts);
-  }
-
-  // Fully-filled cages whose arithmetic does not work out.
-  for (const cage of puzzle.cages) {
-    const values: number[] = [];
-    let complete = true;
-    for (const cell of cage.cells) {
-      const v = grid[cell];
-      if (v === null || v === undefined) {
-        complete = false;
-        break;
-      }
-      values.push(v);
-    }
-    if (!complete) continue;
-    if (!cageSatisfied(cage, values)) {
-      for (const cell of cage.cells) conflicts.add(cell);
-    }
-  }
-
-  return conflicts;
-}
-
-function markDuplicates(cells: readonly number[], grid: Grid, out: Set<CellIndex>): void {
-  const byValue = new Map<number, number[]>();
-  for (const cell of cells) {
-    const value = grid[cell];
-    if (value === null || value === undefined) continue;
-    const list = byValue.get(value);
-    if (list) list.push(cell);
-    else byValue.set(value, [cell]);
-  }
-  for (const list of byValue.values()) {
-    if (list.length > 1) for (const cell of list) out.add(cell);
-  }
+  return findGridErrors(puzzle, grid, { partialCages: false }).cells;
 }
 
 export * from './types';

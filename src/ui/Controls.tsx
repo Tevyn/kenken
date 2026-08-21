@@ -13,6 +13,10 @@ export interface ControlsProps {
   onRedo: () => void
   canUndo: boolean
   canRedo: boolean
+  /** One press of the hint button: explain a step, or apply the one on screen. */
+  onHint: () => void
+  /** True once a hint is explained and the next press will apply it. */
+  hintPending?: boolean
   /** True while a puzzle is generating; disables the controls that would trigger another. */
   disabled?: boolean
 }
@@ -30,6 +34,8 @@ export function Controls({
   onRedo,
   canUndo,
   canRedo,
+  onHint,
+  hintPending = false,
   disabled = false,
 }: ControlsProps) {
   function handleSizeChange(event: ChangeEvent<HTMLSelectElement>) {
@@ -78,6 +84,19 @@ export function Controls({
         </button>
         <button type="button" onClick={onRedo} disabled={disabled || !canRedo} aria-label="Redo">
           Redo
+        </button>
+        {/*
+          The label is the state: "Hint" explains a step, "Apply" writes the one
+          already explained. Same button, same shortcut, two presses.
+        */}
+        <button
+          type="button"
+          onClick={onHint}
+          disabled={disabled}
+          aria-keyshortcuts="H"
+          className="kk-controls__hint"
+        >
+          {hintPending ? 'Apply' : 'Hint'}
         </button>
       </div>
     </div>

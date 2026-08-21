@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import type { Hint } from '../engine/hints'
 import { SAMPLE_PUZZLE } from '../fixtures/samplePuzzle'
 import type { GameState } from './state'
-import { createInitialState, gameReducer, isGridSolved } from './state'
+import { createInitialState, gameReducer, hintHighlight, isGridSolved } from './state'
 
 function fresh(): GameState {
   return createInitialState(SAMPLE_PUZZLE)
@@ -315,5 +316,338 @@ describe('isGridSolved', () => {
     state = gameReducer(state, { type: 'SELECT', index: 15 })
     state = gameReducer(state, { type: 'DIGIT', value: SOLUTION[15] })
     expect(state.status).toBe('solved')
+  })
+})
+
+/* ------------------------------------------------------------------ */
+/* Hints                                                                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The real rank-10 hint `findHint` returns for this fixture's empty grid —
+ * cage 6 is the single cell 14 with target 2. Hand-built here so the reducer
+ * tests stay a pure function of their inputs, with no engine call.
+ */
+function fakeHint(overrides: Partial<Hint> = {}): Hint {
+  return {
+    technique: 'freebie-cage',
+    rank: 10,
+    text: 'The cage marked 2 has only one cell, so it has to be 2.',
+    secondary: 'Given cell',
+    highlight: {
+      focus: [14],
+      support: [],
+      rows: [],
+      cols: [],
+      cages: [6],
+      dimRest: true,
+      strike: [],
+    },
+    apply: { kind: 'place', cells: [{ cell: 14, value: 2 }] },
+    signature: 'freebie-cage|14|2',
+    ...overrides,
+  }
+}
+
+/** Drop pencil marks straight into a state, rather than toggling 20 keys. */
+function withMarks(state: GameState, at: Record<number, number[]>): GameState {
+  return { ...state, marks: state.marks.map((m, i) => at[i] ?? m) }
+}
+
+function shown(state: GameState, hint: Hint): GameState {
+  return gameReducer(state, { type: 'REQUEST_HINT', result: { kind: 'hint', hint } })
+}
+
+function applied(state: GameState, hint: Hint, visible: number[][] = []): GameState {
+  return gameReducer(state, {
+    type: 'APPLY_HINT',
+    apply: hint.apply,
+    visible,
+    signature: hint.signature,
+  })
+}
+
+describe('REQUEST_HINT / DISMISS_HINT', () => {
+  it('starts idle with no remembered signatures', () => {
+    expect(fresh().hint).toEqual({ kind: 'idle' })
+    expect(fresh().recentHints).toEqual([])
+  })
+
+  it('shows a hint without touching the grid', () => {
+    const hint = fakeHint()
+    const state = shown(fresh(), hint)
+    expect(state.hint).toEqual({ kind: 'shown', hint })
+    expect(state.values).toEqual(new Array(16).fill(null))
+    expect(state.past).toEqual([])
+  })
+
+  it('stores the mistake / stuck / solved arms as a message', () => {
+    const result = {
+      kind: 'mistake' as const,
+      cells: [3],
+      text: 'Something on the board can’t be right.',
+      secondary: 'Check this cell',
+    }
+    const state = gameReducer(fresh(), { type: 'REQUEST_HINT', result })
+    expect(state.hint).toEqual({ kind: 'message', message: result })
+  })
+
+  it('DISMISS_HINT returns to idle, and is a no-op when already idle', () => {
+    const state = shown(fresh(), fakeHint())
+    expect(gameReducer(state, { type: 'DISMISS_HINT' }).hint).toEqual({ kind: 'idle' })
+    const idle = fresh()
+    expect(gameReducer(idle, { type: 'DISMISS_HINT' })).toBe(idle)
+  })
+})
+
+describe('APPLY_HINT (place)', () => {
+  it('writes the value, clears that cell’s marks, and tidies peer marks', () => {
+    // Cell 14 is row 4, column 3: its peers are the rest of row 4 and column 3.
+    const start = withMarks(fresh(), { 14: [1, 2], 12: [1, 2, 3], 6: [2, 4], 5: [2] })
+    const state = applied(shown(start, fakeHint()), fakeHint())
+
+    expect(state.values[14]).toBe(2)
+    expect(state.marks[14]).toEqual([])
+    expect(state.marks[12]).toEqual([1, 3]) // row peer
+    expect(state.marks[6]).toEqual([4]) // column peer
+    expect(state.marks[5]).toEqual([2]) // neither: untouched
+    expect(state.hint).toEqual({ kind: 'idle' })
+  })
+
+  it('places every cell of a multi-cell hint and recomputes status', () => {
+    const hint = fakeHint({
+      technique: 'single-cage-combination',
+      apply: {
+        kind: 'place',
+        cells: [
+          { cell: 0, value: 1 },
+          { cell: 1, value: 2 },
+          { cell: 5, value: 1 },
+        ],
+      },
+      signature: 'single-cage-combination|0,1,5|1,2',
+    })
+    const state = applied(fresh(), hint)
+    expect(state.values.slice(0, 6)).toEqual([1, 2, null, null, null, 1])
+    expect(state.status).toBe('playing')
+  })
+
+  it('flips status to solved when the hint fills the final cell', () => {
+    let state = fresh()
+    for (let i = 0; i < 15; i++) {
+      state = gameReducer(state, { type: 'SELECT', index: i })
+      state = gameReducer(state, { type: 'DIGIT', value: SOLUTION[i] })
+    }
+    const hint = fakeHint({
+      apply: { kind: 'place', cells: [{ cell: 15, value: SOLUTION[15] }] },
+      signature: 'freebie|15|1',
+    })
+    expect(applied(state, hint).status).toBe('solved')
+  })
+})
+
+describe('APPLY_HINT (eliminate)', () => {
+  it('removes the digits from marks the player already wrote', () => {
+    const start = withMarks(fresh(), { 0: [1, 2, 3, 4] })
+    const hint = fakeHint({
+      technique: 'cage-locks-line',
+      apply: { kind: 'eliminate', cells: [{ cell: 0, digits: [3, 4] }] },
+      signature: 'cage-locks-line|0|3,4',
+    })
+    const state = applied(start, hint)
+    expect(state.marks[0]).toEqual([1, 2])
+    expect(state.values[0]).toBeNull()
+  })
+
+  it('seeds a bare cell from `visible` first, so the elimination is visible', () => {
+    const hint = fakeHint({
+      technique: 'cage-locks-line',
+      apply: {
+        kind: 'eliminate',
+        cells: [
+          { cell: 0, digits: [3, 4] },
+          { cell: 1, digits: [4] },
+        ],
+      },
+      signature: 'cage-locks-line|0,1|3,4',
+    })
+    const visible: number[][] = Array.from({ length: 16 }, () => [1, 2, 3, 4])
+    const state = applied(fresh(), hint, visible)
+    expect(state.marks[0]).toEqual([1, 2])
+    expect(state.marks[1]).toEqual([1, 2, 3])
+  })
+
+  it('never writes a value', () => {
+    const hint = fakeHint({
+      apply: { kind: 'eliminate', cells: [{ cell: 0, digits: [1] }] },
+    })
+    const state = applied(fresh(), hint, Array.from({ length: 16 }, () => [1, 2, 3, 4]))
+    expect(state.values).toEqual(new Array(16).fill(null))
+    expect(state.status).toBe('playing')
+  })
+})
+
+describe('APPLY_HINT is one undo step', () => {
+  it('a three-cell placement plus its mark cleanup undoes in a single Ctrl+Z', () => {
+    const start = withMarks(fresh(), { 4: [1, 2], 8: [1, 2], 2: [1, 2] })
+    const hint = fakeHint({
+      apply: {
+        kind: 'place',
+        cells: [
+          { cell: 0, value: 1 },
+          { cell: 1, value: 2 },
+          { cell: 5, value: 1 },
+        ],
+      },
+      signature: 'single-cage-combination|0,1,5|1,2',
+    })
+
+    const after = applied(start, hint)
+    expect(after.past).toHaveLength(1)
+    expect(after.values[0]).toBe(1)
+    expect(after.marks[4]).toEqual([2]) // cleaned by the 1 at cell 0
+
+    const undone = gameReducer(after, { type: 'UNDO' })
+    expect(undone.values).toEqual(start.values)
+    expect(undone.marks).toEqual(start.marks)
+    expect(undone.past).toHaveLength(0)
+
+    const redone = gameReducer(undone, { type: 'REDO' })
+    expect(redone.values).toEqual(after.values)
+    expect(redone.marks).toEqual(after.marks)
+  })
+
+  it('an empty apply changes nothing and takes no history slot', () => {
+    const start = shown(fresh(), fakeHint())
+    const state = gameReducer(start, {
+      type: 'APPLY_HINT',
+      apply: { kind: 'place', cells: [] },
+      visible: [],
+      signature: 'noop',
+    })
+    expect(state.past).toEqual([])
+    expect(state.recentHints).toEqual([])
+    expect(state.hint).toEqual({ kind: 'idle' })
+  })
+})
+
+describe('recentHints ring buffer', () => {
+  it('remembers only the last three applied signatures', () => {
+    let state = fresh()
+    for (const cell of [0, 1, 2, 3]) {
+      const hint = fakeHint({
+        apply: { kind: 'place', cells: [{ cell, value: 1 }] },
+        signature: 'sig-' + cell,
+      })
+      state = applied(state, hint)
+    }
+    expect(state.recentHints).toEqual(['sig-1', 'sig-2', 'sig-3'])
+  })
+
+  it('undo forgets the signature it just reverted, and redo remembers it again', () => {
+    const hint = fakeHint()
+    const after = applied(fresh(), hint)
+    expect(after.recentHints).toEqual([hint.signature])
+
+    const undone = gameReducer(after, { type: 'UNDO' })
+    expect(undone.recentHints).toEqual([])
+
+    const redone = gameReducer(undone, { type: 'REDO' })
+    expect(redone.recentHints).toEqual([hint.signature])
+  })
+
+  it('undoing an ordinary edit leaves the ring buffer alone', () => {
+    let state = applied(fresh(), fakeHint())
+    state = gameReducer(state, { type: 'SELECT', index: 0 })
+    state = gameReducer(state, { type: 'DIGIT', value: 1 })
+    state = gameReducer(state, { type: 'UNDO' })
+    expect(state.recentHints).toEqual(['freebie-cage|14|2'])
+  })
+
+  it('RESET and NEW_PUZZLE clear it', () => {
+    const state = applied(fresh(), fakeHint())
+    expect(gameReducer(state, { type: 'RESET' }).recentHints).toEqual([])
+    expect(gameReducer(state, { type: 'NEW_PUZZLE', puzzle: SAMPLE_PUZZLE }).recentHints).toEqual(
+      [],
+    )
+  })
+})
+
+describe('a pending hint is invalidated by anything that changes the grid', () => {
+  function pending(): GameState {
+    return shown(gameReducer(fresh(), { type: 'SELECT', index: 0 }), fakeHint())
+  }
+
+  it('a digit entry drops it', () => {
+    expect(gameReducer(pending(), { type: 'DIGIT', value: 1 }).hint).toEqual({ kind: 'idle' })
+  })
+
+  it('a pencil mark drops it', () => {
+    const marking = gameReducer(pending(), { type: 'SET_MODE', mode: 'mark' })
+    expect(marking.hint.kind).toBe('shown') // switching mode alone is harmless
+    expect(gameReducer(marking, { type: 'DIGIT', value: 1 }).hint).toEqual({ kind: 'idle' })
+  })
+
+  it('an erase drops it', () => {
+    let state = gameReducer(fresh(), { type: 'SELECT', index: 0 })
+    state = gameReducer(state, { type: 'DIGIT', value: 1 })
+    state = shown(state, fakeHint())
+    expect(gameReducer(state, { type: 'ERASE' }).hint).toEqual({ kind: 'idle' })
+  })
+
+  it('undo and redo drop it', () => {
+    let state = gameReducer(fresh(), { type: 'SELECT', index: 0 })
+    state = gameReducer(state, { type: 'DIGIT', value: 1 })
+    state = shown(state, fakeHint())
+    const undone = gameReducer(state, { type: 'UNDO' })
+    expect(undone.hint).toEqual({ kind: 'idle' })
+    expect(gameReducer(shown(undone, fakeHint()), { type: 'REDO' }).hint).toEqual({ kind: 'idle' })
+  })
+
+  it('reset and a new puzzle drop it', () => {
+    expect(gameReducer(pending(), { type: 'RESET' }).hint).toEqual({ kind: 'idle' })
+    expect(gameReducer(pending(), { type: 'NEW_PUZZLE', puzzle: SAMPLE_PUZZLE }).hint).toEqual({
+      kind: 'idle',
+    })
+  })
+
+  it('but moving the cursor around to look at the highlight does not', () => {
+    const state = pending()
+    expect(gameReducer(state, { type: 'SELECT', index: 9 }).hint.kind).toBe('shown')
+    expect(gameReducer(state, { type: 'MOVE', direction: 'right' }).hint.kind).toBe('shown')
+    expect(gameReducer(state, { type: 'TOGGLE_MODE' }).hint.kind).toBe('shown')
+  })
+})
+
+describe('hintHighlight', () => {
+  it('is the hint’s own highlight while one is shown', () => {
+    const hint = fakeHint()
+    expect(hintHighlight({ kind: 'shown', hint })).toBe(hint.highlight)
+  })
+
+  it('focuses the offending cells of a mistake and dims the rest', () => {
+    const highlight = hintHighlight({
+      kind: 'message',
+      message: { kind: 'mistake', cells: [3, 7], text: 'x', secondary: 'y' },
+    })
+    expect(highlight).toEqual({
+      focus: [3, 7],
+      support: [],
+      rows: [],
+      cols: [],
+      cages: [],
+      dimRest: true,
+      strike: [],
+    })
+  })
+
+  it('is undefined when idle, stuck, or solved', () => {
+    expect(hintHighlight({ kind: 'idle' })).toBeUndefined()
+    expect(
+      hintHighlight({ kind: 'message', message: { kind: 'stuck', text: 'x', secondary: 'y' } }),
+    ).toBeUndefined()
+    expect(
+      hintHighlight({ kind: 'message', message: { kind: 'solved', text: 'x', secondary: 'y' } }),
+    ).toBeUndefined()
   })
 })

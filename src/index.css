@@ -15,6 +15,21 @@
   --cell-selected: #ddd0fb;
   --cell-line: #eee9fb;
   --cell-cage: #f3effb;
+  --cell-error: #fbe4e4;
+
+  /*
+   * Hints get their own teal family rather than borrowing the violet accent,
+   * so "the hint is pointing here" never reads as "you have this selected".
+   */
+  --hint-focus-bg: #ccfbf1;
+  --hint-focus-ring: #0d9488;
+  --hint-support-bg: #e4f8f3;
+  --hint-band-bg: #f1fbf9;
+  --hint-cage-outline: #0f766e;
+  --hint-strike: #0f766e;
+  --hint-dim-opacity: 0.4;
+  --hint-panel-bg: #f1fbf9;
+  --hint-panel-border: #99e6d8;
 
   --danger: #b91c1c;
   --success: #15803d;
@@ -51,6 +66,17 @@
     --cell-selected: #453a68;
     --cell-line: #26222f;
     --cell-cage: #201d2a;
+    --cell-error: #3b1f24;
+
+    --hint-focus-bg: #12433c;
+    --hint-focus-ring: #2dd4bf;
+    --hint-support-bg: #17332f;
+    --hint-band-bg: #1a2726;
+    --hint-cage-outline: #2dd4bf;
+    --hint-strike: #5eead4;
+    --hint-dim-opacity: 0.32;
+    --hint-panel-bg: #152624;
+    --hint-panel-border: #245049;
 
     --danger: #f87171;
     --success: #4ade80;

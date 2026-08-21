@@ -12,6 +12,7 @@ function baseProps() {
     onNewPuzzle: vi.fn(),
     onUndo: vi.fn(),
     onRedo: vi.fn(),
+    onHint: vi.fn(),
     canUndo: true,
     canRedo: false,
   }
@@ -47,8 +48,25 @@ describe('Controls', () => {
     expect(screen.getByRole('button', { name: 'New puzzle' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Undo' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Redo' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Hint' })).toBeDisabled()
     expect(screen.getByLabelText('Size')).toBeDisabled()
     expect(screen.getByLabelText('Difficulty')).toBeDisabled()
+  })
+
+  it('hint button calls onHint and advertises its shortcut', async () => {
+    const user = userEvent.setup()
+    const props = baseProps()
+    render(<Controls {...props} />)
+    const hint = screen.getByRole('button', { name: 'Hint' })
+    expect(hint).toHaveAttribute('aria-keyshortcuts', 'H')
+    await user.click(hint)
+    expect(props.onHint).toHaveBeenCalledTimes(1)
+  })
+
+  it('hint button reads "Apply" once a hint is waiting to be applied', () => {
+    render(<Controls {...baseProps()} hintPending />)
+    expect(screen.getByRole('button', { name: 'Apply' })).toBeEnabled()
+    expect(screen.queryByRole('button', { name: 'Hint' })).not.toBeInTheDocument()
   })
 
   it('changing size and difficulty selects fires their callbacks', async () => {

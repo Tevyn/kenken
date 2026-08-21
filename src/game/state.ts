@@ -1,7 +1,25 @@
+import type { Hint, HintApply, HintHighlight, HintResult } from '../engine/hints'
 import type { CellIndex, Grid, Puzzle } from '../engine/types'
 
 /** Whether digit input writes a value into the cell or toggles a pencil mark. */
 export type Mode = 'value' | 'mark'
+
+/** The non-hint outcomes of a hint request: solved, mistake, or stuck. */
+export type HintMessage = Exclude<HintResult, { kind: 'hint' }>
+
+/**
+ * Hint disclosure state (docs/HINTS.md §7.1). Ephemeral UI state like
+ * `selected`: it lives in `GameState` but never in a `HistorySnapshot`.
+ */
+export type HintPhase =
+  | { kind: 'idle' }
+  | { kind: 'shown'; hint: Hint }
+  | { kind: 'message'; message: HintMessage }
+
+const IDLE_HINT: HintPhase = { kind: 'idle' }
+
+/** How many applied-hint signatures `recentHints` remembers. See §6.3. */
+export const RECENT_HINT_LIMIT = 3
 
 /** Coarse game status. `'solved'` once the grid matches the puzzle's solution. */
 export type Status = 'playing' | 'solved'
@@ -23,6 +41,10 @@ export interface GameState {
   past: HistorySnapshot[]
   /** Redo stack: snapshots popped off `past` by `UNDO`, most recent last. */
   future: HistorySnapshot[]
+  /** Two-press hint disclosure. Never travels through undo/redo. */
+  hint: HintPhase
+  /** Ring buffer of the last `RECENT_HINT_LIMIT` applied hint signatures. */
+  recentHints: string[]
 }
 
 /** The portion of state that undo/redo travels through. Selection and mode are excluded. */
@@ -30,6 +52,13 @@ interface HistorySnapshot {
   values: Grid
   marks: Marks
   status: Status
+  /**
+   * Set when the edit separating this snapshot from the live state was an
+   * `APPLY_HINT`. On a `past` entry that edit runs forwards, on a `future`
+   * entry it runs backwards; either way it lets `UNDO`/`REDO` keep
+   * `recentHints` in step with what is actually on the board (§7.3).
+   */
+  hintSignature?: string
 }
 
 export type GameAction =
@@ -43,6 +72,9 @@ export type GameAction =
   | { type: 'REDO' }
   | { type: 'RESET' }
   | { type: 'NEW_PUZZLE'; puzzle: Puzzle }
+  | { type: 'REQUEST_HINT'; result: HintResult }
+  | { type: 'APPLY_HINT'; apply: HintApply; visible: number[][]; signature: string }
+  | { type: 'DISMISS_HINT' }
 
 /** True once every cell is filled and matches the puzzle's unique solution. */
 export function isGridSolved(puzzle: Puzzle, values: Grid): boolean {
@@ -70,6 +102,8 @@ export function createInitialState(puzzle: Puzzle): GameState {
     status: 'playing',
     past: [],
     future: [],
+    hint: IDLE_HINT,
+    recentHints: [],
   }
 }
 
@@ -77,9 +111,63 @@ function snapshot(state: GameState): HistorySnapshot {
   return { values: state.values, marks: state.marks, status: state.status }
 }
 
+/**
+ * The fields a snapshot restores. Spelled out rather than spread so
+ * `hintSignature` — bookkeeping that belongs to the history entry, not to the
+ * game — never leaks into `GameState`.
+ */
+function restore(snap: HistorySnapshot): Pick<GameState, 'values' | 'marks' | 'status'> {
+  return { values: snap.values, marks: snap.marks, status: snap.status }
+}
+
 /** Push the current mutable state onto the undo stack and clear the redo stack. */
-function pushHistory(state: GameState): Pick<GameState, 'past' | 'future'> {
-  return { past: [...state.past, snapshot(state)], future: [] }
+function pushHistory(state: GameState, hintSignature?: string): Pick<GameState, 'past' | 'future'> {
+  return { past: [...state.past, { ...snapshot(state), hintSignature }], future: [] }
+}
+
+function pushSignature(recent: readonly string[], signature: string): string[] {
+  return [...recent, signature].slice(-RECENT_HINT_LIMIT)
+}
+
+/** Drop the most recent occurrence of `signature`, so undo un-remembers it. */
+function popSignature(recent: readonly string[], signature: string): string[] {
+  const at = recent.lastIndexOf(signature)
+  if (at === -1) return [...recent]
+  return [...recent.slice(0, at), ...recent.slice(at + 1)]
+}
+
+/** Row and column peers of `cell`, excluding `cell` itself. */
+function peersOf(cell: CellIndex, size: number): CellIndex[] {
+  const row = Math.floor(cell / size)
+  const col = cell % size
+  const peers: CellIndex[] = []
+  for (let c = 0; c < size; c++) if (c !== col) peers.push(row * size + c)
+  for (let r = 0; r < size; r++) if (r !== row) peers.push(r * size + col)
+  return peers
+}
+
+/**
+ * The highlight a hint phase asks the board to draw, or `undefined` for none.
+ *
+ * A `mistake` message carries cells but no highlight of its own, so one is
+ * synthesised here: focus the offending cells and dim everything else, exactly
+ * as §8.2 specifies.
+ */
+export function hintHighlight(phase: HintPhase): HintHighlight | undefined {
+  if (phase.kind === 'shown') return phase.hint.highlight
+  if (phase.kind === 'message' && phase.message.kind === 'mistake') {
+    if (phase.message.cells.length === 0) return undefined
+    return {
+      focus: [...phase.message.cells],
+      support: [],
+      rows: [],
+      cols: [],
+      cages: [],
+      dimRest: true,
+      strike: [],
+    }
+  }
+  return undefined
 }
 
 function toggleMark(marks: number[], value: number): number[] {
@@ -129,14 +217,14 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         const marks = state.marks.slice()
         marks[selected] = []
         const status: Status = isGridSolved(state.puzzle, values) ? 'solved' : 'playing'
-        return { ...state, ...history, values, marks, status }
+        return { ...state, ...history, values, marks, status, hint: IDLE_HINT }
       }
 
       // mark mode: only pencil-mark empty cells
       if (state.values[selected] != null) return state
       const marks = state.marks.slice()
       marks[selected] = toggleMark(marks[selected], value)
-      return { ...state, ...history, marks }
+      return { ...state, ...history, marks, hint: IDLE_HINT }
     }
 
     case 'ERASE': {
@@ -149,7 +237,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const marks = state.marks.slice()
       marks[selected] = []
       const status: Status = isGridSolved(state.puzzle, values) ? 'solved' : 'playing'
-      return { ...state, ...history, values, marks, status }
+      return { ...state, ...history, values, marks, status, hint: IDLE_HINT }
     }
 
     case 'SET_MODE':
@@ -162,16 +250,22 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       if (state.past.length === 0) return state
       const prev = state.past[state.past.length - 1]
       const past = state.past.slice(0, -1)
-      const future = [...state.future, snapshot(state)]
-      return { ...state, ...prev, past, future }
+      const future = [...state.future, { ...snapshot(state), hintSignature: prev.hintSignature }]
+      const recentHints = prev.hintSignature
+        ? popSignature(state.recentHints, prev.hintSignature)
+        : state.recentHints
+      return { ...state, ...restore(prev), past, future, recentHints, hint: IDLE_HINT }
     }
 
     case 'REDO': {
       if (state.future.length === 0) return state
       const next = state.future[state.future.length - 1]
       const future = state.future.slice(0, -1)
-      const past = [...state.past, snapshot(state)]
-      return { ...state, ...next, past, future }
+      const past = [...state.past, { ...snapshot(state), hintSignature: next.hintSignature }]
+      const recentHints = next.hintSignature
+        ? pushSignature(state.recentHints, next.hintSignature)
+        : state.recentHints
+      return { ...state, ...restore(next), past, future, recentHints, hint: IDLE_HINT }
     }
 
     case 'RESET': {
@@ -182,11 +276,66 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         values: emptyValues(state.puzzle.size),
         marks: emptyMarks(state.puzzle.size),
         status: 'playing',
+        hint: IDLE_HINT,
+        recentHints: [],
       }
     }
 
     case 'NEW_PUZZLE':
       return createInitialState(action.puzzle)
+
+    case 'REQUEST_HINT': {
+      const { result } = action
+      return {
+        ...state,
+        hint:
+          result.kind === 'hint'
+            ? { kind: 'shown', hint: result.hint }
+            : { kind: 'message', message: result },
+      }
+    }
+
+    /*
+     * The second press. Everything the hint writes — values, the placed cells'
+     * own marks, and the peer mark cleanup a player would do by hand — happens
+     * against one `pushHistory`, so the whole hint is a single undo step no
+     * matter how many cells it touches.
+     */
+    case 'APPLY_HINT': {
+      const { apply, visible, signature } = action
+      if (apply.cells.length === 0) return { ...state, hint: IDLE_HINT }
+      const history = pushHistory(state, signature)
+      const recentHints = pushSignature(state.recentHints, signature)
+      const size = state.puzzle.size
+
+      if (apply.kind === 'place') {
+        const values = state.values.slice()
+        const marks = state.marks.slice()
+        for (const { cell, value } of apply.cells) {
+          values[cell] = value
+          marks[cell] = []
+        }
+        for (const { cell, value } of apply.cells) {
+          for (const peer of peersOf(cell, size)) {
+            if (marks[peer].includes(value)) marks[peer] = marks[peer].filter((d) => d !== value)
+          }
+        }
+        const status: Status = isGridSolved(state.puzzle, values) ? 'solved' : 'playing'
+        return { ...state, ...history, values, marks, status, recentHints, hint: IDLE_HINT }
+      }
+
+      // An elimination on a bare cell would otherwise change nothing the player
+      // can see, so seed the cell with what they could already work out first.
+      const marks = state.marks.slice()
+      for (const { cell, digits } of apply.cells) {
+        const base = marks[cell].length > 0 ? marks[cell] : (visible[cell] ?? [])
+        marks[cell] = base.filter((d) => !digits.includes(d)).sort((a, b) => a - b)
+      }
+      return { ...state, ...history, marks, recentHints, hint: IDLE_HINT }
+    }
+
+    case 'DISMISS_HINT':
+      return state.hint.kind === 'idle' ? state : { ...state, hint: IDLE_HINT }
 
     default:
       return state

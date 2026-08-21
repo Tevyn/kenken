@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SAMPLE_PUZZLE } from '../fixtures/samplePuzzle';
+import { DOC_PUZZLE } from '../fixtures/docPuzzle';
 import { countSolutions, isSolved, solvePuzzle } from './index';
 import { cageSatisfied, isConnected } from './cages';
 
@@ -53,5 +54,39 @@ describe('SAMPLE_PUZZLE', () => {
 
   it('shows off every operator, which is why the UI uses it', () => {
     expect(new Set(SAMPLE_PUZZLE.cages.map((c) => c.op))).toEqual(new Set(['+', '-', '*', '/', '=']));
+  });
+});
+
+/**
+ * The worked example from `docs/KENKEN.md` §1.6, which the hint spec's worked
+ * examples are computed against. The doc claims uniqueness from an exhaustive
+ * enumeration of all 576 order-4 Latin squares; this checks the claim with our
+ * own solver, so a typo in the transcription cannot go unnoticed.
+ */
+describe('DOC_PUZZLE', () => {
+  it('has exactly one solution, and it is the documented one', () => {
+    expect(solvePuzzle(DOC_PUZZLE, 2)).toEqual([DOC_PUZZLE.solution]);
+  });
+
+  it('matches the solution grid docs/KENKEN.md prints', () => {
+    expect(DOC_PUZZLE.solution).toEqual([1, 2, 3, 4, 3, 4, 1, 2, 2, 1, 4, 3, 4, 3, 2, 1]);
+  });
+
+  it('tiles the grid with connected cages whose arithmetic works out', () => {
+    const seen = new Set<number>();
+    DOC_PUZZLE.cages.forEach((cage, index) => {
+      expect(cage.id).toBe(index);
+      expect(isConnected(cage.cells, DOC_PUZZLE.size)).toBe(true);
+      expect(cageSatisfied(cage, cage.cells.map((c) => DOC_PUZZLE.solution[c]))).toBe(true);
+      for (const cell of cage.cells) {
+        expect(seen.has(cell)).toBe(false);
+        seen.add(cell);
+      }
+    });
+    expect(seen.size).toBe(16);
+  });
+
+  it('is a different puzzle from the one the UI builds against', () => {
+    expect(DOC_PUZZLE.solution).not.toEqual(SAMPLE_PUZZLE.solution);
   });
 });

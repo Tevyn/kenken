@@ -49,6 +49,13 @@
   cursor: not-allowed;
 }
 
+/* Tinted with the hint palette so the button matches what it puts on the board. */
+.kk-controls__hint:not(:disabled) {
+  border-color: var(--hint-panel-border);
+  background: var(--hint-panel-bg);
+  color: var(--hint-cage-outline);
+}
+
 .kk-controls__primary {
   background: var(--accent);
   border-color: var(--accent);

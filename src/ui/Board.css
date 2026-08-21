@@ -1,3 +1,26 @@
+/*
+ * Wraps the grid so the error live region can sit outside `role="grid"`
+ * (whose only legal children are rows and gridcells). Deliberately unstyled:
+ * it must not change how the board itself lays out.
+ */
+.kk-board-wrap {
+  width: fit-content;
+  margin: 0 auto;
+}
+
+/* Announced, never seen — the errors themselves are shown on the cells. */
+.kk-board__errors {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
 .kk-board {
   --board-max: min(100cqw, 34rem);
   --cell: clamp(26px, calc(var(--board-max) / var(--size)), 68px);

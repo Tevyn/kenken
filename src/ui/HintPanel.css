@@ -1,0 +1,72 @@
+/*
+ * The hint banner sits directly under the board. It stays in the DOM while
+ * idle — the live region inside it has to exist before its text changes to be
+ * announced reliably — so the empty state collapses to nothing instead of
+ * unmounting.
+ */
+.kk-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: min(100%, 34rem);
+  margin: 0 auto;
+  padding: 12px 14px;
+  box-sizing: border-box;
+  border: 1px solid var(--hint-panel-border);
+  border-left: 4px solid var(--hint-cage-outline);
+  border-radius: 8px;
+  background: var(--hint-panel-bg);
+}
+
+.kk-hint[data-empty] {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.kk-hint__live {
+  flex: 1;
+  min-width: 0;
+}
+
+.kk-hint__text {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--text-h);
+}
+
+.kk-hint__secondary {
+  margin: 4px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.kk-hint__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.kk-hint button {
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--hint-panel-border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.kk-hint__dismiss {
+  font-size: 18px;
+  line-height: 1;
+  padding: 4px 9px;
+  color: var(--text-muted);
+}

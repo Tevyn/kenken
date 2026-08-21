@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useReducer } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react'
+import { findHint, revealHint, visibleSets } from '../engine'
 import type { CellIndex, Puzzle } from '../engine/types'
 import type { Direction, GameAction, Mode } from './state'
-import { createInitialState, gameReducer } from './state'
+import { createInitialState, gameReducer, hintHighlight } from './state'
 
 const EDITABLE_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT'])
 
@@ -36,11 +37,20 @@ function directionForKey(key: string): Direction | null {
  * - Backspace / Delete: erase the selected cell.
  * - Space: toggle value/mark input mode.
  * - Ctrl/Cmd+Z: undo. Ctrl/Cmd+Shift+Z or Ctrl+Y: redo.
+ * - H: hint. The first press explains a step, the second applies it.
+ * - Escape: dismiss the hint currently on screen.
  *
  * Ignored while a text input, textarea, select, or contenteditable element is focused.
  */
 export function useGame(initialPuzzle: Puzzle) {
   const [state, dispatch] = useReducer(gameReducer, initialPuzzle, createInitialState)
+
+  // `pressHint` has to read the live grid but must stay identity-stable for the
+  // keyboard listener, so it reads state through a ref rather than closing over it.
+  const stateRef = useRef(state)
+  useEffect(() => {
+    stateRef.current = state
+  }, [state])
 
   const select = useCallback((index: CellIndex) => dispatch({ type: 'SELECT', index }), [])
   const move = useCallback((direction: Direction) => dispatch({ type: 'MOVE', direction }), [])
@@ -52,6 +62,43 @@ export function useGame(initialPuzzle: Puzzle) {
   const redo = useCallback(() => dispatch({ type: 'REDO' }), [])
   const reset = useCallback(() => dispatch({ type: 'RESET' }), [])
   const newPuzzle = useCallback((puzzle: Puzzle) => dispatch({ type: 'NEW_PUZZLE', puzzle }), [])
+  const dismissHint = useCallback(() => dispatch({ type: 'DISMISS_HINT' }), [])
+
+  /**
+   * One press of the Hint button (docs/HINTS.md §7.1).
+   *
+   * From `shown` it applies the hint that is already on screen; from `idle` or
+   * `message` it looks for a new one. `findHint` is pure but not free, so it is
+   * called here, on the press, and never during render or in an effect.
+   */
+  const pressHint = useCallback(() => {
+    const current = stateRef.current
+
+    if (current.hint.kind === 'shown') {
+      const { apply, signature } = current.hint.hint
+      // Only an elimination consults `visible`, so only it pays for the fixpoint.
+      const visible =
+        apply.kind === 'eliminate'
+          ? visibleSets(current.puzzle, current.values, current.marks)
+          : []
+      dispatch({ type: 'APPLY_HINT', apply, visible, signature })
+      return
+    }
+
+    // `idle`, or a message being retried — the mistake it named may be fixed by now.
+    const result = findHint(current.puzzle, current.values, current.marks, {
+      near: current.selected,
+      recent: current.recentHints,
+    })
+    dispatch({ type: 'REQUEST_HINT', result })
+  }, [])
+
+  /** The `stuck` escape hatch: turn a revealed cell into an ordinary shown hint. */
+  const revealCell = useCallback(() => {
+    const current = stateRef.current
+    const hint = revealHint(current.puzzle, current.values, { near: current.selected })
+    dispatch({ type: 'REQUEST_HINT', result: { kind: 'hint', hint } })
+  }, [])
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -93,6 +140,19 @@ export function useGame(initialPuzzle: Puzzle) {
         return
       }
 
+      // Bare H only: Ctrl/Cmd+H belongs to the browser.
+      if (!isMeta && (event.key === 'h' || event.key === 'H')) {
+        event.preventDefault()
+        pressHint()
+        return
+      }
+
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        dispatch({ type: 'DISMISS_HINT' })
+        return
+      }
+
       if (/^[1-9]$/.test(event.key)) {
         event.preventDefault()
         dispatch({ type: 'DIGIT', value: Number(event.key) })
@@ -101,10 +161,13 @@ export function useGame(initialPuzzle: Puzzle) {
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [])
+  }, [pressHint])
 
   const canUndo = state.past.length > 0
   const canRedo = state.future.length > 0
+  /** True when a hint is explained and waiting for the second press. */
+  const hintPending = state.hint.kind === 'shown'
+  const highlight = useMemo(() => hintHighlight(state.hint), [state.hint])
 
   return useMemo(
     () => ({
@@ -120,8 +183,13 @@ export function useGame(initialPuzzle: Puzzle) {
       redo,
       reset,
       newPuzzle,
+      pressHint,
+      dismissHint,
+      revealCell,
       canUndo,
       canRedo,
+      hintPending,
+      highlight,
     }),
     [
       state,
@@ -135,8 +203,13 @@ export function useGame(initialPuzzle: Puzzle) {
       redo,
       reset,
       newPuzzle,
+      pressHint,
+      dismissHint,
+      revealCell,
       canUndo,
       canRedo,
+      hintPending,
+      highlight,
     ],
   )
 }

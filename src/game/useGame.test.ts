@@ -95,3 +95,80 @@ describe('useGame keyboard handling', () => {
     expect(result.current.canRedo).toBe(true)
   })
 })
+
+describe('useGame hints', () => {
+  it('H explains a step, and a second H applies it', () => {
+    const { result } = renderHook(() => useGame(SAMPLE_PUZZLE))
+
+    pressKey('h')
+    expect(result.current.hintPending).toBe(true)
+    expect(result.current.state.hint.kind).toBe('shown')
+    expect(result.current.state.values[14]).toBeNull()
+    expect(result.current.highlight?.focus).toEqual([14])
+
+    pressKey('h')
+    expect(result.current.state.values[14]).toBe(2)
+    expect(result.current.hintPending).toBe(false)
+    expect(result.current.state.recentHints).toEqual(['freebie-cage|14|2'])
+    expect(result.current.highlight).toBeUndefined()
+  })
+
+  it('biases the hint toward the selected cell', () => {
+    function focusAfterSelecting(cell: number): number[] {
+      const { result } = renderHook(() => useGame(SAMPLE_PUZZLE))
+      // Take the single rank-10 freebie out of the running first, so several
+      // equally-ranked cage hints are left and proximity is what decides.
+      pressKey('h')
+      pressKey('h')
+      act(() => result.current.select(cell))
+      pressKey('h')
+      const phase = result.current.state.hint
+      return phase.kind === 'shown' ? phase.hint.highlight.focus : []
+    }
+
+    expect(focusAfterSelecting(0)).toContain(0)
+    expect(focusAfterSelecting(15)).toContain(15)
+  })
+
+  it('Escape dismisses without applying', () => {
+    const { result } = renderHook(() => useGame(SAMPLE_PUZZLE))
+    pressKey('h')
+    pressKey('Escape')
+    expect(result.current.state.hint).toEqual({ kind: 'idle' })
+    expect(result.current.state.values[14]).toBeNull()
+  })
+
+  it('Ctrl+H is left to the browser', () => {
+    const { result } = renderHook(() => useGame(SAMPLE_PUZZLE))
+    pressKey('h', { ctrlKey: true })
+    expect(result.current.state.hint).toEqual({ kind: 'idle' })
+  })
+
+  it('ignores H while a text input is focused', () => {
+    const input = document.createElement('input')
+    document.body.appendChild(input)
+    input.focus()
+
+    const { result } = renderHook(() => useGame(SAMPLE_PUZZLE))
+    act(() => {
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'h', bubbles: true }))
+    })
+    expect(result.current.state.hint).toEqual({ kind: 'idle' })
+
+    document.body.removeChild(input)
+  })
+
+  it('revealCell turns the escape hatch into an ordinary two-press hint', () => {
+    const { result } = renderHook(() => useGame(SAMPLE_PUZZLE))
+    act(() => result.current.select(0))
+    act(() => result.current.revealCell())
+
+    const phase = result.current.state.hint
+    expect(phase.kind).toBe('shown')
+    if (phase.kind === 'shown') expect(phase.hint.technique).toBe('reveal')
+    expect(result.current.state.values.some((v) => v !== null)).toBe(false)
+
+    act(() => result.current.pressHint())
+    expect(result.current.state.values.some((v) => v !== null)).toBe(true)
+  })
+})

@@ -1,10 +1,11 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import type { Difficulty, Puzzle } from './engine/types'
-import { generatePuzzle } from './engine'
+import { createErrorChecker, generatePuzzle } from './engine'
 import { SAMPLE_PUZZLE } from './fixtures/samplePuzzle'
 import { useGame } from './game/useGame'
 import { Board } from './ui/Board'
 import { Controls } from './ui/Controls'
+import { HintPanel } from './ui/HintPanel'
 import { Keypad } from './ui/Keypad'
 import { WinBanner } from './ui/WinBanner'
 import './App.css'
@@ -18,6 +19,12 @@ function App() {
   const game = useGame(SAMPLE_PUZZLE)
 
   const newPuzzle = game.newPuzzle
+
+  // Live error checking. The cage-combination tables are enumerated once per
+  // puzzle and reused for every keystroke; the errors themselves are derived
+  // state, so they are memoized here rather than kept in the reducer.
+  const checkErrors = useMemo(() => createErrorChecker(game.state.puzzle), [game.state.puzzle])
+  const errors = useMemo(() => checkErrors(game.state.values), [checkErrors, game.state.values])
 
   const generate = useCallback(
     (nextSize: number, nextDifficulty: Difficulty) => {
@@ -73,6 +80,8 @@ function App() {
         onRedo={game.redo}
         canUndo={game.canUndo}
         canRedo={game.canRedo}
+        onHint={game.pressHint}
+        hintPending={game.hintPending}
         disabled={loading}
       />
 
@@ -93,7 +102,14 @@ function App() {
             values={game.state.values}
             marks={game.state.marks}
             selected={game.state.selected}
+            errors={errors}
+            highlight={game.highlight}
             onSelect={game.select}
+          />
+          <HintPanel
+            phase={game.state.hint}
+            onDismiss={game.dismissHint}
+            onReveal={game.revealCell}
           />
           <WinBanner visible={game.state.status === 'solved'} />
           <Keypad
