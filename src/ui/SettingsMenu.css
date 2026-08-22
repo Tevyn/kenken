@@ -9,6 +9,80 @@
   margin: 0 0 10px;
 }
 
+/*
+ * Theme picker. A recessed track with the choices sitting in it; the current
+ * one lifts onto the panel surface and takes the accent, which is the only
+ * thing the accent ever means (STYLE_GUIDE.md §2.1).
+ */
+.kk-theme {
+  margin: 0 0 16px;
+  padding: 0;
+  border: 0;
+}
+
+.kk-theme__legend {
+  padding: 0;
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.kk-theme__options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  padding: 4px;
+  border-radius: 10px;
+  /* A real sunken token, not `--bg` — a well painted in the page colour
+     paints nothing (STYLE_GUIDE.md §3). */
+  background: var(--surface-sunken);
+}
+
+.kk-theme__option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  border-radius: 7px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+/* The input is the control; the pill is painted over it, and it keeps its own
+   hit area so a tap anywhere on the segment lands on the radio. */
+.kk-theme__input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.kk-theme__option:hover .kk-theme__text {
+  color: var(--text);
+}
+
+.kk-theme__input:checked ~ .kk-theme__text {
+  color: var(--text-h);
+}
+
+.kk-theme__option:has(.kk-theme__input:checked) {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.kk-theme__option:has(.kk-theme__input:focus-visible) {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .kk-settings__setting {
   display: flex;
   flex-direction: column;

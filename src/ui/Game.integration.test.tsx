@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { describe, expect, it } from 'vitest'
 import { createErrorChecker } from '../engine'
 import { SAMPLE_PUZZLE } from '../fixtures/samplePuzzle'
+import type { Theme } from '../game/preferences'
 import { useGame } from '../game/useGame'
 import { Board } from './Board'
 import { Controls } from './Controls'
@@ -17,6 +18,7 @@ function TestGame() {
   // Same arrangement as App: the open popover is owned above the game, because
   // an open panel suspends the board's keyboard shortcuts.
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null)
+  const [theme, setTheme] = useState<Theme>('system')
   const game = useGame(SAMPLE_PUZZLE, { suspended: openMenu !== null })
   const checkErrors = useMemo(() => createErrorChecker(game.state.puzzle), [game.state.puzzle])
   const errors = useMemo(() => checkErrors(game.state.values), [checkErrors, game.state.values])
@@ -28,6 +30,8 @@ function TestGame() {
         onStartGame={() => {}}
         autoClearMarks={game.state.autoClearMarks}
         onAutoClearMarksChange={game.setAutoClearMarks}
+        theme={theme}
+        onThemeChange={setTheme}
         openMenu={openMenu}
         onOpenMenuChange={setOpenMenu}
       />
@@ -348,6 +352,11 @@ describe('Board + Keypad + useGame integration', () => {
     render(<TestGame />)
 
     await user.click(screen.getByRole('button', { name: 'Settings' }))
+    // The panel opens focused on the theme picker's current choice (the first
+    // control in it); the switch is the next tab stop.
+    expect(screen.getByRole('radio', { name: 'System' })).toHaveFocus()
+    await user.tab()
+
     const toggle = screen.getByRole('switch', { name: 'Auto-clear marks' })
     expect(toggle).toHaveFocus()
     expect(toggle).toBeChecked()

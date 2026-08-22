@@ -21,6 +21,8 @@ function baseProps() {
     onStartGame: vi.fn(),
     autoClearMarks: true,
     onAutoClearMarksChange: vi.fn(),
+    theme: 'system' as const,
+    onThemeChange: vi.fn(),
   }
 }
 
@@ -155,6 +157,26 @@ describe('Controls', () => {
       await user.click(toggle)
       expect(props.onAutoClearMarksChange).toHaveBeenCalledWith(false)
     })
+
+    it('the theme picker offers all three choices with the current one selected', async () => {
+      const user = userEvent.setup()
+      render(<ControlsHarness {...baseProps()} theme="dark" />)
+
+      await user.click(settingsButton())
+      expect(screen.getByRole('radio', { name: 'Light' })).not.toBeChecked()
+      expect(screen.getByRole('radio', { name: 'Dark' })).toBeChecked()
+      expect(screen.getByRole('radio', { name: 'System' })).not.toBeChecked()
+    })
+
+    it('picking a theme calls onThemeChange with that theme', async () => {
+      const user = userEvent.setup()
+      const props = baseProps()
+      render(<ControlsHarness {...props} theme="system" />)
+
+      await user.click(settingsButton())
+      await user.click(screen.getByRole('radio', { name: 'Light' }))
+      expect(props.onThemeChange).toHaveBeenCalledWith('light')
+    })
   })
 
   describe('popover behaviour', () => {
@@ -163,7 +185,9 @@ describe('Controls', () => {
       render(<ControlsHarness {...baseProps()} />)
 
       await user.click(settingsButton())
-      expect(screen.getByRole('switch', { name: 'Auto-clear marks' })).toHaveFocus()
+      // Focus opens on the theme picker's checked radio — the panel's first
+      // control, and the only tab stop in its group.
+      expect(screen.getByRole('radio', { name: 'System' })).toHaveFocus()
 
       await user.keyboard('{Escape}')
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()

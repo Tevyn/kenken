@@ -1,5 +1,6 @@
 import { useCallback } from 'react'
 import type { Difficulty } from '../engine/types'
+import type { Theme } from '../game/preferences'
 import { NewGameMenu } from './NewGameMenu'
 import { SettingsMenu } from './SettingsMenu'
 import './Controls.css'
@@ -17,6 +18,9 @@ export interface ControlsProps {
   /** Whether entering a value also strips it from the row/column peers' pencil marks. */
   autoClearMarks: boolean
   onAutoClearMarksChange: (enabled: boolean) => void
+  /** Which palette to paint, or `system` to follow the OS. */
+  theme: Theme
+  onThemeChange: (theme: Theme) => void
   /**
    * The open popover, owned by the app rather than by this component: a popover
    * takes the keyboard away from the board while it is open, so whoever owns
@@ -35,6 +39,8 @@ export function Controls({
   onStartGame,
   autoClearMarks,
   onAutoClearMarksChange,
+  theme,
+  onThemeChange,
   openMenu,
   onOpenMenuChange,
   disabled = false,
@@ -70,6 +76,8 @@ export function Controls({
       <SettingsMenu
         autoClearMarks={autoClearMarks}
         onAutoClearMarksChange={onAutoClearMarksChange}
+        theme={theme}
+        onThemeChange={onThemeChange}
         open={openMenu === 'settings'}
         onOpenChange={handleSettingsOpenChange}
       />

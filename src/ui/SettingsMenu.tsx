@@ -1,4 +1,6 @@
 import type { ChangeEvent } from 'react'
+import type { Theme } from '../game/preferences'
+import { THEMES } from '../game/preferences'
 import { MenuIcon } from './icons'
 import { Popover } from './Popover'
 import './SettingsMenu.css'
@@ -7,19 +9,34 @@ export interface SettingsMenuProps {
   /** Whether entering a value also strips it from the row/column peers' pencil marks. */
   autoClearMarks: boolean
   onAutoClearMarksChange: (enabled: boolean) => void
+  /** Which palette to paint, or `system` to follow the OS. */
+  theme: Theme
+  onThemeChange: (theme: Theme) => void
   open: boolean
   onOpenChange: (open: boolean) => void
+}
+
+const THEME_LABELS: Record<Theme, string> = {
+  light: 'Light',
+  dark: 'Dark',
+  system: 'System',
 }
 
 /** The gear button and the preferences it opens. */
 export function SettingsMenu({
   autoClearMarks,
   onAutoClearMarksChange,
+  theme,
+  onThemeChange,
   open,
   onOpenChange,
 }: SettingsMenuProps) {
   function handleAutoClearMarksChange(event: ChangeEvent<HTMLInputElement>) {
     onAutoClearMarksChange(event.target.checked)
+  }
+
+  function handleThemeChange(event: ChangeEvent<HTMLInputElement>) {
+    onThemeChange(event.target.value as Theme)
   }
 
   return (
@@ -34,6 +51,30 @@ export function SettingsMenu({
       <h2 className="kk-popover__heading kk-settings__heading" id="kk-settings-heading">
         Settings
       </h2>
+
+      {/*
+        A segmented control over a real radio group: arrow-key navigation,
+        roving focus and the "3 of 3" announcement all come from the inputs,
+        the same way the switch below is a real checkbox under paint.
+      */}
+      <fieldset className="kk-theme">
+        <legend className="kk-theme__legend">Theme</legend>
+        <div className="kk-theme__options">
+          {THEMES.map((option) => (
+            <label className="kk-theme__option" key={option}>
+              <input
+                className="kk-theme__input"
+                type="radio"
+                name="kk-theme"
+                value={option}
+                checked={theme === option}
+                onChange={handleThemeChange}
+              />
+              <span className="kk-theme__text">{THEME_LABELS[option]}</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
 
       <div className="kk-settings__setting">
         {/*

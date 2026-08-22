@@ -71,11 +71,18 @@ export function Popover({
       const focusable = Array.from(
         panelRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? [],
       )
-      // The option already marked as current is the one the player is oriented
-      // by, so start there rather than at whatever happens to be first.
+      /*
+       * The option already marked as current is the one the player is oriented
+       * by, so start there rather than at whatever happens to be first.
+       *
+       * A checked radio counts as current, and not only for orientation: in a
+       * radio group the checked input is the group's only tab stop, so landing
+       * on any other one is actively wrong.
+       */
       const current = focusable.find((element) => {
         const value = element.getAttribute('aria-current')
-        return value !== null && value !== 'false'
+        if (value !== null && value !== 'false') return true
+        return element instanceof HTMLInputElement && element.type === 'radio' && element.checked
       })
       ;(current ?? focusable[0])?.focus()
     } else if (wasOpen.current && !skipRestore.current) {

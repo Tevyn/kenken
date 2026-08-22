@@ -2,7 +2,8 @@ import { useCallback, useMemo, useState } from 'react'
 import type { Difficulty, Puzzle } from './engine/types'
 import { createErrorChecker, generatePuzzle } from './engine'
 import { SAMPLE_PUZZLE } from './fixtures/samplePuzzle'
-import { loadAutoClearMarks, saveAutoClearMarks } from './game/preferences'
+import type { Theme } from './game/preferences'
+import { applyTheme, loadAutoClearMarks, loadTheme, saveAutoClearMarks, saveTheme } from './game/preferences'
 import { useGame } from './game/useGame'
 import { Board } from './ui/Board'
 import { Controls } from './ui/Controls'
@@ -24,6 +25,20 @@ function App() {
 
   // Lazy initialiser so storage is read once, at mount, rather than on every render.
   const [initialAutoClearMarks] = useState(loadAutoClearMarks)
+
+  /*
+   * The theme is applied to <html> in `main.tsx`, before React mounts, so the
+   * page never paints in the wrong palette. This state only mirrors it so the
+   * picker can show which one is current.
+   */
+  const [theme, setTheme] = useState(loadTheme)
+
+  const handleThemeChange = useCallback((next: Theme) => {
+    setTheme(next)
+    applyTheme(next)
+    saveTheme(next)
+  }, [])
+
   const game = useGame(SAMPLE_PUZZLE, {
     autoClearMarks: initialAutoClearMarks,
     suspended: openMenu !== null,
@@ -85,6 +100,8 @@ function App() {
           onStartGame={handleStartGame}
           autoClearMarks={game.state.autoClearMarks}
           onAutoClearMarksChange={handleAutoClearMarksChange}
+          theme={theme}
+          onThemeChange={handleThemeChange}
           openMenu={openMenu}
           onOpenMenuChange={setOpenMenu}
           disabled={loading}
