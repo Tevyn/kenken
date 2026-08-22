@@ -1,19 +1,43 @@
+/*
+ * The three-zone shell (STYLE_GUIDE.md §1.1): the header hugs the top, the
+ * controls are anchored to the bottom in the thumb zone, and the play zone
+ * takes every pixel in between and centres the board in it.
+ *
+ * What this replaces: a single top-aligned column, which left ~290px of dead
+ * space below the keypad on a 4x4 at 375x812 and put the digit pad in the
+ * middle of the screen, out of thumb reach.
+ */
 .kk-app {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 18px;
-  padding: 20px 12px 40px;
-  min-height: 100svh;
-  box-sizing: border-box;
+  gap: var(--sp-5);
+  padding: var(--sp-5) var(--sp-4) var(--sp-4);
+  /*
+   * `100%` of #root, not `100svh`. The two are normally the same, but where
+   * the visual and layout viewports disagree — an embedded pane, a desktop
+   * browser mid-zoom — `svh` resolves to the smaller one and the column stops
+   * short, stranding the controls in the middle of the page with the dead
+   * space this shell exists to remove. #root is height:100% of html, so it
+   * always measures the box we are actually laying out in.
+   */
+  min-height: 100%;
 
   /*
-   * Establish an inline-size container so children can size themselves from
-   * the actual available width. Using vw here instead would include the
-   * scrollbar and ignore this element's own padding, making wide boards
-   * overhang the viewport on narrow screens.
+   * Establish an inline-size container so the board can size itself from the
+   * actual available width. Using vw here instead would include the scrollbar
+   * and ignore this element's own padding, making wide boards overhang the
+   * viewport on narrow screens.
    */
   container-type: inline-size;
+}
+
+/* Every zone lines up on the same column, so their edges agree. */
+.kk-app__header,
+.kk-app__controls,
+.kk-hint,
+.kk-win-banner {
+  width: var(--content);
+  margin-inline: auto;
 }
 
 /* A real app header: title on the left, the controls on the right, one row. */
@@ -21,26 +45,34 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  width: min(100%, 34rem);
-  margin: 0 auto;
+  gap: var(--sp-3);
 }
 
 .kk-app__title {
   margin: 0;
-  font-size: clamp(22px, 5.5vw, 30px);
-  letter-spacing: -0.5px;
+  /*
+   * Down from clamp(22px, 5.5vw, 30px). It was the largest text on the page
+   * and the least useful information on it (STYLE_GUIDE.md §7).
+   */
+  font-size: 20px;
+  letter-spacing: -0.4px;
 }
 
-.kk-app__main {
+/*
+ * `flex: 1` is what makes the shell work: this zone swallows the leftover
+ * height, so the controls below it are pinned to the bottom without needing
+ * `position: fixed` (which would sit over the board on a short viewport
+ * instead of shrinking it).
+ */
+.kk-app__play {
   display: flex;
+  flex: 1;
   flex-direction: column;
   align-items: center;
-  gap: 18px;
+  justify-content: center;
+  gap: var(--sp-5);
   width: 100%;
-  /* Last-resort guard: never let an extreme viewport break the page layout. */
-  max-width: 100%;
-  overflow-x: auto;
+  min-height: 0;
 }
 
 /* Positioning context for the generating overlay, which sits over the board. */
@@ -52,22 +84,22 @@
   width: 100%;
 }
 
-.kk-app__view {
+.kk-app__controls {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 18px;
-  width: 100%;
-  transition: opacity 0.15s ease;
+  gap: var(--sp-5);
 }
 
 /*
  * The old board is still there while the new one generates — pushed back, and
  * out of reach, so nothing is entered into a grid that is about to be replaced.
+ * A shared utility rather than a modifier: the play zone and the controls are
+ * separate blocks now, and both have to recede together.
  */
-.kk-app__view--busy {
+.kk-is-busy {
   opacity: 0.28;
   pointer-events: none;
+  transition: opacity 0.15s ease;
 }
 
 .kk-app__loading {

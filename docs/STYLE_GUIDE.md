@@ -33,6 +33,12 @@ Nothing may leave a large unclaimed band at the bottom of the screen — the
 top-aligned layout left ~290px of dead space on a 4×4 at 375×812, which put the
 digit pad in the middle of the screen and out of thumb reach.
 
+The shell's height comes from `min-height: 100%` against `#root`, **not
+`100svh`**. Where the visual and layout viewports disagree — an embedded pane,
+a desktop browser mid-zoom — `svh` resolves to the smaller of the two and the
+column stops short, stranding the controls mid-page with exactly the dead space
+this shell exists to remove.
+
 ### 1.2 The board fills its column
 
 The board is the subject of the page. It must never be visually out-massed by

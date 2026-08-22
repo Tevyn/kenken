@@ -90,6 +90,15 @@ function App() {
     [newPuzzle],
   )
 
+  /*
+   * Generating never unmounts the game. Replacing it with one line of text
+   * collapsed the page to a fraction of its height and bounced it back a
+   * second later; the board it is about to replace is a better placeholder
+   * than empty space, so it stays put and dims instead. The controls dim with
+   * it, so nothing can be entered into a grid that is about to be replaced.
+   */
+  const busyClass = loading ? 'kk-is-busy' : ''
+
   return (
     <div className="kk-app">
       <header className="kk-app__header">
@@ -115,14 +124,14 @@ function App() {
       )}
 
       {/*
-        Generating never unmounts the game. Replacing it with one line of text
-        collapsed the page to a fraction of its height and bounced it back a
-        second later; the board it is about to replace is a better placeholder
-        than empty space, so it stays put and dims instead.
+        The play zone absorbs all the leftover height (STYLE_GUIDE.md §1.1), so
+        the board sits centred in whatever the header and controls leave. The
+        hint banner lives here rather than with the controls for the same
+        reason: it can appear and disappear without the keypad moving.
       */}
-      <main className="kk-app__main" aria-busy={loading || undefined}>
+      <main className="kk-app__play" aria-busy={loading || undefined}>
         <div className="kk-app__stage">
-          <div className={loading ? 'kk-app__view kk-app__view--busy' : 'kk-app__view'}>
+          <div className={busyClass}>
             <Board
               puzzle={game.state.puzzle}
               values={game.state.values}
@@ -132,25 +141,6 @@ function App() {
               highlight={game.highlight}
               onSelect={game.select}
             />
-            <HintPanel
-              phase={game.state.hint}
-              onDismiss={game.dismissHint}
-              onReveal={game.revealCell}
-            />
-            <WinBanner visible={game.state.status === 'solved'} />
-            <Keypad
-              size={game.state.puzzle.size}
-              mode={game.state.mode}
-              onDigit={game.enterDigit}
-              onErase={game.erase}
-              onToggleMode={game.toggleMode}
-              onUndo={game.undo}
-              onRedo={game.redo}
-              canUndo={game.canUndo}
-              canRedo={game.canRedo}
-              onHint={game.pressHint}
-              hintPending={game.hintPending}
-            />
           </div>
 
           {loading && (
@@ -159,7 +149,32 @@ function App() {
             </p>
           )}
         </div>
+
+        <HintPanel
+          phase={game.state.hint}
+          onDismiss={game.dismissHint}
+          onReveal={game.revealCell}
+        />
+        <WinBanner visible={game.state.status === 'solved'} />
       </main>
+
+      {/* Anchored to the bottom, in the thumb zone, and never moved by anything
+          above it. */}
+      <div className={`kk-app__controls ${busyClass}`}>
+        <Keypad
+          size={game.state.puzzle.size}
+          mode={game.state.mode}
+          onDigit={game.enterDigit}
+          onErase={game.erase}
+          onToggleMode={game.toggleMode}
+          onUndo={game.undo}
+          onRedo={game.redo}
+          canUndo={game.canUndo}
+          canRedo={game.canRedo}
+          onHint={game.pressHint}
+          hintPending={game.hintPending}
+        />
+      </div>
     </div>
   )
 }

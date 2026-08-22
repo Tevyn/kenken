@@ -127,6 +127,30 @@
   /* The one token left that `light-dark()` can't hold: it isn't a colour. */
   --hint-dim-opacity: 0.4;
 
+  /* ================================================================
+   * SCALES.  Not colours, but the same rule applies: use a step, never
+   * an intermediate value (STYLE_GUIDE.md §1.5, §1.6).
+   * ================================================================ */
+
+  --sp-1: 4px; /* icon-to-label, inside a key */
+  --sp-2: 8px; /* between sibling keys, chips */
+  --sp-3: 12px; /* inside a panel, list rows */
+  --sp-4: 16px; /* page gutter, panel padding */
+  --sp-5: 24px; /* between groups */
+  --sp-6: 32px; /* between zones */
+
+  --r-sm: 6px; /* inline chips, marks */
+  --r-md: 10px; /* keys, buttons, triggers */
+  --r-lg: 14px; /* panels, popovers, the board */
+
+  /*
+   * The width every zone lines up on. The header, the board and the controls
+   * all take it, so their edges agree at any viewport — the board used to cap
+   * at 280px while the keypad below it ran to 351px, which left the controls
+   * visibly wider than the puzzle they operate.
+   */
+  --content: min(100%, 30rem);
+
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
 
@@ -193,6 +217,8 @@ body {
   color: var(--text);
 }
 
+/* A floor, not the mechanism: `.kk-app` fills this box with `min-height: 100%`,
+   and `height: 100%` above is what makes that resolve. */
 #root {
   min-height: 100svh;
 }

@@ -1,8 +1,7 @@
 .kk-win-banner {
-  width: min(100%, 34rem);
-  margin: 0 auto;
-  padding: 12px 16px;
-  border-radius: 8px;
+  /* Width and centring come from the shared zone rule in App.css. */
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-md);
   background: var(--success-bg);
   color: var(--success);
   border: 1px solid var(--success);

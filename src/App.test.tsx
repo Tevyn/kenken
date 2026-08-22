@@ -82,10 +82,14 @@ describe('App', () => {
     // placeholder, dimmed and out of reach.
     expect(screen.getAllByRole('gridcell')).toHaveLength(16)
     expect(screen.getByRole('button', { name: 'Hint' })).toBeInTheDocument()
-    expect(document.querySelector('.kk-app__view')).toHaveClass('kk-app__view--busy')
+    // Both zones recede together, now that the board and the controls are
+    // siblings rather than one column: the outgoing grid must not be typed
+    // into, so the keypad has to go out of reach with it.
+    expect(document.querySelectorAll('.kk-is-busy')).toHaveLength(2)
+    expect(document.querySelector('.kk-app__controls')).toHaveClass('kk-is-busy')
 
     await waitFor(() => expect(screen.queryByText('Generating…')).not.toBeInTheDocument())
-    expect(document.querySelector('.kk-app__view')).not.toHaveClass('kk-app__view--busy')
+    expect(document.querySelectorAll('.kk-is-busy')).toHaveLength(0)
     expect(generatePuzzle).toHaveBeenCalledWith({ size: 5, difficulty: 'easy' })
   })
 

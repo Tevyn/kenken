@@ -21,18 +21,33 @@
   clip-path: inset(50%);
 }
 
+/*
+ * Sized by a board budget rather than a cell cap (STYLE_GUIDE.md §1.2). The
+ * old `--cell` capped at 68px, so a 4x4 stopped at 280px inside a 351px column
+ * and the keypad below it was visibly wider than the puzzle.
+ *
+ * The frame is derived from the budget, not from `--cell`, because `--cell` is
+ * derived from the frame — taking it off the budget first is what makes the
+ * board fit its column exactly. A 9x9 used to compute 356px of cells and then
+ * add its border on top, overflowing a 351px column and putting a horizontal
+ * scrollbar under the keypad.
+ */
 .kk-board {
-  --board-max: min(100cqw, 34rem);
-  --cell: clamp(26px, calc(var(--board-max) / var(--size)), 68px);
+  --board-max: min(100cqw, 30rem);
+  --frame: max(2px, calc(var(--board-max) * 0.008));
+  --cell: clamp(26px, calc((var(--board-max) - 2 * var(--frame)) / var(--size)), 84px);
 
   display: grid;
   grid-template-columns: repeat(var(--size), var(--cell));
   grid-template-rows: repeat(var(--size), var(--cell));
-  width: fit-content;
+  /* Explicit, and border-box, so the border is inside the number: the box can
+     never come out wider than the cells plus the frame we budgeted for. */
+  box-sizing: border-box;
+  width: calc(var(--size) * var(--cell) + 2 * var(--frame));
   margin: 0 auto;
   background: var(--cell-bg);
-  border: max(2px, calc(var(--cell) * 0.06)) solid var(--cell-border-heavy);
-  border-radius: 8px;
+  border: var(--frame) solid var(--cell-border-heavy);
+  border-radius: var(--r-lg);
   overflow: hidden;
   touch-action: manipulation;
 }

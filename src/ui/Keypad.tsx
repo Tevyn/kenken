@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import type { Mode } from '../game/state'
 import { EraseIcon, HintIcon, MarksIcon, RedoIcon, UndoIcon } from './icons'
 import './Keypad.css'
@@ -103,7 +104,18 @@ export function Keypad({
         </button>
       </div>
 
-      <div className="kk-keypad__digits" role="group" aria-label="Digits">
+      {/*
+        `--size` drives one column per digit, so the pad is always exactly one
+        row (STYLE_GUIDE.md §1.3). Auto-fitting a minimum key width instead
+        capped the row at six columns on a 375px screen, wrapping a 9x9 to
+        6 + 3 and leaving an orphan row that read as a broken layout.
+      */}
+      <div
+        className="kk-keypad__digits"
+        role="group"
+        aria-label="Digits"
+        style={{ '--size': size } as CSSProperties}
+      >
         {digits.map((digit) => (
           <button
             key={digit}
