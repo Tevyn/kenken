@@ -18,24 +18,6 @@ interface WizardProps {
   onStartGame: (size: number, difficulty: Difficulty) => void
 }
 
-/** The "you are here" dots. Decorative: the heading already says which step. */
-function StepDots({ step }: { step: Step }) {
-  return (
-    <span className="kk-newgame__dots" aria-hidden="true">
-      <span
-        className={
-          step === 'size' ? 'kk-newgame__dot kk-newgame__dot--on' : 'kk-newgame__dot'
-        }
-      />
-      <span
-        className={
-          step === 'difficulty' ? 'kk-newgame__dot kk-newgame__dot--on' : 'kk-newgame__dot'
-        }
-      />
-    </span>
-  )
-}
-
 /**
  * The two steps themselves.
  *
@@ -61,12 +43,9 @@ function NewGameWizard({ size, difficulty, onStartGame }: WizardProps) {
   if (step === 'size') {
     return (
       <div className="kk-newgame__step">
-        <div className="kk-newgame__header">
-          <h2 className="kk-popover__heading" id={HEADING_ID}>
-            Grid size
-          </h2>
-          <StepDots step={step} />
-        </div>
+        <h2 className="kk-popover__heading" id={HEADING_ID}>
+          Size
+        </h2>
         <div className="kk-newgame__options">
           {SIZES.map((option) => (
             <button
@@ -90,22 +69,19 @@ function NewGameWizard({ size, difficulty, onStartGame }: WizardProps) {
 
   return (
     <div className="kk-newgame__step">
-      <div className="kk-newgame__header">
-        {/*
-          Step two shows nothing you chose in step one unless the heading says
-          it — and there is no way back to check.
-        */}
-        <h2 className="kk-popover__heading" id={HEADING_ID}>
-          <span className="kk-newgame__chosen" aria-label={`${pendingSize} by ${pendingSize}`}>
-            {pendingSize}×{pendingSize}
-          </span>
-          <span className="kk-newgame__sep" aria-hidden="true">
-            ·
-          </span>
-          Difficulty
-        </h2>
-        <StepDots step={step} />
-      </div>
+      {/*
+        Step two shows nothing you chose in step one unless the heading says
+        it — and there is no way back to check.
+      */}
+      <h2 className="kk-popover__heading" id={HEADING_ID}>
+        <span className="kk-newgame__chosen" aria-label={`${pendingSize} by ${pendingSize}`}>
+          {pendingSize}×{pendingSize}
+        </span>
+        <span className="kk-newgame__sep" aria-hidden="true">
+          ·
+        </span>
+        Difficulty
+      </h2>
       <div className="kk-newgame__options kk-newgame__options--difficulty" ref={difficultyRef}>
         {DIFFICULTIES.map((option) => (
           <button
@@ -163,6 +139,7 @@ export function NewGameMenu({
         </>
       }
       triggerClassName="kk-control--stack"
+      placement="center"
       open={open}
       onOpenChange={onOpenChange}
       disabled={disabled}

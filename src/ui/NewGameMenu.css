@@ -19,13 +19,6 @@
   min-width: min(17rem, calc(100vw - 56px));
 }
 
-.kk-newgame__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
 /* The size committed in step one, restated because there is no way back. */
 .kk-newgame__chosen {
   color: var(--text-h);
@@ -36,28 +29,11 @@
   opacity: 0.6;
 }
 
-.kk-newgame__dots {
-  display: inline-flex;
-  flex: none;
-  gap: 5px;
-}
-
-.kk-newgame__dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--border);
-}
-
-.kk-newgame__dot--on {
-  background: var(--accent);
-}
-
 .kk-newgame__options {
   display: grid;
   /* 4 + 3 across two rows: no lone button with half a panel beside it. */
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
+  gap: var(--sp-2);
 }
 
 .kk-newgame__options--difficulty {

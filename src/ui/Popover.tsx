@@ -32,6 +32,12 @@ export interface PopoverProps {
   disabled?: boolean
   /** Extra class on the trigger button, for per-popover styling. */
   triggerClassName?: string
+  /**
+   * Where the panel sits. `anchored` (the default) hangs it off the trigger;
+   * `center` floats it in the middle of the screen behind a scrim, for a panel
+   * big enough that hanging it off a corner would leave it lopsided.
+   */
+  placement?: 'anchored' | 'center'
   children: ReactNode
 }
 
@@ -53,6 +59,7 @@ export function Popover({
   onOpenChange,
   disabled = false,
   triggerClassName,
+  placement = 'anchored',
   children,
 }: PopoverProps) {
   const rootRef = useRef<HTMLDivElement>(null)
@@ -170,10 +177,24 @@ export function Popover({
         {trigger}
       </button>
 
+      {open && placement === 'center' && (
+        /*
+          Purely a backdrop: it dims the page behind a centred panel so the
+          panel reads as modal rather than as something floating loose over the
+          board. Closing is already handled by the document-level mousedown
+          listener above, so this deliberately carries no handlers of its own.
+        */
+        <div className="kk-popover__scrim" aria-hidden="true" />
+      )}
+
       {open && (
         <div
           ref={panelRef}
-          className="kk-popover__panel"
+          className={
+            placement === 'center'
+              ? 'kk-popover__panel kk-popover__panel--center'
+              : 'kk-popover__panel'
+          }
           role="dialog"
           aria-modal="true"
           aria-label={panelLabelledBy ? undefined : label}

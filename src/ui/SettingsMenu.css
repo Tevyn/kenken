@@ -63,13 +63,6 @@
   gap: var(--sp-1);
 }
 
-.kk-settings__help {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.35;
-  color: var(--text-muted);
-}
-
 .kk-switch {
   position: relative;
   display: flex;

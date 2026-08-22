@@ -39,6 +39,30 @@
   box-shadow: var(--shadow-popover), inset 0 1px 0 var(--popover-highlight);
 }
 
+/*
+ * Centred placement. `position: fixed` here resolves against `.kk-app`, not the
+ * viewport: `container-type: inline-size` on that element applies layout
+ * containment, which makes it the containing block for fixed descendants.
+ * `.kk-app` spans the viewport, so the two coincide - but the scrim is sized
+ * the same way rather than assuming otherwise.
+ */
+.kk-popover__panel--center {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  right: auto;
+  transform: translate(-50%, -50%);
+  max-height: calc(100% - 2 * var(--sp-5));
+}
+
+.kk-popover__scrim {
+  position: fixed;
+  inset: 0;
+  /* One below the panel's own z-index, so it dims the page and nothing else. */
+  z-index: 19;
+  background: light-dark(#1c212259, #00000099);
+}
+
 /* Every panel's section heading. Shared so the popovers can't drift apart. */
 .kk-popover__heading {
   margin: 0;

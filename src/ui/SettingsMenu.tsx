@@ -98,16 +98,12 @@ export function SettingsMenu({
             type="checkbox"
             role="switch"
             checked={autoClearMarks}
-            aria-describedby="kk-auto-clear-marks-help"
             onChange={handleAutoClearMarksChange}
           />
           <span className="kk-switch__track" aria-hidden="true">
             <span className="kk-switch__knob" />
           </span>
         </label>
-        <p className="kk-settings__help" id="kk-auto-clear-marks-help">
-          Erase notes that a newly entered digit rules out in that row and column
-        </p>
       </div>
     </Popover>
   )

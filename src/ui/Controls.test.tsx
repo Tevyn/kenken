@@ -64,8 +64,8 @@ describe('Controls', () => {
       render(<ControlsHarness {...baseProps()} />)
 
       await user.click(newGameButton())
-      expect(screen.getByRole('dialog', { name: 'Grid size' })).toBeInTheDocument()
-      expect(screen.getByRole('heading', { name: 'Grid size' })).toBeInTheDocument()
+      expect(screen.getByRole('dialog', { name: 'Size' })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Size' })).toBeInTheDocument()
 
       const sizes = screen.getAllByRole('button', { name: /^\d by \d$/ })
       expect(sizes).toHaveLength(7)
@@ -127,7 +127,7 @@ describe('Controls', () => {
       await user.keyboard('{Escape}')
       await user.click(newGameButton())
 
-      expect(screen.getByRole('dialog', { name: 'Grid size' })).toBeInTheDocument()
+      expect(screen.getByRole('dialog', { name: 'Size' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: '5 by 5' })).toBeInTheDocument()
     })
   })
@@ -140,9 +140,6 @@ describe('Controls', () => {
       await user.click(settingsButton())
       const toggle = screen.getByRole('switch', { name: 'Auto-clear notes' })
       expect(toggle).not.toBeChecked()
-      expect(toggle).toHaveAccessibleDescription(
-        'Erase notes that a newly entered digit rules out in that row and column',
-      )
     })
 
     it('flipping the switch calls onAutoClearMarksChange with the negated value', async () => {
@@ -200,11 +197,11 @@ describe('Controls', () => {
       render(<ControlsHarness {...baseProps()} />)
 
       await user.click(newGameButton())
-      expect(screen.getByRole('dialog', { name: 'Grid size' })).toBeInTheDocument()
+      expect(screen.getByRole('dialog', { name: 'Size' })).toBeInTheDocument()
 
       await user.click(settingsButton())
       expect(screen.getByRole('dialog', { name: 'Settings' })).toBeInTheDocument()
-      expect(screen.queryByRole('dialog', { name: 'Grid size' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('dialog', { name: 'Size' })).not.toBeInTheDocument()
       expect(newGameButton()).toHaveAttribute('aria-expanded', 'false')
       expect(settingsButton()).toHaveAttribute('aria-expanded', 'true')
     })
