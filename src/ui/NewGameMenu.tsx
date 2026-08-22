@@ -158,11 +158,11 @@ export function NewGameMenu({
       panelLabelledBy={HEADING_ID}
       trigger={
         <>
-          <NewGameIcon />
-          New game
+          <NewGameIcon size={22} />
+          <span className="kk-control__label">New game</span>
         </>
       }
-      triggerClassName="kk-newgame__trigger"
+      triggerClassName="kk-control--stack"
       open={open}
       onOpenChange={onOpenChange}
       disabled={disabled}

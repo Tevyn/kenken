@@ -48,6 +48,26 @@
   gap: var(--sp-3);
 }
 
+/* Wordmark over the puzzle meta, as one block on the header's left. */
+.kk-app__identity {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+/*
+ * Understated on purpose: grey, small, sentence case. It is the answer to
+ * "what am I playing", not a status readout - the game is untimed and unscored
+ * (STYLE_GUIDE.md §6.1), so this is the only state the header carries.
+ */
+.kk-app__meta {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--text-muted);
+}
+
 .kk-app__title {
   margin: 0;
   /*

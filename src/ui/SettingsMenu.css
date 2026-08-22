@@ -1,7 +1,3 @@
-.kk-settings__trigger {
-  padding: var(--sp-2);
-}
-
 /* The shared heading rule lives in Popover.css as .kk-popover__heading;
    this is only the bit that differs per popover (New Game's own header
    wrapper supplies its spacing another way). */

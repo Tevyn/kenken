@@ -8,35 +8,15 @@
 }
 
 /*
- * The five actions: glyph over label, five across. The label is the point -
- * an icon alone made the player guess at the control, and the two stateful
- * ones had no way to say which state they were in except a tint.
- *
- * Everything shared - blue ink, no chrome, press feedback, disabled - comes
- * from `.kk-control` in index.css. Only the stacking is local.
+ * The five actions, five across. Everything about how one looks - blue ink, no
+ * chrome, glyph over grey label, press feedback, disabled - comes from
+ * `.kk-control` and `.kk-control--stack` in index.css, which the two header
+ * triggers wear too. Only the row is local.
  */
 .kk-keypad__actions {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: var(--sp-1);
-}
-
-.kk-keypad__action {
-  flex-direction: column;
-  gap: var(--sp-1);
-  padding: var(--sp-2) var(--sp-1);
-  min-height: 56px;
-}
-
-/*
- * Labels stay grey even when the glyph above them is blue: the label names the
- * control, it is not a second thing to press. Blue is only ever what you touch.
- */
-.kk-keypad__label {
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1;
-  color: var(--text-muted);
 }
 
 /* Positioning context for the badge, so it sits on the glyph's shoulder

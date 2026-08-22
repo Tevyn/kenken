@@ -97,12 +97,35 @@ function App() {
    * than empty space, so it stays put and dims instead. The controls dim with
    * it, so nothing can be entered into a grid that is about to be replaced.
    */
+  // Same capitalisation the wizard's own difficulty buttons use, so the two
+  // places the word appears agree.
+  const difficultyLabel =
+    game.state.puzzle.difficulty[0].toUpperCase() + game.state.puzzle.difficulty.slice(1)
+
   const busyClass = loading ? 'kk-is-busy' : ''
 
   return (
     <div className="kk-app">
       <header className="kk-app__header">
-        <h1 className="kk-app__title">KenKen</h1>
+        <div className="kk-app__identity">
+          <h1 className="kk-app__title">KenKen</h1>
+          {/*
+            What you are playing, stated once and quietly. Nothing on screen
+            said it before - not the size, not the difficulty - and the wizard
+            is the only other place either appears.
+
+            The visible form is split from the announced one because "9×9"
+            reads as "nine times nine" aloud.
+          */}
+          <p className="kk-app__meta">
+            <span aria-hidden="true">
+              {game.state.puzzle.size}×{game.state.puzzle.size} · {difficultyLabel}
+            </span>
+            <span className="kk-sr-only">
+              {`Playing ${game.state.puzzle.size} by ${game.state.puzzle.size}, ${game.state.puzzle.difficulty}`}
+            </span>
+          </p>
+        </div>
         <Controls
           size={game.state.puzzle.size}
           difficulty={game.state.puzzle.difficulty}

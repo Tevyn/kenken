@@ -9,10 +9,6 @@
  * bordered pill on a surface, and New Game's was accent-filled, which made
  * "discard the puzzle you are solving" the loudest thing on the page.
  */
-.kk-popover__trigger {
-  padding: var(--sp-2) var(--sp-3);
-}
-
 /* Reinstated for the trigger only: `aria-disabled` keeps the button focusable
    so the closing panel can hand focus back, and it has to read as inert. */
 .kk-popover__trigger[aria-disabled='true'] {

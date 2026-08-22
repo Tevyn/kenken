@@ -54,10 +54,10 @@ describe('Keypad', () => {
       expect(action).not.toHaveAttribute('title')
       expect(action).not.toHaveAttribute('aria-label')
       expect(action.querySelector('svg')).not.toBeNull()
-      expect(action.querySelector('.kk-keypad__label')?.textContent).toBeTruthy()
+      expect(action.querySelector('.kk-control__label')?.textContent).toBeTruthy()
     }
     expect(
-      Array.from(actions, (a) => a.querySelector('.kk-keypad__label')?.textContent),
+      Array.from(actions, (a) => a.querySelector('.kk-control__label')?.textContent),
     ).toEqual(['Undo', 'Redo', 'Erase', 'Notes', 'Hint'])
   })
 

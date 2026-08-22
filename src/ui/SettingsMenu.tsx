@@ -43,8 +43,13 @@ export function SettingsMenu({
     <Popover
       label="Settings"
       panelLabelledBy="kk-settings-heading"
-      trigger={<MenuIcon size={22} />}
-      triggerClassName="kk-settings__trigger"
+      trigger={
+        <>
+          <MenuIcon size={22} />
+          <span className="kk-control__label">Settings</span>
+        </>
+      }
+      triggerClassName="kk-control--stack"
       open={open}
       onOpenChange={onOpenChange}
     >

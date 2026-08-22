@@ -256,8 +256,14 @@ not decoration, it is what makes the rest of the layout possible — nine bare
 digits fit one row on a 375px phone because a numeral needs room for its ink,
 where a bordered key needs room for its box.
 
-Shared implementation: `.kk-control` in `src/index.css`. A control that does
-not use it is a bug.
+Shared implementation: `.kk-control` in `src/index.css`, plus
+`.kk-control--stack` and `.kk-control__label` for the glyph-over-label form. A
+control that does not use them is a bug.
+
+**Every icon control wears the same stack**, wherever it sits: the five toolbar
+actions and the two header triggers are the same kind of thing, so New Game and
+Settings are glyph-over-label at 56px exactly like Undo and Redo. A header
+button styled as its own species is the bug this rule exists to prevent.
 
 | | Treatment |
 |---|---|
@@ -385,13 +391,17 @@ than to reintroduce a second hue.
 
 ### 6.1 Puzzle meta
 
-The header carries a single muted line beside the wordmark — `9×9 · Medium` —
-so the player can always see what they are playing. Nothing on screen currently
-says this at all.
+The header carries one muted line under the wordmark — `9×9 · Medium`. Grey,
+13px, sentence case, understated. It answers "what am I playing", which nothing
+on screen said before: neither the size nor the difficulty appeared anywhere
+outside the New Game wizard.
 
-*(This replaces the four-column status strip, which we cut. If even one line
-feels like too much chrome, the alternative is to move it into the New game
-popover as the current-state readout and let the board speak for itself.)*
+It is deliberately *not* a status strip. The game is untimed and unscored, so
+this is the only state the header carries, and it must never grow into a row of
+counters.
+
+The visible text is split from the announced text — `9×9` reads aloud as "nine
+times nine", so a `.kk-sr-only` sibling says "Playing 9 by 9, medium" instead.
 
 ---
 

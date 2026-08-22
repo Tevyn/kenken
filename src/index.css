@@ -141,7 +141,7 @@
 
   --r-sm: 6px; /* inline chips, marks */
   --r-md: 10px; /* keys, buttons, triggers */
-  --r-lg: 14px; /* panels, popovers, the board */
+  --r-lg: 14px; /* panels, popovers (never the board - it is square) */
 
   /*
    * The width every zone lines up on. The header, the board and the controls
@@ -305,6 +305,42 @@ button {
   /* No native click-blocking like the disabled attribute, so neutralise the
      hover and active rules above for it too. */
   pointer-events: none;
+}
+
+/*
+ * Glyph over label. Shared rather than Keypad-local, because every icon
+ * control in the app wears it: the five toolbar actions and the two header
+ * triggers are the same kind of thing and have to read that way.
+ */
+.kk-control--stack {
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-2) var(--sp-1);
+  min-height: 56px;
+}
+
+/*
+ * The label names the control; it is not a second thing to press. So it stays
+ * grey even when the glyph above it is blue - blue is only ever what you touch.
+ */
+.kk-control__label {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--text-muted);
+}
+
+/* Announced, never seen. */
+.kk-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  clip-path: inset(50%);
 }
 
 /*

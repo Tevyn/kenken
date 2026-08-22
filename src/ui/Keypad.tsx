@@ -52,32 +52,32 @@ export function Keypad({
       <div className="kk-keypad__actions" role="group" aria-label="Actions">
         <button
           type="button"
-          className="kk-control kk-keypad__action"
+          className="kk-control kk-control--stack kk-keypad__action"
           onClick={onUndo}
           disabled={!canUndo}
           aria-keyshortcuts="Control+Z"
         >
           <UndoIcon size={22} />
-          <span className="kk-keypad__label">Undo</span>
+          <span className="kk-control__label">Undo</span>
         </button>
         <button
           type="button"
-          className="kk-control kk-keypad__action"
+          className="kk-control kk-control--stack kk-keypad__action"
           onClick={onRedo}
           disabled={!canRedo}
           aria-keyshortcuts="Control+Shift+Z Control+Y"
         >
           <RedoIcon size={22} />
-          <span className="kk-keypad__label">Redo</span>
+          <span className="kk-control__label">Redo</span>
         </button>
         <button
           type="button"
-          className="kk-control kk-keypad__action"
+          className="kk-control kk-control--stack kk-keypad__action"
           onClick={onErase}
           aria-keyshortcuts="Backspace Delete"
         >
           <EraseIcon size={22} />
-          <span className="kk-keypad__label">Erase</span>
+          <span className="kk-control__label">Erase</span>
         </button>
         {/*
           The badge is the state, not a tint: it reads OFF or ON at all times,
@@ -86,7 +86,7 @@ export function Keypad({
         */}
         <button
           type="button"
-          className="kk-control kk-keypad__action"
+          className="kk-control kk-control--stack kk-keypad__action"
           onClick={onToggleMode}
           aria-pressed={mode === 'mark'}
           aria-keyshortcuts="Space"
@@ -104,7 +104,7 @@ export function Keypad({
               {mode === 'mark' ? 'ON' : 'OFF'}
             </span>
           </span>
-          <span className="kk-keypad__label">Notes</span>
+          <span className="kk-control__label">Notes</span>
         </button>
         {/*
           Not a toggle, so no OFF/ON badge would make sense here - "armed" is a
@@ -112,12 +112,12 @@ export function Keypad({
         */}
         <button
           type="button"
-          className="kk-control kk-keypad__action"
+          className="kk-control kk-control--stack kk-keypad__action"
           onClick={onHint}
           aria-keyshortcuts="H"
         >
           <HintIcon size={22} />
-          <span className="kk-keypad__label">{hintPending ? 'Apply' : 'Hint'}</span>
+          <span className="kk-control__label">{hintPending ? 'Apply' : 'Hint'}</span>
         </button>
       </div>
 
