@@ -40,25 +40,30 @@ function IconBase({ size = 20, children, ...rest }: IconProps & { children: Reac
  * a magic wand implies the app solves the step for you and a question mark
  * reads as generic help rather than a puzzle nudge.
  *
- * Two strokes, and the silhouette is doing all the work. The body is one
- * open path — a wide 300deg arc whose ends curve back inward — so the
- * shoulders pinch into a neck and the outline reads as a pear/teardrop. A
- * plain circle for the envelope is the trap: it reads as a clock face, and
- * any filament drawn inside it (a chevron especially) reads as a dropdown
- * caret rather than a filament, so the bulb is left empty.
+ * This is Lucide's `lightbulb` verbatim, chosen over several hand-drawn
+ * alternatives for its airier body: the shoulders curve back in over a wide
+ * neck rather than pinching, which keeps the envelope open at render size
+ * instead of silting up into a solid teardrop.
  *
- * The base is a slightly tapered cup drawn from the two neck ends, so it is
- * physically joined to the body. Lucide's `lightbulb` floats its two base
- * bars free of the glyph above; at 22px they blur into a stray dash and the
- * whole thing reads as a trophy. One band, not two: a second thread line
- * only fits with ~2.7 units of clearance, which fuses into a solid block at
- * render size. The taper carries the screw-base read on its own.
+ * The bulb is left empty on purpose. A plain circle for the envelope reads
+ * as a clock face, and any filament drawn inside it — a chevron especially
+ * — reads as a dropdown caret rather than a filament. The previous glyph
+ * was exactly that mistake.
+ *
+ * The two base bars are detached from the body, which is normally the thing
+ * to avoid: the previous glyph's neck stopped short above a bar that floated
+ * with nothing to relate to, and the result read as a trophy. It works here
+ * because the bars are evenly spaced and centred under a balanced body, so
+ * they read as screw threads seen edge-on. They do stay two distinct dashes
+ * at 22px — verified on the pixel grid, not assumed — but they are the first
+ * thing to check if this icon is ever rendered smaller than 20px.
  */
 export function HintIcon(props: IconProps) {
   return (
     <IconBase {...props}>
-      <path d="M9 16c0-1.4-.6-2.3-1.4-3.2a5.6 5.6 0 1 1 8.8 0c-.8.9-1.4 1.8-1.4 3.2" />
-      <path d="M9 16l.7 4.3h4.6l.7-4.3" />
+      <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" />
+      <path d="M9 18h6" />
+      <path d="M10 22h4" />
     </IconBase>
   )
 }
