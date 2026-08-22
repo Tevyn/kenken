@@ -100,12 +100,12 @@
   color: var(--accent-contrast);
 }
 
-/* Tinted with the hint palette so the button matches what it puts on the board. */
-.kk-keypad__action--hint {
-  border-color: var(--hint-panel-border);
-  background: var(--hint-panel-bg);
-  color: var(--hint-cage-outline);
-}
+/*
+ * The hint button rests neutral, like every other action. It used to carry a
+ * permanent tint from the hint palette, which made it the loudest thing in the
+ * toolbar before there was any hint to give (STYLE_GUIDE.md §4.1). Now that
+ * hints share the accent hue, that tint also read as "this toggle is on".
+ */
 
 /* Armed: a hint is on the board and the next press applies it. */
 .kk-keypad__action--armed {

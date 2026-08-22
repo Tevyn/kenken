@@ -1,57 +1,136 @@
+/*
+ * Design tokens — see docs/STYLE_GUIDE.md.
+ *
+ * Two tiers, and the split is the point:
+ *
+ *   TIER 1 (§ Anchors) is the only place a hex literal is allowed. One line
+ *   per role, both themes on that line via `light-dark()`, so a palette swap
+ *   is an edit to this block and nothing else.
+ *
+ *   TIER 2 (§ Derived) never contains a colour of its own. Every value is
+ *   mixed out of a tier-1 anchor with `color-mix()`. Because the anchors are
+ *   themselves light/dark pairs, one derivation rule gives the right polarity
+ *   in both themes — an accent mixed into `--surface` is a pale tint on white
+ *   and a muted shade on near-black, with no second rule to keep in sync.
+ *
+ * The previous layer was one flat tier of ~40 hand-picked hexes, so changing
+ * the accent meant re-mixing a dozen unrelated values by eye. Component
+ * stylesheets consume tier-2 names only and did not change.
+ */
+
 :root {
-  --text: #3f3b46;
-  --text-muted: #767085;
-  --text-h: #0b0910;
-  --bg: #f4f3f8;
-  --surface: #ffffff;
-  --border: #dcdae3;
+  /*
+   * Required for `light-dark()` to resolve. Setting `color-scheme: light` or
+   * `dark` on this element is also how a manual theme toggle would work — no
+   * token would need to change.
+   */
+  color-scheme: light dark;
 
-  --accent: #7c3aed;
-  --accent-contrast: #ffffff;
-  /* Accent at low strength: "this is the current choice" without shouting. */
-  --accent-soft: #ede4fe;
+  /* ================================================================
+   * TIER 1 — ANCHORS.  light-dark(<light>, <dark>).  Swap here.
+   * ================================================================ */
+
+  /* Neutrals. Off-white / off-black pages, greys between. */
+  --bg: light-dark(#f4f5f7, #121417);
+  --surface: light-dark(#ffffff, #1b1e23);
+  --surface-sunken: light-dark(#eceef1, #0d0f12);
+  --text: light-dark(#1c2128, #dde1e7);
+  --text-muted: light-dark(#5c6470, #949ba6);
+  --text-h: light-dark(#0d1117, #f0f3f7);
+  --border: light-dark(#d5d9e0, #2b2f36);
+  --border-strong: light-dark(#aeb5c0, #464c56);
 
   /*
-   * Lifts a popover surface off the page it floats over. In light that is a
-   * cast shadow; the panel itself can sit flat on the page colour.
+   * One hue for every interactive and player-owned meaning: a lighter navy on
+   * the light page, a light blue on the dark one. Same token, two renderings,
+   * so no rule downstream has to know which theme it is in.
    */
-  --shadow-popover: 0 12px 28px #1c1a2226, 0 2px 6px #1c1a221a;
-  --surface-popover: #ffffff;
-  --border-popover: #dcdae3;
-  /* Nothing to add on a white panel — the shadow already does the work. */
-  --popover-highlight: #ffffff00;
-
-  --cell-bg: #ffffff;
-  --cell-border: #c7c4d1;
-  --cell-border-heavy: #1c1a22;
-  --cell-selected: #ddd0fb;
-  --cell-line: #eee9fb;
-  --cell-cage: #f3effb;
-  --cell-error: #fbe4e4;
+  --accent: light-dark(#2f5596, #8ab4f0);
+  --accent-hover: light-dark(#26467d, #a3c5f5);
+  --accent-contrast: light-dark(#ffffff, #101318);
 
   /*
-   * Hints get their own teal family rather than borrowing the violet accent,
-   * so "the hint is pointing here" never reads as "you have this selected".
+   * The board's heavy lines: cage borders and the outer edge. Grey in dark,
+   * never near-white — at 9x9 a white structure turns the grid into a glowing
+   * wireframe with the cells reading as holes.
    */
-  --hint-focus-bg: #ccfbf1;
-  --hint-focus-ring: #0d9488;
-  --hint-support-bg: #e4f8f3;
-  --hint-band-bg: #f1fbf9;
-  --hint-cage-outline: #0f766e;
-  --hint-strike: #0f766e;
+  --cell-border-heavy: light-dark(#1c2128, #6b7480);
+
+  /* Status. Not accents — the only two hues that break the monochrome. */
+  --danger: light-dark(#c0362c, #f08a80);
+  --success: light-dark(#1f7a45, #5fd08a);
+
+  /* ================================================================
+   * TIER 2 — DERIVED.  No literals below this line.
+   * ================================================================ */
+
+  /* The board sits on `--surface`, so every fill mixes into that. */
+  --cell-bg: var(--surface);
+  /*
+   * Cell dividers take the stronger neutral, not `--border`. A hairline that
+   * reads fine as the edge of a key disappears when it is drawn between two
+   * cells of the same colour.
+   */
+  --cell-border: var(--border-strong);
+
+  /*
+   * The fill channel (docs/STYLE_GUIDE.md §5.1), weakest to strongest. The
+   * selected cell is always the strongest fill on the board: it is the
+   * player's cursor and must never be outshone by a highlight it caused.
+   */
+  --cell-line: color-mix(in oklab, var(--accent) 8%, var(--surface));
+  --cell-cage: color-mix(in oklab, var(--accent) 14%, var(--surface));
+  --cell-selected: color-mix(in oklab, var(--accent) 30%, var(--surface));
+  --cell-error: color-mix(in oklab, var(--danger) 16%, var(--surface));
+
+  /* Low-strength accent: "this is the current choice", without shouting. */
+  --accent-soft: color-mix(in oklab, var(--accent) 14%, var(--surface));
+
+  /*
+   * Hints share the accent hue (§5.2). They do not need one of their own: a
+   * hint dims every uninvolved cell to `--hint-dim-opacity`, which nothing
+   * else in the app does, so hint mode is unmistakable before colour is even
+   * considered. Within it, geometry carries the distinction — selection is a
+   * fill, the hint's conclusion is a ring.
+   */
+  --hint-band-bg: color-mix(in oklab, var(--accent) 6%, var(--surface));
+  --hint-support-bg: color-mix(in oklab, var(--accent) 16%, var(--surface));
+  --hint-focus-bg: color-mix(in oklab, var(--accent) 22%, var(--surface));
+  --hint-focus-ring: var(--accent);
+  --hint-cage-outline: var(--accent);
+  --hint-strike: var(--accent);
+  --hint-panel-bg: color-mix(in oklab, var(--accent) 8%, var(--surface));
+  --hint-panel-border: color-mix(in oklab, var(--accent) 34%, var(--surface));
+
+  --success-bg: color-mix(in oklab, var(--success) 14%, var(--surface));
+
+  /*
+   * A popover floats above the page, so it steps one surface further from it.
+   * In light that is the plain surface plus a cast shadow; in dark a shadow on
+   * a near-black page is invisible, so the panel lifts by getting lighter and
+   * catching a highlight on its top edge (both handled below).
+   */
+  --surface-popover: color-mix(in oklab, var(--text) 4%, var(--surface));
+  --border-popover: var(--border);
+
+  /*
+   * A shadow isn't a colour, but its *colour slots* are, so `light-dark()`
+   * still reaches inside one. Light casts a shadow; dark can't (a black shadow
+   * on a near-black page is invisible), so it leans on the highlight below
+   * and a near-opaque spread instead.
+   */
+  --shadow-popover: 0 14px 30px light-dark(#1c212226, #00000073),
+    0 2px 6px light-dark(#1c21221a, #00000059);
+  /* The lit top edge that does dark's lifting. Transparent in light. */
+  --popover-highlight: light-dark(#ffffff00, #ffffff1f);
+
+  /* The one token left that `light-dark()` can't hold: it isn't a colour. */
   --hint-dim-opacity: 0.4;
-  --hint-panel-bg: #f1fbf9;
-  --hint-panel-border: #99e6d8;
-
-  --danger: #b91c1c;
-  --success: #15803d;
-  --success-bg: #e8f7ee;
 
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
 
   font: 16px/1.45 var(--sans);
-  color-scheme: light dark;
   color: var(--text);
   background: var(--bg);
   font-synthesis: none;
@@ -60,51 +139,40 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/*
+ * Theme override. `light-dark()` resolves against `color-scheme`, so pointing
+ * that at a single palette is the entire mechanism — no token is redeclared,
+ * and `system` is the absence of the attribute (the `light dark` pair above).
+ *
+ * `Theme` in src/game/preferences.ts is the other half.
+ */
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+/*
+ * The only per-theme declaration left in the file, and only because opacity is
+ * a number rather than a colour. Dark needs to dim harder: the same opacity
+ * over a dark page separates the dimmed cells less.
+ *
+ * Written three-state so a manual choice beats the OS in both directions —
+ * the media query deliberately excludes an explicit light override.
+ *
+ * Nothing else belongs down here. A *colour* that needs a dark override is an
+ * anchor that was written wrong.
+ */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --text: #cbc8d4;
-    --text-muted: #918da0;
-    --text-h: #f4f3f8;
-    --bg: #141319;
-    --surface: #1d1b24;
-    --border: #34313e;
-
-    --accent: #a78bfa;
-    --accent-contrast: #141319;
-    --accent-soft: #332a52;
-
-    /*
-     * A black shadow on a near-black page is invisible, so dark elevates with
-     * light instead: the panel surface steps up off `--bg`, its border comes
-     * with it, and a hairline highlight catches the top edge.
-     */
-    --shadow-popover: 0 16px 34px #00000073, 0 2px 6px #00000059;
-    --surface-popover: #2e2b3a;
-    --border-popover: #423e52;
-    --popover-highlight: #ffffff1f;
-
-    --cell-bg: #1d1b24;
-    --cell-border: #3d3a49;
-    --cell-border-heavy: #f4f3f8;
-    --cell-selected: #453a68;
-    --cell-line: #26222f;
-    --cell-cage: #201d2a;
-    --cell-error: #3b1f24;
-
-    --hint-focus-bg: #12433c;
-    --hint-focus-ring: #2dd4bf;
-    --hint-support-bg: #17332f;
-    --hint-band-bg: #1a2726;
-    --hint-cage-outline: #2dd4bf;
-    --hint-strike: #5eead4;
+  :root:not([data-theme='light']) {
     --hint-dim-opacity: 0.32;
-    --hint-panel-bg: #152624;
-    --hint-panel-border: #245049;
-
-    --danger: #f87171;
-    --success: #4ade80;
-    --success-bg: #142317;
   }
+}
+
+:root[data-theme='dark'] {
+  --hint-dim-opacity: 0.32;
 }
 
 *,
