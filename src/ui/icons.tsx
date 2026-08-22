@@ -39,15 +39,26 @@ function IconBase({ size = 20, children, ...rest }: IconProps & { children: Reac
  * hint button, Lucide/Material's `lightbulb`) — it reads as "an idea", while
  * a magic wand implies the app solves the step for you and a question mark
  * reads as generic help rather than a puzzle nudge.
+ *
+ * Two strokes, and the silhouette is doing all the work. The body is one
+ * open path — a wide 300deg arc whose ends curve back inward — so the
+ * shoulders pinch into a neck and the outline reads as a pear/teardrop. A
+ * plain circle for the envelope is the trap: it reads as a clock face, and
+ * any filament drawn inside it (a chevron especially) reads as a dropdown
+ * caret rather than a filament, so the bulb is left empty.
+ *
+ * The base is a slightly tapered cup drawn from the two neck ends, so it is
+ * physically joined to the body. Lucide's `lightbulb` floats its two base
+ * bars free of the glyph above; at 22px they blur into a stray dash and the
+ * whole thing reads as a trophy. One band, not two: a second thread line
+ * only fits with ~2.7 units of clearance, which fuses into a solid block at
+ * render size. The taper carries the screw-base read on its own.
  */
 export function HintIcon(props: IconProps) {
   return (
     <IconBase {...props}>
-      <circle cx="12" cy="9" r="5" />
-      <path d="M10 7l2 2 2-2" />
-      <path d="M12 14v3" />
-      <line x1="9" y1="17" x2="15" y2="17" />
-      <line x1="10" y1="20" x2="14" y2="20" />
+      <path d="M9 16c0-1.4-.6-2.3-1.4-3.2a5.6 5.6 0 1 1 8.8 0c-.8.9-1.4 1.8-1.4 3.2" />
+      <path d="M9 16l.7 4.3h4.6l.7-4.3" />
     </IconBase>
   )
 }
@@ -146,15 +157,29 @@ export function MenuIcon(props: IconProps) {
 }
 
 /**
- * New game: a refresh loop. Puzzle apps use a circular-arrow "regenerate"
- * glyph for starting a fresh puzzle, kept visually distinct from the
- * shorter undo/redo hooks by sweeping most of the way around the circle.
+ * New game: a clockwise refresh loop. Puzzle apps use a circular-arrow
+ * "regenerate" glyph for starting a fresh puzzle, kept visually distinct
+ * from the shorter undo/redo corner-hooks by sweeping ~300deg — nearly the
+ * whole circle — before the head.
+ *
+ * The head is a chevron whose tip sits at the stroke's terminus with both
+ * legs raked back along the direction of travel, so the eye picks up the
+ * rotation. An axis-aligned L-bracket parked on the circle is the trap the
+ * previous version fell into: its opening faces away from the travel
+ * direction, and two straight legs meeting at 90deg on the arc read as a
+ * prong jabbed into the side of a ring, not an arrow.
+ *
+ * The tail flares tangentially past the circle (Lucide's `rotate-cw` trick)
+ * so the head has clearance. A chevron seated directly on the arc has its
+ * back legs running nearly parallel to the curve, and at 20px the notch
+ * between them silts up into a blob. The same reason the splay is ~38deg
+ * rather than a square 45deg: the wider corner closes at render size.
  */
 export function NewGameIcon(props: IconProps) {
   return (
     <IconBase {...props}>
-      <path d="M12 4A8 8 0 1 1 4 12" />
-      <path d="M4 7v5h5" />
+      <path d="M21 12A9 9 0 1 1 12 3c2.52 0 4.93 1 6.74 2.74L21 8" />
+      <path d="M16.4 7.4 21 8 20.4 3.4" />
     </IconBase>
   )
 }
