@@ -58,21 +58,18 @@
   flex-shrink: 0;
 }
 
-.kk-hint button {
-  font-family: inherit;
+/*
+ * Both buttons are bare controls; only their sizing differs. They used to be
+ * bordered boxes on a surface, which made the dismiss "x" heavier than the
+ * hint prose it sits beside.
+ */
+.kk-hint__reveal {
   font-size: 14px;
-  font-weight: 600;
-  padding: 6px 10px;
-  border-radius: 6px;
-  border: 1px solid var(--hint-panel-border);
-  background: var(--surface);
-  color: var(--text);
-  cursor: pointer;
+  padding: var(--sp-1) var(--sp-2);
 }
 
 .kk-hint__dismiss {
-  font-size: 18px;
+  font-size: 20px;
   line-height: 1;
-  padding: 4px 9px;
-  color: var(--text-muted);
+  padding: var(--sp-1) var(--sp-2);
 }

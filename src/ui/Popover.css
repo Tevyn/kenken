@@ -3,40 +3,20 @@
   display: inline-flex;
 }
 
-.kk-popover__trigger {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-width: 44px;
-  min-height: 44px;
-  padding: 0 14px;
-  font-family: inherit;
-  font-size: 15px;
-  font-weight: 600;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  cursor: pointer;
-  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
-}
-
-.kk-popover__trigger:hover:not(:disabled):not([aria-disabled='true']) {
-  border-color: var(--accent);
-}
-
-.kk-popover__trigger:active:not(:disabled):not([aria-disabled='true']) {
-  background: var(--accent-soft);
-}
-
 /*
- * `aria-disabled` rather than `:disabled`, so the button keeps focus while the
- * popover that closed it is disabling it. It has to look the same either way.
+ * The trigger is a bare control like everything else - `.kk-control` supplies
+ * the blue ink, the press feedback and the disabled state. It used to be a
+ * bordered pill on a surface, and New Game's was accent-filled, which made
+ * "discard the puzzle you are solving" the loudest thing on the page.
  */
-.kk-popover__trigger:disabled,
+.kk-popover__trigger {
+  padding: var(--sp-2) var(--sp-3);
+}
+
+/* Reinstated for the trigger only: `aria-disabled` keeps the button focusable
+   so the closing panel can hand focus back, and it has to read as inert. */
 .kk-popover__trigger[aria-disabled='true'] {
-  opacity: 0.5;
+  color: var(--text-muted);
   cursor: not-allowed;
 }
 

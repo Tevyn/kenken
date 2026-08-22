@@ -138,10 +138,10 @@ describe('Controls', () => {
       render(<ControlsHarness {...baseProps()} autoClearMarks={false} />)
 
       await user.click(settingsButton())
-      const toggle = screen.getByRole('switch', { name: 'Auto-clear marks' })
+      const toggle = screen.getByRole('switch', { name: 'Auto-clear notes' })
       expect(toggle).not.toBeChecked()
       expect(toggle).toHaveAccessibleDescription(
-        'Erase pencil marks that a newly entered digit rules out in that row and column',
+        'Erase notes that a newly entered digit rules out in that row and column',
       )
     })
 
@@ -151,7 +151,7 @@ describe('Controls', () => {
       render(<ControlsHarness {...props} autoClearMarks />)
 
       await user.click(settingsButton())
-      const toggle = screen.getByRole('switch', { name: 'Auto-clear marks' })
+      const toggle = screen.getByRole('switch', { name: 'Auto-clear notes' })
       expect(toggle).toBeChecked()
 
       await user.click(toggle)

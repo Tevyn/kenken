@@ -52,13 +52,13 @@ export function HintPanel({ phase, onDismiss, onReveal }: HintPanelProps) {
       {content && (
         <div className="kk-hint__actions">
           {stuck && onReveal && (
-            <button type="button" className="kk-hint__reveal" onClick={onReveal}>
+            <button type="button" className="kk-control kk-hint__reveal" onClick={onReveal}>
               Reveal a cell
             </button>
           )}
           <button
             type="button"
-            className="kk-hint__dismiss"
+            className="kk-control kk-hint__dismiss"
             onClick={onDismiss}
             aria-label="Dismiss hint"
           >

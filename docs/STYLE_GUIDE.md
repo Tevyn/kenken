@@ -96,7 +96,10 @@ Three tiers only.
 |---|---|---|
 | `--r-sm` | 6px | Inline chips, marks, small controls |
 | `--r-md` | 10px | Keys, buttons, triggers |
-| `--r-lg` | 14px | Panels, popovers, the board |
+| `--r-lg` | 14px | Panels, popovers |
+
+The board is **square-cornered** and takes no radius. A rounded grid reads as a
+card that contains a puzzle; the board is the puzzle.
 
 ---
 
@@ -109,8 +112,9 @@ navy in light mode and light blue in dark mode — the same token, two
 renderings, so every rule that references `--accent` is written once.
 
 The accent means exactly one thing: *this is interactive, or this is yours*. It
-is never decorative, never used to draw the eye to something the player did not
-ask about, and never applied to more than one element per zone at rest.
+is never decorative and never used to draw the eye to something the player did
+not ask about. It is applied as **ink** — the colour of the glyph or the word
+itself — and as a fill only for board state and state badges (§4.1).
 
 Everything else is neutral grey. Only two colours break the monochrome, and
 both are status, not accent: red for a proven error, green for the win state.
@@ -239,42 +243,63 @@ invisible.
 
 ## 4. Controls
 
-### 4.1 Button hierarchy
+### 4.1 The accent is ink, not chrome
 
-Exactly three levels, and **at most one accent-filled button is visible at rest
-anywhere in the app.**
+**One rule, held everywhere: blue means touchable.** Every control is bare blue
+ink on the page — a blue word or a blue glyph. No border, no fill, no surface.
+Everything informational is grey or near-black: the wordmark, cage labels,
+entered values, hint prose, panel headings, and the labels *under* toolbar
+icons.
 
-| Level | Treatment | Use |
-|---|---|---|
-| **Primary** | Accent fill, `--accent-contrast` label | The single action that commits what the player is doing. Inside a popover: *Start game*. |
-| **Neutral** | `--surface` + `--border`, `--text` label | Everything else with a resting affordance: digit keys, icon actions, header triggers. |
-| **Quiet** | Transparent, `--text-muted`, no border | Dismiss, close, tertiary links. |
+Reading the screen is therefore a colour test rather than a shape test. That is
+not decoration, it is what makes the rest of the layout possible — nine bare
+digits fit one row on a 375px phone because a numeral needs room for its ink,
+where a bordered key needs room for its box.
 
-Consequences for what exists today:
+Shared implementation: `.kk-control` in `src/index.css`. A control that does
+not use it is a bug.
 
-- **`New game` demotes to neutral.** A saturated pill is the brightest thing on
-  screen, and the action it advertises is *discard the puzzle you are solving*.
-  Escape hatches are quiet; state is loud.
-- **The hint button is neutral at rest.** It was permanently tinted, so it
-  glowed before there was any hint to give. It takes the accent only when
-  **armed** — a hint is explained on the board and the next press applies it.
-  That is the one moment it is the primary action.
+| | Treatment |
+|---|---|
+| **Rest** | `--accent` ink, transparent background, no border |
+| **Hover / press** | `--accent-soft` fill — the one *transient* fill, gone the moment the finger lifts |
+| **Disabled** | `--text-muted` ink, nothing else changes |
+| **Current in a group** | 2px underline at 5px offset, via `aria-current` / `aria-pressed` |
 
-### 4.2 Disabled means less, never more
+This replaces an earlier three-level hierarchy built on fills. There is no
+"primary button": the commit press in the New Game wizard is blue like
+everything else, because a wizard's last step is unambiguous from context.
 
-A disabled control **removes** contrast. It never gains chrome a neutral
-control does not have.
+**A fill now means exactly two things**, and never a control at rest:
 
-Today's action row has this exactly backwards: disabled Undo and Redo render as
-filled, bordered boxes while enabled Erase and Pencil render as bare glyphs on
-nothing. The disabled buttons look like the real buttons.
+1. The board's own state — selection, row/column/cage highlights, hint roles.
+2. A state badge (§4.2).
 
-The fix is two rules:
+### 4.2 State is spelled out, not tinted
 
-- Every enabled icon action carries the neutral resting treatment — a surface
-  and a border — so it reads as pressable. No bare glyphs.
-- Disabled drops to `--text-muted` on `--surface` with `--border` unchanged,
-  plus `cursor: not-allowed`. Same silhouette, less contrast.
+A tint cannot be read. It requires knowing what the untinted version looked
+like, which a first-time player does not.
+
+- **A persistent toggle carries a literal `OFF`/`ON` badge**, visible in both
+  states, on the glyph's shoulder. Notes is the live case. `aria-pressed`
+  carries the same fact for assistive tech.
+- **A transient state renames the control.** Hint becomes **Apply** once a hint
+  is explained and the next press will write it in. An `OFF` badge on Hint
+  would be nonsense — it is not a toggle.
+- **Every icon action carries a visible text label**, and that label is the
+  accessible name. No `aria-label` duplicating a glyph nobody can read, and no
+  `title`, so nothing hovers.
+
+Labels stay grey even when the glyph above them is blue: a label names the
+control, it is not a second thing to press.
+
+### 4.2.1 Disabled removes, never adds
+
+A disabled control **removes** ink. It never gains chrome an enabled one lacks.
+
+The pre-`.kk-control` action row had this exactly backwards — disabled Undo and
+Redo rendered as filled, bordered boxes while enabled Erase and Notes rendered
+as bare glyphs, so the dead buttons looked like the live ones.
 
 ### 4.3 Toggles
 

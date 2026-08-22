@@ -47,7 +47,9 @@
   margin: 0 auto;
   background: var(--cell-bg);
   border: var(--frame) solid var(--cell-border-heavy);
-  border-radius: var(--r-lg);
+  /* Square corners: a rounded grid reads as a card containing a puzzle rather
+     than as the puzzle itself. `overflow` still clips the corner cells' own
+     borders to the frame. */
   overflow: hidden;
   touch-action: manipulation;
 }

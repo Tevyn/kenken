@@ -72,7 +72,7 @@ function NewGameWizard({ size, difficulty, onStartGame }: WizardProps) {
             <button
               key={option}
               type="button"
-              className="kk-newgame__option"
+              className="kk-control kk-newgame__option"
               aria-label={`${option} by ${option}`}
               aria-current={option === size ? 'true' : undefined}
               onClick={() => {
@@ -111,7 +111,7 @@ function NewGameWizard({ size, difficulty, onStartGame }: WizardProps) {
           <button
             key={option}
             type="button"
-            className="kk-newgame__option"
+            className="kk-control kk-newgame__option"
             aria-current={option === difficulty ? 'true' : undefined}
             onClick={() => onStartGame(pendingSize, option)}
           >

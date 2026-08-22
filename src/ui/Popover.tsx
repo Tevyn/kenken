@@ -153,7 +153,11 @@ export function Popover({
       <button
         type="button"
         ref={triggerRef}
-        className={triggerClassName ? `kk-popover__trigger ${triggerClassName}` : 'kk-popover__trigger'}
+        className={
+          triggerClassName
+            ? `kk-control kk-popover__trigger ${triggerClassName}`
+            : 'kk-control kk-popover__trigger'
+        }
         aria-label={label}
         aria-haspopup="dialog"
         aria-expanded={open}

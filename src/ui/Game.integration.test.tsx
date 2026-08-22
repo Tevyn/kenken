@@ -65,12 +65,12 @@ function TestGame() {
 
 /** The hint button, by whichever of its two labels it is currently wearing. */
 function hintButton(pending = false): HTMLElement {
-  return screen.getByRole('button', { name: pending ? 'Apply hint' : 'Hint' })
+  return screen.getByRole('button', { name: pending ? 'Apply' : 'Hint' })
 }
 
-/** The pencil-mark toggle: one button, `aria-pressed` tells you which way it is. */
+/** The notes toggle: one button, `aria-pressed` tells you which way it is. */
 function marksButton(): HTMLElement {
-  return screen.getByRole('button', { name: 'Pencil-mark mode' })
+  return screen.getByRole('button', { name: 'Notes' })
 }
 
 /** Cell 0 always shows its cage label ("1-"), so assert on the value span, not raw text. */
@@ -327,8 +327,8 @@ describe('Board + Keypad + useGame integration', () => {
     const cells = screen.getAllByRole('gridcell')
 
     await user.click(screen.getByRole('button', { name: 'Settings' }))
-    await user.click(screen.getByRole('switch', { name: 'Auto-clear marks' }))
-    expect(screen.getByRole('switch', { name: 'Auto-clear marks' })).not.toBeChecked()
+    await user.click(screen.getByRole('switch', { name: 'Auto-clear notes' }))
+    expect(screen.getByRole('switch', { name: 'Auto-clear notes' })).not.toBeChecked()
 
     // No need to dismiss the popover first: the next press outside it closes
     // it, which hands the keyboard back to the board.
@@ -357,7 +357,7 @@ describe('Board + Keypad + useGame integration', () => {
     expect(screen.getByRole('radio', { name: 'System' })).toHaveFocus()
     await user.tab()
 
-    const toggle = screen.getByRole('switch', { name: 'Auto-clear marks' })
+    const toggle = screen.getByRole('switch', { name: 'Auto-clear notes' })
     expect(toggle).toHaveFocus()
     expect(toggle).toBeChecked()
     expect(marksButton()).toHaveAttribute('aria-pressed', 'false')

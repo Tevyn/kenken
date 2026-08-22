@@ -1,125 +1,92 @@
 .kk-keypad {
   display: flex;
   flex-direction: column;
-  /* One step up from the internal key gap, so the action row and digit pad
-     read as two distinct groups rather than one continuous grid of keys. */
+  /* One step up from the internal gaps, so the action row and digit pad read
+     as two distinct groups rather than one continuous set of controls. */
   gap: var(--sp-5);
   width: 100%;
 }
 
-.kk-keypad__digits {
-  display: grid;
-  /*
-   * One column per digit, always. Key *width* is free to shrink - the 44px
-   * touch floor is met by height (48px), which is what lets nine digits sit
-   * comfortably across a 375px screen (STYLE_GUIDE.md §1.3).
-   */
-  grid-template-columns: repeat(var(--size), minmax(0, 1fr));
-  gap: var(--sp-2);
-}
-
-.kk-keypad__digit,
-.kk-keypad__action {
-  font-family: inherit;
-  font-size: 18px;
-  font-weight: 600;
-  padding: var(--sp-3) var(--sp-1);
-  min-height: 48px;
-  border-radius: var(--r-md);
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  cursor: pointer;
-  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
-}
-
-.kk-keypad__digit:hover,
-.kk-keypad__action:hover:not(:disabled) {
-  border-color: var(--accent);
-}
-
-.kk-keypad__digit:active,
-/* Exclude the modifier states below (pressed-on, armed) so this generic
-   rule can never outrank them on specificity: (0,3,0) beat their (0,2,0),
-   which blanked the icon (accent-contrast text on cell-selected bg) at the
-   exact moment a toggle was pressed while already on/armed. */
-.kk-keypad__action:active:not(:disabled):not([aria-pressed='true']):not(.kk-keypad__action--armed) {
-  background: var(--cell-selected);
-}
-
 /*
- * The five icon actions, sized as touch targets rather than by their glyph.
+ * The five actions: glyph over label, five across. The label is the point -
+ * an icon alone made the player guess at the control, and the two stateful
+ * ones had no way to say which state they were in except a tint.
  *
- * They used to sit on a "recessed strip" painted in `--bg` - the page colour,
- * in both themes, so it painted nothing at all (STYLE_GUIDE.md §3). The group
- * is separated from the digits by the `--sp-5` gap above instead.
+ * Everything shared - blue ink, no chrome, press feedback, disabled - comes
+ * from `.kk-control` in index.css. Only the stacking is local.
  */
 .kk-keypad__actions {
   display: grid;
-  grid-template-columns: repeat(5, minmax(44px, 1fr));
-  gap: var(--sp-2);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--sp-1);
 }
 
-/* Fixed 48px squares once there's room to spare, so the glyph isn't lost in
-   a 100px+ slab. Touch targets stay >=44px; below this the row still
-   stretches to fill the width, which is fine on a phone. */
-@media (min-width: 600px) {
-  .kk-keypad__actions {
-    grid-template-columns: repeat(5, 48px);
-    justify-content: space-between;
-  }
-}
-
-/*
- * Every enabled action keeps the shared surface-and-border resting treatment,
- * so it reads as pressable. It used to clear both to transparent, which -
- * combined with the disabled rule below painting a fill and a border - meant
- * disabled Undo and Redo looked like the real buttons and enabled Erase and
- * Pencil looked like bare glyphs on nothing (STYLE_GUIDE.md §4.2).
- */
 .kk-keypad__action {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 44px;
-  padding: var(--sp-3) var(--sp-1);
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-2) var(--sp-1);
+  min-height: 56px;
 }
 
 /*
- * Disabled *removes* contrast and never adds chrome: same silhouette, muted
- * glyph. (A blanket opacity was tried first and dropped stroke contrast to
- * 2.19:1 light / 2.69:1 dark, under the 3:1 graphical-object floor.)
+ * Labels stay grey even when the glyph above them is blue: the label names the
+ * control, it is not a second thing to press. Blue is only ever what you touch.
  */
-.kk-keypad__action:disabled,
-.kk-keypad__action[aria-disabled='true'] {
+.kk-keypad__label {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
   color: var(--text-muted);
-  cursor: not-allowed;
-  /* Belt-and-suspenders for aria-disabled (no native click-blocking like
-     the disabled attribute): also neutralizes hover/active for it. */
-  pointer-events: none;
 }
 
-.kk-keypad__action--mode[aria-pressed='true'] {
+/* Positioning context for the badge, so it sits on the glyph's shoulder
+   instead of taking part in the layout. */
+.kk-keypad__glyph {
+  position: relative;
+  display: inline-flex;
+}
+
+/*
+ * The literal OFF/ON badge. One of only two places a fill survives - a state
+ * badge, and the board's own state - precisely because the point is that state
+ * is spelled out rather than implied by tinting the control.
+ */
+.kk-keypad__badge {
+  position: absolute;
+  top: -7px;
+  left: 55%;
+  padding: 1px 4px;
+  border-radius: 999px;
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.04em;
+}
+
+.kk-keypad__badge--on {
   background: var(--accent);
-  border-color: var(--accent);
   color: var(--accent-contrast);
 }
 
 /*
- * The hint button rests neutral, like every other action. It used to carry a
- * permanent tint from the hint palette, which made it the loudest thing in the
- * toolbar before there was any hint to give (STYLE_GUIDE.md §4.1). Now that
- * hints share the accent hue, that tint also read as "this toggle is on".
+ * Bare digits, one column each, no gap between them: they are text rather than
+ * keys, which is what lets nine sit comfortably across a 375px phone. A
+ * bordered key needs room for its box; a numeral only needs room for its ink.
  */
-
-/* Armed: a hint is on the board and the next press applies it. */
-.kk-keypad__action--armed {
-  background: var(--hint-focus-ring);
-  border-color: var(--hint-focus-ring);
-  color: var(--accent-contrast);
+.kk-keypad__digits {
+  display: grid;
+  grid-template-columns: repeat(var(--size), minmax(0, 1fr));
+  gap: 0;
 }
 
-.kk-keypad__action--armed:active {
-  background: var(--hint-focus-bg);
-  color: var(--hint-cage-outline);
+.kk-keypad__digit {
+  /* Sized off the app's container, so a 4x4's four digits are generous and a
+     9x9's nine still fit on one row. */
+  font-size: clamp(22px, calc(100cqw / (var(--size) * 1.5)), 32px);
+  font-weight: 500;
+  /* The 44px touch floor is met by height; width is free to shrink. */
+  min-height: 56px;
+  padding: var(--sp-2) 0;
 }

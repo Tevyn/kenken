@@ -41,16 +41,45 @@ describe('Keypad', () => {
     expect(props.onErase).toHaveBeenCalledTimes(1)
   })
 
-  it('the five actions are icon-only and never carry a tooltip', () => {
+  /*
+   * The labels are the accessible names now, rather than an `aria-label`
+   * duplicating a glyph nobody could read. Nothing carries a `title`, so
+   * nothing hovers.
+   */
+  it('each of the five actions pairs a glyph with a visible label', () => {
     const { container } = render(<Keypad {...baseProps()} />)
     const actions = container.querySelectorAll('.kk-keypad__action')
     expect(actions).toHaveLength(5)
     for (const action of actions) {
-      expect(action).toHaveAttribute('aria-label')
       expect(action).not.toHaveAttribute('title')
-      expect(action.textContent).toBe('')
+      expect(action).not.toHaveAttribute('aria-label')
       expect(action.querySelector('svg')).not.toBeNull()
+      expect(action.querySelector('.kk-keypad__label')?.textContent).toBeTruthy()
     }
+    expect(
+      Array.from(actions, (a) => a.querySelector('.kk-keypad__label')?.textContent),
+    ).toEqual(['Undo', 'Redo', 'Erase', 'Notes', 'Hint'])
+  })
+
+  /*
+   * State is spelled out rather than tinted: the badge reads OFF or ON at all
+   * times, so the control says what it is doing without the player having to
+   * know what the default was.
+   */
+  it('the notes button carries a literal OFF/ON badge matching aria-pressed', () => {
+    const { container, rerender } = render(<Keypad {...baseProps()} />)
+    const badge = () => container.querySelector('.kk-keypad__badge')
+
+    expect(badge()).toHaveTextContent('OFF')
+    expect(badge()?.className).not.toContain('kk-keypad__badge--on')
+    expect(screen.getByRole('button', { name: 'Notes' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
+
+    rerender(<Keypad {...baseProps()} mode="mark" />)
+    expect(badge()).toHaveTextContent('ON')
+    expect(badge()?.className).toContain('kk-keypad__badge--on')
   })
 
   it('mode button reflects mark mode and calls onToggleMode', async () => {
@@ -58,13 +87,13 @@ describe('Keypad', () => {
     const props = baseProps()
     const { rerender } = render(<Keypad {...props} />)
 
-    const modeButton = screen.getByRole('button', { name: 'Pencil-mark mode' })
+    const modeButton = screen.getByRole('button', { name: 'Notes' })
     expect(modeButton).toHaveAttribute('aria-pressed', 'false')
     await user.click(modeButton)
     expect(props.onToggleMode).toHaveBeenCalledTimes(1)
 
     rerender(<Keypad {...props} mode="mark" />)
-    expect(screen.getByRole('button', { name: 'Pencil-mark mode' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: 'Notes' })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
@@ -96,11 +125,14 @@ describe('Keypad', () => {
     expect(props.onHint).toHaveBeenCalledTimes(1)
   })
 
-  it('the hint button reads "Apply hint" and looks armed once a hint is waiting', () => {
+  /*
+   * Hint is not a toggle, so an OFF/ON badge would be nonsense - the label is
+   * where a transient armed state gets said out loud.
+   */
+  it('the hint button renames itself to "Apply" once a hint is waiting', () => {
     render(<Keypad {...baseProps()} hintPending />)
-    const hint = screen.getByRole('button', { name: 'Apply hint' })
+    const hint = screen.getByRole('button', { name: 'Apply' })
     expect(hint).toHaveAttribute('aria-keyshortcuts', 'H')
-    expect(hint.className).toContain('kk-keypad__action--armed')
     expect(screen.queryByRole('button', { name: 'Hint' })).not.toBeInTheDocument()
   })
 })

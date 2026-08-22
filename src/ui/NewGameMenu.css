@@ -1,18 +1,9 @@
-.kk-newgame__trigger {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-contrast);
-}
-
-.kk-newgame__trigger:hover:not(:disabled):not([aria-disabled='true']) {
-  border-color: var(--accent);
-  filter: brightness(1.08);
-}
-
-.kk-newgame__trigger:active:not(:disabled):not([aria-disabled='true']) {
-  background: var(--accent);
-  filter: brightness(0.92);
-}
+/*
+ * The trigger and the options are bare controls (`.kk-control`); everything
+ * below is only what differs. The accent-filled trigger and the accent-soft
+ * "current" pills are gone: a fill would read as chrome now that the accent
+ * means ink (STYLE_GUIDE.md §4).
+ */
 
 .kk-newgame__step {
   display: flex;
@@ -74,57 +65,15 @@
 }
 
 .kk-newgame__option {
-  min-height: 44px;
-  padding: 8px 6px;
-  font-family: inherit;
-  font-size: 15px;
-  font-weight: 600;
-  border-radius: 10px;
-  /* Options sit on the panel, so they take the panel's border colour, not the page's. */
-  border: 1px solid var(--border-popover);
-  background: transparent;
-  color: var(--text);
-  cursor: pointer;
-  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
-}
-
-.kk-newgame__option:hover {
-  border-color: var(--accent);
-}
-
-.kk-newgame__option:active {
-  background: var(--accent-soft);
-}
-
-/* The size currently being played, so the wizard opens oriented. */
-.kk-newgame__option[aria-current='true'] {
-  background: var(--accent-soft);
-  border-color: var(--accent);
-  color: var(--text-h);
+  /* Options sit in a grid, so they stretch rather than hug their text. */
+  width: 100%;
 }
 
 /*
- * Step two's marker has to say "this is what you are playing now", not "this
- * is what you just picked" — so it is a quiet dot, not the filled pill that
- * step one uses for the size you chose a moment ago.
+ * "The size you are playing now." The underline comes from `.kk-control`'s
+ * `aria-current` rule; step two additionally has to read as *weaker* than step
+ * one's, because it means "currently playing" rather than "just chosen".
  */
 .kk-newgame__options--difficulty .kk-newgame__option[aria-current='true'] {
-  background: transparent;
-  border-color: var(--border-popover);
-  color: var(--text);
-}
-
-.kk-newgame__options--difficulty .kk-newgame__option[aria-current='true']::before {
-  content: '';
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  margin-right: 7px;
-  border-radius: 50%;
-  background: var(--accent);
-  vertical-align: 0.08em;
-}
-
-.kk-newgame__options--difficulty .kk-newgame__option[aria-current='true']:hover {
-  border-color: var(--accent);
+  text-decoration-color: var(--text-muted);
 }

@@ -23,10 +23,14 @@ export interface KeypadProps {
  * The action row plus the on-screen digit pad, so the game is fully playable
  * by touch.
  *
- * The five actions sit above the digits, where Sudoku apps put them, and are
- * icon-only: no visible label and no `title`, so nothing hovers. Each one
- * carries an `aria-label` instead, and the two stateful ones (hint, pencil
- * marks) say which state they are in through that label as well as their tint.
+ * Every control here is bare blue ink on the page - no key, no border, no fill
+ * (STYLE_GUIDE.md §4). That is what lets nine digits sit in one row on a 375px
+ * phone: they are text, not boxes.
+ *
+ * The five actions carry a visible label under the glyph rather than relying
+ * on an icon alone, and state is spelled out rather than tinted: Notes shows a
+ * literal OFF/ON badge, and Hint renames itself to "Apply" once a hint is on
+ * the board waiting to be written in.
  */
 export function Keypad({
   size,
@@ -48,68 +52,75 @@ export function Keypad({
       <div className="kk-keypad__actions" role="group" aria-label="Actions">
         <button
           type="button"
-          className="kk-keypad__action"
+          className="kk-control kk-keypad__action"
           onClick={onUndo}
           disabled={!canUndo}
-          aria-label="Undo"
           aria-keyshortcuts="Control+Z"
         >
           <UndoIcon size={22} />
+          <span className="kk-keypad__label">Undo</span>
         </button>
         <button
           type="button"
-          className="kk-keypad__action"
+          className="kk-control kk-keypad__action"
           onClick={onRedo}
           disabled={!canRedo}
-          aria-label="Redo"
           aria-keyshortcuts="Control+Shift+Z Control+Y"
         >
           <RedoIcon size={22} />
+          <span className="kk-keypad__label">Redo</span>
         </button>
         <button
           type="button"
-          className="kk-keypad__action"
+          className="kk-control kk-keypad__action"
           onClick={onErase}
-          aria-label="Erase"
           aria-keyshortcuts="Backspace Delete"
         >
           <EraseIcon size={22} />
-        </button>
-        <button
-          type="button"
-          className="kk-keypad__action kk-keypad__action--mode"
-          onClick={onToggleMode}
-          aria-pressed={mode === 'mark'}
-          aria-label="Pencil-mark mode"
-          aria-keyshortcuts="Space"
-        >
-          <MarksIcon size={22} />
+          <span className="kk-keypad__label">Erase</span>
         </button>
         {/*
-          The lightbulb never changes, but the state does: "armed" means a hint
-          is explained on the board and the next press writes it in.
+          The badge is the state, not a tint: it reads OFF or ON at all times,
+          so the control says what it is doing without the player having to
+          know what the default was. `aria-pressed` carries the same fact.
         */}
         <button
           type="button"
-          className={
-            hintPending
-              ? 'kk-keypad__action kk-keypad__action--hint kk-keypad__action--armed'
-              : 'kk-keypad__action kk-keypad__action--hint'
-          }
+          className="kk-control kk-keypad__action"
+          onClick={onToggleMode}
+          aria-pressed={mode === 'mark'}
+          aria-keyshortcuts="Space"
+        >
+          <span className="kk-keypad__glyph">
+            <MarksIcon size={22} />
+            <span
+              className={
+                mode === 'mark'
+                  ? 'kk-keypad__badge kk-keypad__badge--on'
+                  : 'kk-keypad__badge'
+              }
+              aria-hidden="true"
+            >
+              {mode === 'mark' ? 'ON' : 'OFF'}
+            </span>
+          </span>
+          <span className="kk-keypad__label">Notes</span>
+        </button>
+        {/*
+          Not a toggle, so no OFF/ON badge would make sense here - "armed" is a
+          transient state, and the label is the honest place to say it.
+        */}
+        <button
+          type="button"
+          className="kk-control kk-keypad__action"
           onClick={onHint}
-          aria-label={hintPending ? 'Apply hint' : 'Hint'}
           aria-keyshortcuts="H"
         >
           <HintIcon size={22} />
+          <span className="kk-keypad__label">{hintPending ? 'Apply' : 'Hint'}</span>
         </button>
       </div>
 
-      {/*
-        `--size` drives one column per digit, so the pad is always exactly one
-        row (STYLE_GUIDE.md §1.3). Auto-fitting a minimum key width instead
-        capped the row at six columns on a 375px screen, wrapping a 9x9 to
-        6 + 3 and leaving an orphan row that read as a broken layout.
-      */}
       <div
         className="kk-keypad__digits"
         role="group"
@@ -120,7 +131,7 @@ export function Keypad({
           <button
             key={digit}
             type="button"
-            className="kk-keypad__digit"
+            className="kk-control kk-keypad__digit"
             onClick={() => onDigit(digit)}
             aria-label={`Enter ${digit}`}
           >

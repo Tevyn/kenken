@@ -6,7 +6,7 @@ import { Popover } from './Popover'
 import './SettingsMenu.css'
 
 export interface SettingsMenuProps {
-  /** Whether entering a value also strips it from the row/column peers' pencil marks. */
+  /** Whether entering a value also strips it from the row/column peers' notes. */
   autoClearMarks: boolean
   onAutoClearMarksChange: (enabled: boolean) => void
   /** Which palette to paint, or `system` to follow the OS. */
@@ -53,15 +53,18 @@ export function SettingsMenu({
       </h2>
 
       {/*
-        A segmented control over a real radio group: arrow-key navigation,
+        Three bare choices over a real radio group: arrow-key navigation,
         roving focus and the "3 of 3" announcement all come from the inputs,
         the same way the switch below is a real checkbox under paint.
+
+        The current one is marked with an underline rather than a filled pill -
+        a fill would read as chrome, and the accent now means ink (§4).
       */}
       <fieldset className="kk-theme">
         <legend className="kk-theme__legend">Theme</legend>
         <div className="kk-theme__options">
           {THEMES.map((option) => (
-            <label className="kk-theme__option" key={option}>
+            <label className="kk-control kk-theme__option" key={option}>
               <input
                 className="kk-theme__input"
                 type="radio"
@@ -83,7 +86,7 @@ export function SettingsMenu({
           announces it as the on/off control it looks like.
         */}
         <label className="kk-switch" htmlFor="kk-auto-clear-marks">
-          <span className="kk-switch__text">Auto-clear marks</span>
+          <span className="kk-switch__text">Auto-clear notes</span>
           <input
             id="kk-auto-clear-marks"
             className="kk-switch__input"
@@ -98,7 +101,7 @@ export function SettingsMenu({
           </span>
         </label>
         <p className="kk-settings__help" id="kk-auto-clear-marks-help">
-          Erase pencil marks that a newly entered digit rules out in that row and column
+          Erase notes that a newly entered digit rules out in that row and column
         </p>
       </div>
     </Popover>
