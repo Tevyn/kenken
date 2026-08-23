@@ -56,13 +56,23 @@ the controls beneath it.
 
 ### 1.3 The digit pad is always exactly one row
 
-`size` digits, one row, no wrapping, at any board size on any phone. A 9×9
-wrapping to 6 + 3 reads as a broken layout.
+`size` digits **plus the Erase key**, one row, no wrapping, at any board size on
+any phone. A 9×9 wrapping to 6 + 3 reads as a broken layout.
 
-Achieve it with `grid-template-columns: repeat(var(--size), minmax(0, 1fr))`
+Erase is the row's last key because that is where the hand already is while
+entering values — it is the digit you press to take a digit back, and it belongs
+with them rather than up in the action row with Undo and Hint. So the row is
+`size + 1` keys wide: ten across at 9×9.
+
+Achieve it with `grid-template-columns: repeat(var(--keys), minmax(0, 1fr))`
 and let key **width** shrink freely. The 44px touch-target floor is met by
-**height**, not width: a 32px × 48px key is a legal target and a 9-across row
+**height**, not width: a 34px × 56px key is a legal target and a 10-across row
 is comfortable on a 375px screen.
+
+`--keys` is computed in JS and set on the element, never derived in CSS. The
+integer argument to `repeat()` does not accept `calc()` in every engine, so
+`repeat(calc(var(--size) + 1), ...)` is not safe to rely on — the count is known
+where the row is rendered, so the arithmetic happens there.
 
 ### 1.4 Reserved slots
 
@@ -291,30 +301,57 @@ entered values, hint prose, panel headings, and the labels *under* toolbar
 icons.
 
 Reading the screen is therefore a colour test rather than a shape test. That is
-not decoration, it is what makes the rest of the layout possible — nine bare
-digits fit one row on a 375px phone because a numeral needs room for its ink,
-where a bordered key needs room for its box.
+not decoration, it is what makes the rest of the layout possible — ten bare keys
+fit one row on a 375px phone because a numeral needs room for its ink, where a
+bordered key needs room for its box.
 
 Shared implementation: `.kk-control` in `src/index.css`, plus
 `.kk-control--stack` and `.kk-control__label` for the glyph-over-label form. A
 control that does not use them is a bug.
 
-**Every icon control wears the same stack**, wherever it sits: the five toolbar
-actions and the three header controls are the same kind of thing, so New game,
-Restart and Settings are glyph-over-label at 56px exactly like Undo and Redo. A
-header button styled as its own species is the bug this rule exists to prevent.
+**Every icon control wears the same stack**, wherever it sits: the four toolbar
+actions, the three header controls, the eleven choices in the New Game wizard
+and the three theme options are all the same kind of thing, so New game, Restart
+and Settings are glyph-over-label at 56px exactly like Undo and Redo, and a size
+tile is glyph-over-label exactly like both. A control styled as its own species
+is the bug this rule exists to prevent.
+
+There are exactly two things in the app that are not this stack, and both are
+deliberate: the digit keys, which are bare numerals because the numeral *is* the
+glyph, and the Erase key beside them (§4.2). Everything else that can be pressed
+wears a glyph over a grey label.
 
 **Where an action goes** follows what it acts on. The keypad's row edits the
 grid you are solving — a cell, a digit, a step. The header's three act on the
 puzzle itself: start a different one, wind this one back to empty, or change how
-the app behaves. Restart is in the header for that reason, not in the action row
-beside Erase.
+the app behaves. Restart is in the header for that reason, not on the keypad.
 
 **Unavailable is `aria-disabled` when the press is what disables it.** Restart
 and the New Game trigger both take focus into a commit that makes them
 unavailable; the real `disabled` attribute would drop focus on `<body>` in that
 same commit, so they stay focusable and the handler guards instead. Undo and
 Redo, which nothing focuses on the way in, use the real attribute.
+
+**A glyph may carry information, not just identity.** The wizard's size tiles
+draw the actual n×n grid and its difficulty tiles draw a real cage layout, so
+the picture answers the question the button is asking. Where a glyph is
+informational it comes from real data — `src/fixtures/cageLayouts.ts` holds one
+generated, verified puzzle per size and difficulty, baked at author time. An
+icon that illustrates the product must not lie about it, and must not be
+computed during a render.
+
+**Known limit, accepted deliberately.** The difficulty tiles stop carrying
+information above 6×6. At 9×9 a tile is 84–105 cage-border segments in a 32px
+box — a 1.73px stroke on a 2.67px cell pitch, so 65% of every cell is ink and
+the clear space between strokes is under one device pixel. The tiles read as
+woven texture rather than as a grid divided into cages, and two pairs are
+effectively tied in density besides (8×8 hard and expert, 3×3 medium and hard).
+This is a density limit, not a tuning bug: 42 cages cannot be counted in 32px at
+any stroke weight. It is accepted because the tile is never alone — the
+difficulty word sits directly under it and is the thing actually being read.
+Enlarging the tile and thinning the stroke widens the gaps and was measured, but
+it buys legibility, not countability, so it was not taken. Do not "fix" this
+without deciding first what the glyph is supposed to tell someone at 9×9.
 
 | | Treatment |
 |---|---|
@@ -348,6 +385,14 @@ like, which a first-time player does not.
 - **Every icon action carries a visible text label**, and that label is the
   accessible name. No `aria-label` duplicating a glyph nobody can read, and no
   `title`, so nothing hovers.
+
+**The Erase key is the one exception, and it is deliberate.** It sits on the
+digit row (§1.3) as a bare eraser glyph with an `aria-label`. A label under it
+would have to be matched by labels under the numerals beside it or it reads as
+the odd key out, and either way it forces the whole row taller for one key. The
+exception is bought by the glyph: an eraser on a digit pad is read without being
+named. It does not generalise — an icon control **anywhere else** carries its
+label, and a second unlabelled glyph is a bug, not a precedent.
 
 Labels stay grey even when the glyph above them is blue: a label names the
 control, it is not a second thing to press.
@@ -490,7 +535,7 @@ One family: the `system-ui` stack.
 | Key label | 18px | 600 |
 | Cell value | `--cell × 0.5` | 500 |
 | Cage label | `max(10px, --cell × 0.22)` | 600 |
-| Digit key / wizard option | `clamp(22px, …, 32px)` | 500 |
+| Digit key | `clamp(22px, …, 32px)` | 500 |
 
 **A panel heading is the puzzle meta line**, to the pixel: the same grey, the
 same 13px, the same sentence case. It used to be 700 uppercase at `0.08em`,
@@ -498,11 +543,15 @@ which made the word "Size" louder than the sizes underneath it. Section labels
 inside a panel (the theme picker's legend) take the same line — the controls
 carry the weight, the labels only name them.
 
-**The wizard's options are set as game digits.** `4×4` in the panel and the 4
-you type into the board are the same numeral at the same weight, because they
-are the same thing. The difficulties get that type too: two columns is twice the
-width of the size grid's four, so "Medium" fits at full size and step two never
-reads as the lesser half of one choice.
+**The digit keys are set as game digits.** The 4 on the keypad and the 4 it
+writes into the board are the same numeral at the same weight, because they are
+the same thing — which is also why the key carries no box: a numeral needs room
+for its ink, not for a border (§4.1).
+
+**The wizard's options are not.** They were briefly set as large digits, on the
+same reasoning, but they are glyph-over-label tiles now (§4) — the tile draws
+the grid you are choosing, so the type under it is the stack's grey label and
+the picture carries the choice.
 
 The wordmark drops from 30px. It was the largest text on the page and the least
 useful information on it.

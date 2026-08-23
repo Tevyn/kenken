@@ -25,15 +25,22 @@
 }
 
 /*
- * No track, no pill. The label is bare blue text and the current choice is
- * underlined - which `.kk-control` cannot do here, because the state lives on
- * the nested input rather than on the label itself.
+ * No track, no pill. The tile is a blue glyph over a grey caption like every
+ * other icon control in the app (`.kk-control--stack`), and the current choice
+ * is underlined - which `.kk-control` cannot do here, because the state lives
+ * on the nested input rather than on the label itself.
  */
 .kk-theme__option {
   position: relative;
   width: 100%;
+  min-width: 0;
 }
 
+/*
+ * `inset: 0` over the whole tile, so the glyph is as tappable as the word.
+ * It is out of flow, so adding the glyph to the stack above changed nothing
+ * about where it sits or what it covers.
+ */
 .kk-theme__input {
   position: absolute;
   inset: 0;
@@ -44,10 +51,17 @@
   cursor: pointer;
 }
 
+/*
+ * The underline marks the word, never the glyph - same as the `aria-current`
+ * treatment on a stacked button, where the decoration only ever lands on the
+ * label's line box. Its colour is stated because the caption is grey now
+ * (§4.2) and a grey underline would not read as "this is the current choice".
+ */
 .kk-theme__input:checked ~ .kk-theme__text {
   text-decoration: underline;
   text-decoration-thickness: 2px;
   text-underline-offset: 5px;
+  text-decoration-color: var(--accent);
 }
 
 .kk-theme__option:has(.kk-theme__input:focus-visible) {

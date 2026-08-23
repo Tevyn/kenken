@@ -32,10 +32,14 @@ export interface KeypadProps {
  * (STYLE_GUIDE.md §4). That is what lets nine digits sit in one row on a 375px
  * phone: they are text, not boxes.
  *
- * The five actions carry a visible label under the glyph rather than relying
+ * The four actions carry a visible label under the glyph rather than relying
  * on an icon alone, and state is spelled out rather than tinted: Notes shows a
  * literal OFF/ON badge. Hint is the odd one out - it opens a panel rather than
  * doing anything itself, so it is a popover trigger wearing the same stack.
+ *
+ * Erase is not one of them. It lives on the digit row as its last key, because
+ * that is where the hand already is while entering values - so the row holds
+ * `size + 1` keys and still stays exactly one row (§1.3).
  */
 export function Keypad({
   size,
@@ -74,15 +78,6 @@ export function Keypad({
           <RedoIcon size={22} />
           <span className="kk-control__label">Redo</span>
         </button>
-        <button
-          type="button"
-          className="kk-control kk-control--stack kk-keypad__action"
-          onClick={onErase}
-          aria-keyshortcuts="Backspace Delete"
-        >
-          <EraseIcon size={22} />
-          <span className="kk-control__label">Erase</span>
-        </button>
         {/*
           The badge is the state, not a tint: it reads OFF or ON at all times,
           so the control says what it is doing without the player having to
@@ -113,11 +108,18 @@ export function Keypad({
         <HintMenu {...hint} />
       </div>
 
+      {/*
+        `--keys` is the column count - `size` digits plus Erase - and it is
+        injected from here rather than derived in CSS on purpose: the integer
+        argument to `repeat()` does not accept `calc()` in every engine, so
+        `repeat(calc(var(--size) + 1), ...)` is not safe to rely on. The count
+        is known here, so the arithmetic happens here.
+      */}
       <div
         className="kk-keypad__digits"
         role="group"
         aria-label="Digits"
-        style={{ '--size': size } as CSSProperties}
+        style={{ '--keys': size + 1 } as CSSProperties}
       >
         {digits.map((digit) => (
           <button
@@ -130,6 +132,24 @@ export function Keypad({
             {digit}
           </button>
         ))}
+        {/*
+          A knowing exception to §4.2's "every icon action carries a visible
+          text label". Erase is a digit-row key, and an eraser on a digit pad
+          is a universally-read glyph - Sudoku.com and Good Sudoku both put a
+          bare one there. A label under it would have to be matched by labels
+          under the ten numerals or it would read as the odd key out, and
+          either way it forces the whole row taller for one key. So it takes an
+          `aria-label` instead, and keeps the shortcuts it already advertised.
+        */}
+        <button
+          type="button"
+          className="kk-control kk-keypad__digit kk-keypad__erase"
+          onClick={onErase}
+          aria-label="Erase"
+          aria-keyshortcuts="Backspace Delete"
+        >
+          <EraseIcon />
+        </button>
       </div>
     </div>
   )

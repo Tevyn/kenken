@@ -1,7 +1,8 @@
-import type { ChangeEvent } from 'react'
+import type { ChangeEvent, ComponentType } from 'react'
 import type { Theme } from '../game/preferences'
 import { THEMES } from '../game/preferences'
-import { MenuIcon } from './icons'
+import type { IconProps } from './icons'
+import { MenuIcon, ThemeDarkIcon, ThemeLightIcon, ThemeSystemIcon } from './icons'
 import { Popover } from './Popover'
 import './SettingsMenu.css'
 
@@ -21,6 +22,19 @@ const THEME_LABELS: Record<Theme, string> = {
   dark: 'Dark',
   system: 'System',
 }
+
+const THEME_ICONS: Record<Theme, ComponentType<IconProps>> = {
+  light: ThemeLightIcon,
+  dark: ThemeDarkIcon,
+  system: ThemeSystemIcon,
+}
+
+/**
+ * A shade under the wizard's 32px tiles. These glyphs name a choice rather
+ * than depict one — there is nothing in a sun to count — and three of them
+ * across a panel that also holds a switch should not out-mass it.
+ */
+const THEME_ICON = 26
 
 /** The gear button and the preferences it opens. */
 export function SettingsMenu({
@@ -70,19 +84,31 @@ export function SettingsMenu({
             louder one of its own — the choices under it carry the weight. */}
         <legend className="kk-popover__heading kk-theme__legend">Theme</legend>
         <div className="kk-theme__options">
-          {THEMES.map((option) => (
-            <label className="kk-control kk-theme__option" key={option}>
-              <input
-                className="kk-theme__input"
-                type="radio"
-                name="kk-theme"
-                value={option}
-                checked={theme === option}
-                onChange={handleThemeChange}
-              />
-              <span className="kk-theme__text">{THEME_LABELS[option]}</span>
-            </label>
-          ))}
+          {THEMES.map((option) => {
+            const Icon = THEME_ICONS[option]
+            return (
+              <label className="kk-control kk-control--stack kk-theme__option" key={option}>
+                {/*
+                  Still the label's first child, still `inset: 0`, so it
+                  covers the glyph as well as the word and the whole tile is
+                  one hit target. The glyph sits between it and the text, which
+                  the `~` underline selector is indifferent to.
+                */}
+                <input
+                  className="kk-theme__input"
+                  type="radio"
+                  name="kk-theme"
+                  value={option}
+                  checked={theme === option}
+                  onChange={handleThemeChange}
+                />
+                <Icon size={THEME_ICON} />
+                <span className="kk-control__label kk-theme__text">
+                  {THEME_LABELS[option]}
+                </span>
+              </label>
+            )
+          })}
         </div>
       </fieldset>
 

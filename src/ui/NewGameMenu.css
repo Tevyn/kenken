@@ -8,7 +8,20 @@
 .kk-newgame__step {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-3);
+  gap: 10px;
+  /*
+   * The steps no longer have the same natural height: seven stacked size tiles
+   * are two rows, four difficulty tiles are one. The floor absorbs most of the
+   * difference so the centre-placed panel barely moves on the tap that
+   * advances the wizard.
+   *
+   * It is deliberately not raised to step one's full ~160px. Reserving all of
+   * it leaves a ~70px band of empty panel under the difficulty row, which
+   * reads as a missing third row rather than as padding - tried on screen at
+   * 375x812, both top-aligned and with the row centred in the reserve, and
+   * both looked worse than the smaller shift this leaves behind.
+   */
+  min-height: 124px;
   /* Let the size grid use the width the panel is allowed, not just 3 buttons'. */
   min-width: min(17rem, calc(100vw - 56px));
 }
@@ -17,40 +30,30 @@
   display: grid;
   /* 4 + 3 across two rows: no lone button with half a panel beside it. */
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  /*
-   * Both steps are two rows of options, so pinning the row height is what
-   * keeps the panel exactly the same size across the step change — nothing
-   * resizes under the pointer. This replaces a `min-height` guess on the step,
-   * which only held while both steps' type was the same size.
-   */
-  grid-auto-rows: clamp(48px, 13cqw, 64px);
-  gap: var(--sp-2);
+  /* Same gap as the toolbar's four stacked actions, which these now match. */
+  gap: var(--sp-1);
 }
 
 /*
- * Two columns, which is also what lets step two keep step one's type: twice the
- * width of the size grid's four is enough for "Medium" at the full digit size,
- * so nothing here overrides the font below. The two steps are one choice, and
- * the second must not read as the lesser half of it.
+ * Four across one row, not the 2x2 the text-only version used.
+ *
+ * Two columns of a 272px panel is a 134px tile holding a 32px glyph, and on
+ * screen that is a wide slab with a small picture adrift in the middle of it -
+ * the stack reads as a tile only while the tile is about as wide as the glyph
+ * is tall. Four columns give exactly the size grid's 65px footprint, so the
+ * two steps read as one panel that changed its contents rather than as two
+ * differently-shaped panels.
  */
 .kk-newgame__options--difficulty {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .kk-newgame__option {
-  /* Options sit in a grid, so they stretch rather than hug their text - and the
-     row already gives them the 44px touch target, so the control's own padding
-     would only be width the numerals could have had. */
+  /* Options sit in a grid, so they stretch rather than hug their contents. */
   width: 100%;
-  padding: 0;
-  /*
-   * Set as game digits: the keypad's own 22-32px range at the same weight 500,
-   * so "6×6" in the wizard and the 6 you type into the board are visibly the
-   * same numeral. They used to be 15px/600 labels, which read as form controls
-   * rather than as the puzzle.
-   */
-  font-size: clamp(22px, 9cqw, 32px);
-  font-weight: 500;
+  /* A grid item's auto minimum is its content; "Medium" must not widen its
+     column past its three siblings' on a 375px screen. */
+  min-width: 0;
 }
 
 /*

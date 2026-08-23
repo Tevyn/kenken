@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Difficulty } from '../engine/types'
 import { DIFFICULTIES, MAX_SIZE, MIN_SIZE } from '../engine/types'
-import { NewGameIcon } from './icons'
+import { cageLayout } from '../fixtures/cageLayouts'
+import { CagedGridIcon, GridIcon, NewGameIcon } from './icons'
 import { Popover } from './Popover'
 import './NewGameMenu.css'
 
@@ -9,6 +10,27 @@ import './NewGameMenu.css'
 const HEADING_ID = 'kk-newgame-heading'
 
 const SIZES = Array.from({ length: MAX_SIZE - MIN_SIZE + 1 }, (_, i) => MIN_SIZE + i)
+
+/**
+ * Wizard glyphs are deliberately larger than the 22px toolbar ones: these
+ * carry information rather than naming an action, and the cell count in a 9x9
+ * has to be *countable*. 32 is the size at which the ninth column still lands
+ * on its own pixel at a 375px viewport; 28 starts to close up, 36 pushes the
+ * seven size tiles past two comfortable rows in the panel.
+ */
+const TILE_ICON = 32
+
+/**
+ * Cage ids for one size/difficulty tile, or `[]` when the size is outside the
+ * baked range. `cageLayout` throws a RangeError on an unsupported pair, and
+ * `pendingSize` ultimately comes from a prop — a bad one must degrade to the
+ * plain grid (`CagedGridIcon`'s own fallback for a wrong-length array) rather
+ * than take the app down from inside render.
+ */
+function tileCageIds(size: number, difficulty: Difficulty): readonly number[] {
+  if (!Number.isInteger(size) || size < MIN_SIZE || size > MAX_SIZE) return []
+  return cageLayout(size, difficulty).cageIds
+}
 
 type Step = 'size' | 'difficulty'
 
@@ -51,15 +73,25 @@ function NewGameWizard({ size, difficulty, onStartGame }: WizardProps) {
             <button
               key={option}
               type="button"
-              className="kk-control kk-newgame__option"
-              aria-label={`${option} by ${option}`}
+              className="kk-control kk-control--stack kk-newgame__option"
               aria-current={option === size ? 'true' : undefined}
               onClick={() => {
                 setPendingSize(option)
                 setStep('difficulty')
               }}
             >
-              {option}×{option}
+              <GridIcon n={option} size={TILE_ICON} />
+              {/*
+                The visible text is the accessible name (§4.2), so it is split
+                rather than replaced by an `aria-label`: "3×3" reads aloud as
+                "three times three", and the header's puzzle meta already
+                solves that with a hidden sibling (§6.1). Same trick, same
+                wording, so the two places the app prints N×N agree.
+              */}
+              <span className="kk-control__label" aria-hidden="true">
+                {option}×{option}
+              </span>
+              <span className="kk-sr-only">{`${option} by ${option}`}</span>
             </button>
           ))}
         </div>
@@ -74,9 +106,10 @@ function NewGameWizard({ size, difficulty, onStartGame }: WizardProps) {
         it — and there is no way back to check.
       */}
       <h2 className="kk-popover__heading" id={HEADING_ID}>
-        <span aria-label={`${pendingSize} by ${pendingSize}`}>
+        <span aria-hidden="true">
           {pendingSize}×{pendingSize}
-        </span>{' '}
+        </span>
+        <span className="kk-sr-only">{`${pendingSize} by ${pendingSize}`}</span>{' '}
         Difficulty
       </h2>
       <div className="kk-newgame__options kk-newgame__options--difficulty" ref={difficultyRef}>
@@ -84,11 +117,24 @@ function NewGameWizard({ size, difficulty, onStartGame }: WizardProps) {
           <button
             key={option}
             type="button"
-            className="kk-control kk-newgame__option"
+            className="kk-control kk-control--stack kk-newgame__option"
             aria-current={option === difficulty ? 'true' : undefined}
             onClick={() => onStartGame(pendingSize, option)}
           >
-            {option[0].toUpperCase() + option.slice(1)}
+            {/*
+              `pendingSize`, never `size`: the tile previews the board about to
+              be generated, not the one being played. The two are equal until
+              the player picks a different size in step one, which is exactly
+              why this is easy to get wrong and invisible on screen.
+            */}
+            <CagedGridIcon
+              n={pendingSize}
+              cageIds={tileCageIds(pendingSize, option)}
+              size={TILE_ICON}
+            />
+            <span className="kk-control__label">
+              {option[0].toUpperCase() + option.slice(1)}
+            </span>
           </button>
         ))}
       </div>

@@ -54,10 +54,10 @@ describe('Keypad', () => {
    * nothing hovers. Hint is the exception on `aria-label` only, because every
    * popover trigger in the app names its panel that way.
    */
-  it('each of the five actions pairs a glyph with a visible label', () => {
+  it('each of the four actions pairs a glyph with a visible label', () => {
     const { container } = render(<Keypad {...baseProps()} />)
     const actions = container.querySelectorAll('.kk-keypad__action')
-    expect(actions).toHaveLength(5)
+    expect(actions).toHaveLength(4)
     for (const action of actions) {
       expect(action).not.toHaveAttribute('title')
       expect(action.querySelector('svg')).not.toBeNull()
@@ -65,7 +65,53 @@ describe('Keypad', () => {
     }
     expect(
       Array.from(actions, (a) => a.querySelector('.kk-control__label')?.textContent),
-    ).toEqual(['Undo', 'Redo', 'Erase', 'Notes', 'Hint'])
+    ).toEqual(['Undo', 'Redo', 'Notes', 'Hint'])
+  })
+
+  /*
+   * Erase is a digit-row key, not an action: the row is `size + 1` keys wide
+   * with the eraser last, and the column count goes to CSS as a ready-made
+   * integer because `repeat()` will not take a `calc()`.
+   */
+  it('the digit row holds `size` digits plus Erase, in that order', () => {
+    const { container } = render(<Keypad {...baseProps()} size={9} />)
+    const group = container.querySelector('.kk-keypad__digits')
+    const keys = group?.querySelectorAll('.kk-keypad__digit') ?? []
+
+    expect(keys).toHaveLength(10)
+    expect(
+      Array.from(keys, (key) => key.getAttribute('aria-label')),
+    ).toEqual([
+      'Enter 1',
+      'Enter 2',
+      'Enter 3',
+      'Enter 4',
+      'Enter 5',
+      'Enter 6',
+      'Enter 7',
+      'Enter 8',
+      'Enter 9',
+      'Erase',
+    ])
+    expect(group?.getAttribute('style')).toContain('--keys: 10')
+    expect(container.querySelector('.kk-keypad__actions .kk-keypad__erase')).toBeNull()
+  })
+
+  /*
+   * A knowing exception to §4.2: no text label under the glyph, so the name
+   * comes from `aria-label`. The shortcuts it carried as an action button
+   * follow it onto the digit row.
+   */
+  it('the erase key is a bare glyph carrying its own name and shortcuts', () => {
+    const { container } = render(<Keypad {...baseProps()} />)
+    const erase = screen.getByRole('button', { name: 'Erase' })
+
+    expect(erase).toBe(container.querySelector('.kk-keypad__erase'))
+    expect(erase.querySelector('svg')).not.toBeNull()
+    expect(erase.querySelector('.kk-control__label')).toBeNull()
+    expect(erase).toHaveTextContent('')
+    expect(erase).toHaveAttribute('aria-keyshortcuts', 'Backspace Delete')
+    expect(erase).not.toHaveAttribute('title')
   })
 
   /*

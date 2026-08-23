@@ -1,4 +1,7 @@
 import type { ReactNode, SVGProps } from 'react'
+import type { Puzzle } from '../engine/types'
+import { MAX_SIZE, MIN_SIZE, colOf, rowOf } from '../engine/types'
+import { computeCellEdges } from './cageBorders'
 
 /**
  * Shared props for every icon: an optional pixel `size` (default 20) plus
@@ -292,6 +295,419 @@ export function NumberIcon(props: IconProps) {
       <line x1="3" y1="9" x2="21" y2="9" />
       <line x1="3" y1="15" x2="21" y2="15" />
       <rect x="10" y="10" width="4" height="4" fill="currentColor" stroke="none" />
+    </IconBase>
+  )
+}
+
+/*
+ * ---------------------------------------------------------------------------
+ * Grid glyphs
+ * ---------------------------------------------------------------------------
+ *
+ * `GridIcon` and `CagedGridIcon` are the one place in this file where the
+ * glyph is *parameterised*, and that is what makes them hard: the same icon
+ * has to hold together at n=3, where a cell is a third of the box, and at n=9,
+ * where a cell is a twelfth of it and the render size is still ~22-28px.
+ *
+ * The trap is `IconBase`'s inherited `strokeWidth={2}`. Every other icon in
+ * this file wants it; a 9x9 grid drawn with it does not. Eight internal
+ * dividers, 2 units wide, laid across an 18-unit span is 16 units of ink in 18
+ * units of space — the interior silts up into a solid block and the icon reads
+ * as a filled square, which is the *opposite* of what a size-9 button should
+ * say. `IconBase` itself is untouched: its svg-level `strokeWidth=2` is exactly
+ * the weight the outer square wants, and the internal lines override it per
+ * element. No new prop, and every existing icon renders byte-identically.
+ *
+ * The second trap is subtler and cost a full round of screenshots to find.
+ * Scaling the divider down *proportionally* — a duty cycle against the cell
+ * pitch, which is the obvious fix and the one this file shipped first — does
+ * not work at the sizes these buttons actually render at. At 22px one viewBox
+ * unit is 0.92 device pixels, so a "correctly" thinned 0.5-unit divider is a
+ * 0.46px stroke, and the rasteriser spreads a 0.46px stroke across *two* pixel
+ * columns at ~23% each. With a 1.83px pitch there is no pixel left uninked:
+ * every column gets a share, and the interior comes out as a flat translucent
+ * wash. Verified, not assumed — at 24px a proportionally-thinned 9x9 rendered
+ * as a literally uniform block, worse than the 8x8 beside it.
+ *
+ * So the dividers are drawn the way the board draws them, and the way hairlines
+ * have to be drawn at this scale: **one device-independent pixel, snapped to
+ * the pixel grid, at reduced opacity**. See `DIVIDER_*` below.
+ *
+ * The rest follows the board rather than a generic grid glyph:
+ *
+ *   - The outer square is the heaviest line (STYLE_GUIDE §5: "the board's
+ *     boundary always reads as the strongest line on the grid"). It is a
+ *     constant 2 units at every n, which is also what keeps a 3x3 and a 9x9
+ *     button looking like the same family — the frame carries nearly all of
+ *     the icon's optical mass, so freezing it freezes the mass. It stays in
+ *     viewBox units, unlike the dividers, so the frame still matches the
+ *     stroke weight of every other icon in this file at any render size.
+ *   - Square corners, not `rx`. `Board.css` argues this explicitly: "a rounded
+ *     grid reads as a card containing a puzzle rather than as the puzzle
+ *     itself". That needs `strokeLinejoin="miter"` on the rect specifically,
+ *     because the shell sets `round` globally and a round join on a 2-wide
+ *     stroke rounds all four corners at radius 1.
+ *
+ * Everything is `stroke="currentColor"` by inheritance and `fill="none"` from
+ * the shell, so the glyph is accent-blue ink like every other control (§4.1),
+ * and `aria-hidden` like every other icon — the size/difficulty button that
+ * hosts it carries the name.
+ */
+
+/**
+ * The outer square's *centre line*, so the drawn frame's outer edge lands on
+ * 2 and 22 for every n — the same 20-unit envelope Lucide's `grid-*` glyphs
+ * use, and the same envelope regardless of n.
+ *
+ * Half-stroke inset is the thing to get right here: a rect whose path runs at
+ * x=3 with a 2-wide stroke paints from x=2 to x=4. Drawing the path at x=2
+ * instead would bleed the frame to x=1 and cost a unit of margin on every
+ * side. The interior is then measured centre-line to centre-line (3..21), not
+ * inside-edge to inside-edge, which buys the grid 18 units of pitch space
+ * instead of 14 — at n=9 that is the difference between a 1.83px cell and a
+ * 1.43px cell at a 22px render, and 1.43px is where the thing dies.
+ */
+const GRID_MIN = 3
+const GRID_MAX = 21
+const GRID_SPAN = GRID_MAX - GRID_MIN
+/** Matches `IconBase`'s svg-level width, so the frame needs no override. */
+const OUTER_STROKE = 2
+
+/**
+ * Cell dividers: a hairline, in the literal sense.
+ *
+ * `vector-effect="non-scaling-stroke"` takes the width out of viewBox units
+ * and puts it in the outer viewport's, so `strokeWidth={1}` is **1 CSS pixel
+ * at every render size** — the icon's geometry scales, its hairlines do not.
+ * That is not a trick; it is precisely what `Cell.css` does on the real board,
+ * where the divider is a flat `border-right: 1px solid` that stays 1px whether
+ * `--cell` is 26px or 84px. The icon is a picture of that object, so it should
+ * be built the same way.
+ *
+ * `shape-rendering="crispEdges"` is the half that actually rescues n=9. Grid
+ * pitch at a 22px render is 1.83 device pixels — never an integer — so without
+ * snapping, each divider straddles a pixel boundary at a different phase and
+ * the interior degenerates into the flat wash described above. Snapped, every
+ * divider is one hard-edged pixel column with real gaps between, and the
+ * difference at n=8/n=9 is the difference between a grid and a swatch.
+ *
+ * Opacity carries the weight hierarchy instead of width, because at 22px there
+ * is nowhere below 1px left to go. §5 makes dividers `--border` while cage
+ * borders and the outline take `--structure`; an icon has one colour by
+ * contract (§4.1), so the only honest translation of "a lighter token" is a
+ * lighter alpha. 0.55 against the frame's solid ink is the same relationship,
+ * and §2.4 explicitly exempts dividers from the 3:1 floor precisely so they
+ * can be this quiet.
+ *
+ * Sub-pixel widths were tried first and rejected on screenshots at 22/24/28px;
+ * so was crisp snapping at proportional widths, which still washed out at n=9
+ * because the *width*, not the phase, was the problem.
+ */
+const DIVIDER_STROKE = 1
+const DIVIDER_OPACITY = 0.55
+
+/**
+ * Cage borders: proportional to the cell pitch, floored, capped at the frame.
+ *
+ * 0.45 duty means two cage borders one cell apart still leave 55% of the pitch
+ * clear, which is what stops a heavily-caged board from closing up. The cap is
+ * `OUTER_STROKE`: a cage border may reach the frame's weight but never exceed
+ * it (§5). It hits that cap at n=3 and n=4, so at those sizes the glyph
+ * deliberately runs **two** weights, not three — cage borders at outline
+ * weight, dividers light. That is not a concession, it is what the board does:
+ * `Cell.css` draws cage borders at `--cell * 0.045` while `Board.css` draws the
+ * frame at `--board * 0.008`, which for a 6x6 is `--cell * 0.048`. A 7%
+ * difference is not a third weight.
+ *
+ * The floor is 1.3 units, and it is the number that keeps three weights apart
+ * at large n rather than the one that keeps cages from silting. Raw duty at
+ * n=9 gives 0.9 units, which at a 22px render is 0.82px — *thinner* than the
+ * 1px hairline it is supposed to dominate, so cage structure would have
+ * inverted against the dividers at exactly the size where it matters most.
+ * 1.3 units is 1.19px: still under the frame, still visibly over the hairline,
+ * and the width difference is reinforced by the hairline's 0.55 alpha.
+ */
+const CAGE_DUTY = 0.45
+const CAGE_MIN = 1.3
+
+/** Trim float noise so `18/7` does not serialise 15 digits into the DOM. */
+const round = (value: number) => Math.round(value * 1000) / 1000
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
+
+interface GridMetrics {
+  /** `n`, clamped to the sizes the engine actually supports. */
+  size: number
+  /** Centre-line coordinate of grid line `k`, `k` in `0..size`. */
+  at: (k: number) => number
+  /** Stroke width, in viewBox units, for a cage boundary at this size. */
+  cage: number
+}
+
+/**
+ * Derives every stroke width and coordinate for an n x n glyph.
+ *
+ * `n` is clamped rather than trusted: these icons sit on wizard buttons, and a
+ * bad `n` (0, a float, a stray 12) must degrade to a drawable grid rather than
+ * divide by zero or throw inside render.
+ */
+function gridMetrics(n: number): GridMetrics {
+  const size = clamp(Math.round(n) || MIN_SIZE, MIN_SIZE, MAX_SIZE)
+  const pitch = GRID_SPAN / size
+  return {
+    size,
+    at: (k) => round(GRID_MIN + k * pitch),
+    cage: round(clamp(CAGE_DUTY * pitch, CAGE_MIN, OUTER_STROKE)),
+  }
+}
+
+/**
+ * The `size - 1` internal dividers in each axis, full span, hairline weight.
+ *
+ * They run the whole 3..21 centre-line span rather than stopping at the
+ * frame's inner edge, so their ends tuck underneath the outer stroke instead
+ * of stopping short of it and leaving a visible gap at the frame — which at
+ * n=9, where the gap would be a third of a cell, reads as a border of empty
+ * margin inside the square.
+ */
+function gridDividers({ size, at }: GridMetrics) {
+  const lines = []
+  const hairline = {
+    strokeWidth: DIVIDER_STROKE,
+    strokeOpacity: DIVIDER_OPACITY,
+    vectorEffect: 'non-scaling-stroke',
+    shapeRendering: 'crispEdges',
+  } as const
+  for (let k = 1; k < size; k += 1) {
+    const p = at(k)
+    lines.push(
+      <line key={`v${k}`} x1={p} y1={GRID_MIN} x2={p} y2={GRID_MAX} {...hairline} />,
+      <line key={`h${k}`} x1={GRID_MIN} y1={p} x2={GRID_MAX} y2={p} {...hairline} />,
+    )
+  }
+  return lines
+}
+
+/** The frame. Drawn last so it sits over every divider and cage terminus. */
+function gridFrame() {
+  return (
+    <rect
+      x={GRID_MIN}
+      y={GRID_MIN}
+      width={GRID_SPAN}
+      height={GRID_SPAN}
+      strokeWidth={OUTER_STROKE}
+      strokeLinejoin="miter"
+    />
+  )
+}
+
+/**
+ * Grid size: an empty n x n grid, no cages. Sits on the seven size buttons in
+ * the New Game wizard, where the glyph *is* the information — the button says
+ * "5x5" by drawing a 5x5 — so the cell count has to be countable, not merely
+ * suggestive. See the block comment above for the stroke system.
+ */
+export interface GridIconProps extends IconProps {
+  /** Grid order, 3..9. Values outside that are clamped, never thrown on. */
+  n: number
+}
+
+export function GridIcon({ n, ...props }: GridIconProps) {
+  const metrics = gridMetrics(n)
+  return (
+    <IconBase {...props}>
+      {gridDividers(metrics)}
+      {gridFrame()}
+    </IconBase>
+  )
+}
+
+/**
+ * `computeCellEdges` wants a whole `Puzzle` but reads only `puzzle.size`. The
+ * rest is inert filler so the icon can reuse the board's own adjacency rule
+ * rather than re-deriving "different cage id to the right/below" a second
+ * time — the alternative was a private copy of the walk that could silently
+ * drift from the board it is a picture of.
+ */
+const gridShaped = (size: number): Puzzle => ({
+  size,
+  difficulty: 'easy',
+  cages: [],
+  solution: [],
+  seed: '',
+})
+
+/**
+ * Grid with cages: the same n x n grid, with cage boundaries overdrawn at
+ * heavy weight on top of the light dividers. Sits on the four difficulty
+ * buttons, where the glyph says "this is how chopped-up your board will be".
+ *
+ * Overdrawing is deliberate rather than drawing each cell edge once at its own
+ * weight: it is exactly how the board composes (every cell paints a hairline
+ * right/bottom border, cage cells paint a heavy one over it), and it keeps the
+ * element count at `2(n-1)` full-span dividers plus only the boundary
+ * segments, instead of `2n(n-1)` stubs.
+ *
+ * Only right and bottom edges are ever emitted — `computeCellEdges`' rule, and
+ * the reason no boundary comes out doubled and no round cap stacks on another
+ * round cap into a visible lump at cage corners.
+ *
+ * No labels, no digits, no operators. A cage label is `--cell * 0.22`, which
+ * on a 24-unit box at a 24px render is a 0.5px numeral. The icon is about
+ * structure; anything else in it is noise wearing a number's clothes.
+ */
+export interface CagedGridIconProps extends IconProps {
+  n: number
+  /** `cageIds[i]` is the cage id of cell `i`, in reading order. Length `n * n`. */
+  cageIds: readonly number[]
+}
+
+export function CagedGridIcon({ n, cageIds, ...props }: CagedGridIconProps) {
+  const metrics = gridMetrics(n)
+  const { size, at, cage } = metrics
+
+  /*
+   * Defensive fallback, not an assertion: a wizard button rendering a
+   * slightly wrong picture is a blemish, a wizard button throwing during
+   * render unmounts the app behind an error boundary. A malformed layout
+   * degrades to the plain grid, which is still true about the board's size.
+   */
+  if (cageIds.length !== size * size) return <GridIcon n={n} {...props} />
+
+  const puzzle = gridShaped(size)
+  const edges = []
+  for (let index = 0; index < size * size; index += 1) {
+    const { rightHeavy, bottomHeavy } = computeCellEdges(puzzle, cageIds, index)
+    const row = rowOf(index, size)
+    const col = colOf(index, size)
+    if (rightHeavy) {
+      const x = at(col + 1)
+      edges.push(
+        <line
+          key={`r${index}`}
+          x1={x}
+          y1={at(row)}
+          x2={x}
+          y2={at(row + 1)}
+          strokeWidth={cage}
+        />,
+      )
+    }
+    if (bottomHeavy) {
+      const y = at(row + 1)
+      edges.push(
+        <line
+          key={`b${index}`}
+          x1={at(col)}
+          y1={y}
+          x2={at(col + 1)}
+          y2={y}
+          strokeWidth={cage}
+        />,
+      )
+    }
+  }
+
+  return (
+    <IconBase {...props}>
+      {gridDividers(metrics)}
+      {edges}
+      {gridFrame()}
+    </IconBase>
+  )
+}
+
+/**
+ * Theme — light: a sun, disc plus eight rays.
+ *
+ * `MenuIcon`'s comment rejected a sun for the *settings trigger* because "a
+ * sun reads as a theme toggle". That objection is the endorsement here: this
+ * is the theme control, and the two glyphs now sit in the same popover, so
+ * they must not collide. They do not — `MenuIcon` became sliders, which are
+ * all straight lines and carry no circular mass at all, and this is the one
+ * glyph in the file built around a centred disc.
+ *
+ * Eight rays, not four: four reads as a compass rose or a plus sign inside a
+ * ring. Rays detached and short (2 units, ending 4 units clear of the r=4
+ * disc) rather than long spokes touching it: a ray that meets the disc turns
+ * the whole thing into a wheel with an axle, and at a 22px render the junction
+ * is where the ink pools first. The disc is stroked, never filled — a filled
+ * sun is a solid blue dot at this size, indistinguishable from a bullet, and
+ * §4.1 wants ink not chrome anyway.
+ *
+ * Shrinking the disc and lengthening the rays is the other tempting move and
+ * the wrong one: past about r=3 the glyph stops being a sun and becomes a
+ * sparkle, which every other product on earth uses to mean "AI".
+ */
+export function ThemeLightIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2" />
+      <path d="M12 20v2" />
+      <path d="M2 12h2" />
+      <path d="M20 12h2" />
+      <path d="m4.93 4.93 1.41 1.41" />
+      <path d="m17.66 17.66 1.41 1.41" />
+      <path d="m19.07 4.93-1.41 1.41" />
+      <path d="m6.34 17.66-1.41 1.41" />
+    </IconBase>
+  )
+}
+
+/**
+ * Theme — dark: a waning crescent, one closed outline.
+ *
+ * Drawn as a single path whose inner edge is a *shallower* arc than its outer
+ * edge, so the crescent keeps a thick belly and thin horns. The obvious
+ * construction — two circles of the same radius, offset — gives a crescent of
+ * even thickness whose horns taper to nothing; at 22px the tips vanish into
+ * the antialiasing and the shape reads as a bitten disc, or worse, a comma.
+ *
+ * The horns are cut at roughly the two- and eight-o'clock positions rather
+ * than closing further toward a ring: a crescent thinner than about a third of
+ * its diameter fuses into a single curved stroke and stops reading as a solid
+ * body with a shadow on it.
+ *
+ * No stars. Two or three small dots beside the moon is the conventional
+ * "night" glyph and it is a conventional mistake at icon size — the dots land
+ * at under a pixel each, so they read as dirt on the screen rather than sky,
+ * and they pull the moon off-centre to make room.
+ */
+export function ThemeDarkIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+    </IconBase>
+  )
+}
+
+/**
+ * Theme — system: a display on a stand.
+ *
+ * "Follow the OS" has no glyph of its own, so the convention is the device
+ * itself. The stand is the load-bearing part: a bare rounded rectangle is a
+ * card, an image frame, or — next to `GridIcon` in this same app — an empty
+ * board. The neck plus foot is the only thing that says "screen".
+ *
+ * Deliberately landscape (20x14) and rounded (rx=2), for exactly that reason:
+ * `GridIcon`'s frame is a square-cornered 18x18, and the two would be one
+ * glyph apart if this one were square too. The aspect ratio and the corner
+ * radius are both doing disambiguation work, not decoration.
+ *
+ * The neck is 4 units and the foot 8, which keeps them apart at render size.
+ * A shorter neck lets the round joins at the foot's ends swallow it and the
+ * stand collapses into a single thick underline — which then reads as the
+ * `aria-current` underline the style guide puts under the selected control in
+ * a group (§4.1), inside the very popover where those underlines live.
+ */
+export function ThemeSystemIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <rect x="2" y="3" width="20" height="14" rx="2" />
+      <path d="M12 17v4" />
+      <path d="M8 21h8" />
     </IconBase>
   )
 }

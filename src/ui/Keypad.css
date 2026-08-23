@@ -8,14 +8,14 @@
 }
 
 /*
- * The five actions, five across. Everything about how one looks - blue ink, no
+ * The four actions, four across. Everything about how one looks - blue ink, no
  * chrome, glyph over grey label, press feedback, disabled - comes from
  * `.kk-control` and `.kk-control--stack` in index.css, which the two header
  * triggers wear too. Only the row is local.
  */
 .kk-keypad__actions {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--sp-1);
 }
 
@@ -51,22 +51,48 @@
 }
 
 /*
- * Bare digits, one column each, no gap between them: they are text rather than
- * keys, which is what lets nine sit comfortably across a 375px phone. A
- * bordered key needs room for its box; a numeral only needs room for its ink.
+ * Bare digits plus Erase, one column each, no gap between them: they are text
+ * rather than keys, which is what lets ten sit comfortably across a 375px
+ * phone. A bordered key needs room for its box; a numeral only needs room for
+ * its ink.
+ *
+ * `--keys` is the column count (`size + 1`) and arrives from Keypad.tsx
+ * already added up. It is not derived here because `repeat()` wants a literal
+ * integer and `repeat(calc(var(--size) + 1), ...)` is not portable.
  */
 .kk-keypad__digits {
   display: grid;
-  grid-template-columns: repeat(var(--size), minmax(0, 1fr));
+  grid-template-columns: repeat(var(--keys), minmax(0, 1fr));
   gap: 0;
 }
 
 .kk-keypad__digit {
-  /* Sized off the app's container, so a 4x4's four digits are generous and a
-     9x9's nine still fit on one row. */
-  font-size: clamp(22px, calc(100cqw / (var(--size) * 1.5)), 32px);
+  /* Sized off the app's container, so a 4x4's keys are generous and a 9x9's
+     ten still fit on one row. */
+  font-size: clamp(22px, calc(100cqw / (var(--keys) * 1.5)), 32px);
   font-weight: 500;
   /* The 44px touch floor is met by height; width is free to shrink. */
   min-height: 56px;
+  /* A grid item's auto minimum is its content, which would push the eraser's
+     column wider than its digit neighbours on a narrow screen. */
+  min-width: 0;
   padding: var(--sp-2) 0;
+}
+
+/*
+ * The eraser is sized in `em` off the key's own font size, so it tracks the
+ * digits as the row tightens rather than holding a fixed pixel size and going
+ * heavy at 9x9 - a 22px glyph beside a 23px numeral is not the same weight.
+ *
+ * 1.05em, which is larger than it sounds: this glyph's ink fills only 13.8 of
+ * its 24-unit viewBox, so at 1em its drawn height is ~0.58em against a
+ * numeral's ~0.7em cap height and it reads as a shrunken sibling. 1.05em puts
+ * the ink at ~0.6em - just under the numerals, which is where a thin-stroke
+ * outline wants to sit next to solid figures. Measured and eyeballed at 9x9 on
+ * a 375px viewport against 0.8 / 0.95 / 1.15em; larger overhangs the row's
+ * optical band. The ink is 0.67em wide in a 34px column, so nothing clips.
+ */
+.kk-keypad__erase svg {
+  width: 1.05em;
+  height: 1.05em;
 }
