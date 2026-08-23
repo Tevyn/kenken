@@ -12,12 +12,10 @@
   border: 0;
 }
 
+/* Type comes from `.kk-popover__heading`; only the box is local. */
 .kk-theme__legend {
   padding: 0;
   margin: 0 0 var(--sp-2);
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text);
 }
 
 .kk-theme__options {

@@ -8,41 +8,49 @@
 .kk-newgame__step {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  /*
-   * Both steps are a heading row over two rows of options, but reserving the
-   * height anyway keeps the panel from resizing under the pointer if one of
-   * them ever grows.
-   */
-  min-height: 124px;
+  gap: var(--sp-3);
   /* Let the size grid use the width the panel is allowed, not just 3 buttons'. */
   min-width: min(17rem, calc(100vw - 56px));
-}
-
-/* The size committed in step one, restated because there is no way back. */
-.kk-newgame__chosen {
-  color: var(--text-h);
-}
-
-.kk-newgame__sep {
-  margin: 0 0.4em;
-  opacity: 0.6;
 }
 
 .kk-newgame__options {
   display: grid;
   /* 4 + 3 across two rows: no lone button with half a panel beside it. */
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  /*
+   * Both steps are two rows of options, so pinning the row height is what
+   * keeps the panel exactly the same size across the step change — nothing
+   * resizes under the pointer. This replaces a `min-height` guess on the step,
+   * which only held while both steps' type was the same size.
+   */
+  grid-auto-rows: clamp(48px, 13cqw, 64px);
   gap: var(--sp-2);
 }
 
+/*
+ * Two columns, which is also what lets step two keep step one's type: twice the
+ * width of the size grid's four is enough for "Medium" at the full digit size,
+ * so nothing here overrides the font below. The two steps are one choice, and
+ * the second must not read as the lesser half of it.
+ */
 .kk-newgame__options--difficulty {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .kk-newgame__option {
-  /* Options sit in a grid, so they stretch rather than hug their text. */
+  /* Options sit in a grid, so they stretch rather than hug their text - and the
+     row already gives them the 44px touch target, so the control's own padding
+     would only be width the numerals could have had. */
   width: 100%;
+  padding: 0;
+  /*
+   * Set as game digits: the keypad's own 22-32px range at the same weight 500,
+   * so "6×6" in the wizard and the 6 you type into the board are visibly the
+   * same numeral. They used to be 15px/600 labels, which read as form controls
+   * rather than as the puzzle.
+   */
+  font-size: clamp(22px, 9cqw, 32px);
+  font-weight: 500;
 }
 
 /*

@@ -96,10 +96,14 @@ Three tiers only.
 |---|---|---|
 | `--r-sm` | 6px | Inline chips, marks, small controls |
 | `--r-md` | 10px | Keys, buttons, triggers |
-| `--r-lg` | 14px | Panels, popovers |
+| `--r-lg` | 14px | Large cards |
 
 The board is **square-cornered** and takes no radius. A rounded grid reads as a
 card that contains a puzzle; the board is the puzzle.
+
+**Popover panels are square-cornered too, for the same reason** (§3). Nothing
+in the app currently claims `--r-lg`; it stays in the scale as the step a card
+would take, not as a licence to round a panel.
 
 ---
 
@@ -233,11 +237,23 @@ invisible.
 |---|---|---|
 | **Flat** — the page | `--bg`, no shadow | `--bg`, no shadow |
 | **Raised** — board, keys, cards | `--surface` + 1px `--border` | `--surface` (lighter than bg) + 1px `--border` |
-| **Floating** — popovers | `--surface` + cast shadow | Lighter surface + shadow + 1px top highlight |
+| **Floating** — popovers | Board treatment + cast shadow + scrim | Board treatment + scrim |
 
 A "recessed" treatment must use `--surface-sunken`. Painting a well in `--bg`
 paints nothing — the action row's strip did exactly that in both themes and was
 invisible.
+
+**A popover panel is the board, moved.** Same surface, same square corners, same
+`--frame` line in `--cell-border-heavy`, centred behind a scrim. It is not a
+card with a look of its own: the page has exactly one object in it, and a panel
+is another instance of that object rather than a second visual language. What
+this replaces — a rounded, tinted surface with a hairline border and a lit top
+edge — was that second language, and it made a menu read as chrome floating over
+the puzzle instead of as part of it.
+
+Panels are **centred**, never hung off their trigger. Both header panels are
+wide enough that anchoring one to a corner left it lopsided, and centring puts
+the choice where the player is already looking.
 
 ---
 
@@ -388,11 +404,17 @@ than to reintroduce a second hue.
   region announces them for screen readers only.
 - **Never punish.** No "wrong!", no counters, no red banners. An error is a red
   ring and a red digit; that is the whole message.
+- **Solving opens a panel, not a banner.** It says `Solved` / `Nice work.` and
+  offers the one move that follows — New game, which opens the wizard rather
+  than deciding a size for you. It dismisses like any other panel (Escape, or a
+  press outside) and leaves the finished grid on screen. The banner it replaces
+  pushed the keypad down at the moment the game ended and then never left.
 
 ### 6.1 Puzzle meta
 
-The header carries one muted line under the wordmark — `9×9 · Medium`. Grey,
-13px, sentence case, understated. It answers "what am I playing", which nothing
+The header carries one muted line under the wordmark — `9×9 Medium`. Grey,
+13px, sentence case, understated. No separator between the two: they are one
+answer, not a list. It answers "what am I playing", which nothing
 on screen said before: neither the size nor the difficulty appeared anywhere
 outside the New Game wizard.
 
@@ -413,12 +435,25 @@ One family: the `system-ui` stack.
 |---|---|---|
 | Wordmark | 20px | 600 |
 | Puzzle meta | 13px | 500, `--text-muted` |
-| Panel heading | 13px | 700, uppercase, `0.08em`, `--text-muted` |
+| Panel heading | 13px | 500, sentence case, `--text-muted` |
 | Body / hint text | 15px | 400 |
 | Help text | 13px | 400, `--text-muted` |
 | Key label | 18px | 600 |
 | Cell value | `--cell × 0.5` | 500 |
 | Cage label | `max(10px, --cell × 0.22)` | 600 |
+| Digit key / wizard option | `clamp(22px, …, 32px)` | 500 |
+
+**A panel heading is the puzzle meta line**, to the pixel: the same grey, the
+same 13px, the same sentence case. It used to be 700 uppercase at `0.08em`,
+which made the word "Size" louder than the sizes underneath it. Section labels
+inside a panel (the theme picker's legend) take the same line — the controls
+carry the weight, the labels only name them.
+
+**The wizard's options are set as game digits.** `4×4` in the panel and the 4
+you type into the board are the same numeral at the same weight, because they
+are the same thing. The difficulties get that type too: two columns is twice the
+width of the size grid's four, so "Medium" fits at full size and step two never
+reads as the lesser half of one choice.
 
 The wordmark drops from 30px. It was the largest text on the page and the least
 useful information on it.

@@ -34,8 +34,7 @@
 /* Every zone lines up on the same column, so their edges agree. */
 .kk-app__header,
 .kk-app__controls,
-.kk-hint,
-.kk-win-banner {
+.kk-hint {
   width: var(--content);
   margin-inline: auto;
 }

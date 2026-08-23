@@ -1,5 +1,4 @@
 .kk-popover {
-  position: relative;
   display: inline-flex;
 }
 
@@ -16,43 +15,37 @@
   cursor: not-allowed;
 }
 
-.kk-popover__panel {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  z-index: 20;
-  /* Roomy enough for the seven-option size grid, never wider than the screen. */
-  min-width: min(15rem, calc(100vw - 24px));
-  max-width: min(22rem, calc(100vw - 24px));
-  /* A short viewport must scroll the panel rather than hide the bottom of it. */
-  max-height: calc(100vh - 88px);
-  overflow-y: auto;
-  padding: 14px;
-  border-radius: 12px;
-  border: 1px solid var(--border-popover);
-  background: var(--surface-popover);
-  color: var(--text);
-  /*
-   * Two ways to detach from the page, because only one of them works per
-   * theme: a cast shadow in light, a lit top edge in dark.
-   */
-  box-shadow: var(--shadow-popover), inset 0 1px 0 var(--popover-highlight);
-}
-
 /*
- * Centred placement. `position: fixed` here resolves against `.kk-app`, not the
- * viewport: `container-type: inline-size` on that element applies layout
- * containment, which makes it the containing block for fixed descendants.
- * `.kk-app` spans the viewport, so the two coincide - but the scrim is sized
- * the same way rather than assuming otherwise.
+ * Every panel is the same object as the board: square corners, the board's own
+ * surface, and the board's frame line around it (`--frame`, index.css). It used
+ * to be a rounded, tinted card with a lit top edge - a second visual language
+ * for panels, sitting over a page that only has one.
+ *
+ * `position: fixed` here resolves against `.kk-app`, not the viewport:
+ * `container-type: inline-size` on that element applies layout containment,
+ * which makes it the containing block for fixed descendants. `.kk-app` spans
+ * the viewport, so the two coincide - but the scrim is sized the same way
+ * rather than assuming otherwise.
  */
-.kk-popover__panel--center {
+.kk-popover__panel {
   position: fixed;
   top: 50%;
   left: 50%;
-  right: auto;
   transform: translate(-50%, -50%);
+  z-index: 20;
+  /* Roomy enough for the seven-option size grid, never wider than the screen. */
+  min-width: min(15rem, calc(100vw - var(--sp-5)));
+  max-width: min(22rem, calc(100vw - var(--sp-5)));
+  /* A short viewport must scroll the panel rather than hide the bottom of it. */
   max-height: calc(100% - 2 * var(--sp-5));
+  overflow-y: auto;
+  padding: var(--sp-4);
+  border: var(--frame) solid var(--cell-border-heavy);
+  background: var(--cell-bg);
+  color: var(--text);
+  /* Light casts a shadow; dark can't (a black shadow on a near-black page is
+     invisible) and leans on the frame instead. */
+  box-shadow: var(--shadow-popover);
 }
 
 .kk-popover__scrim {
@@ -63,12 +56,15 @@
   background: light-dark(#1c212259, #00000099);
 }
 
-/* Every panel's section heading. Shared so the popovers can't drift apart. */
+/*
+ * Every panel's section heading, and the same line as the header's puzzle meta
+ * (STYLE_GUIDE.md §6.1): grey, 13px, sentence case. It used to be uppercase and
+ * letter-spaced, which made a label louder than the choices under it.
+ */
 .kk-popover__heading {
   margin: 0;
   font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: 500;
+  line-height: 1.2;
   color: var(--text-muted);
 }

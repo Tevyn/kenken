@@ -66,7 +66,9 @@ export function SettingsMenu({
         a fill would read as chrome, and the accent now means ink (§4).
       */}
       <fieldset className="kk-theme">
-        <legend className="kk-theme__legend">Theme</legend>
+        {/* A section label, so it takes the panel heading's line rather than a
+            louder one of its own — the choices under it carry the weight. */}
+        <legend className="kk-popover__heading kk-theme__legend">Theme</legend>
         <div className="kk-theme__options">
           {THEMES.map((option) => (
             <label className="kk-control kk-theme__option" key={option}>

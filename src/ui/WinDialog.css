@@ -1,0 +1,30 @@
+/*
+ * The panel itself — frame, surface, centring — comes from
+ * `.kk-popover__panel`; this is only what goes inside it. The old banner's
+ * green fill and green border are gone with the banner: a fill is reserved for
+ * the board's own state and for a state badge (STYLE_GUIDE.md §4).
+ */
+.kk-win {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: min(15rem, calc(100vw - 56px));
+}
+
+/*
+ * The one place `--success` still appears outside the board: the word that
+ * says you finished. It carries the news, so it takes the size the wizard's
+ * difficulty options take rather than body type.
+ */
+.kk-win__text {
+  margin: 0;
+  font-size: clamp(17px, 4.5cqw, 24px);
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--success);
+}
+
+.kk-win__action {
+  /* Sole action in the panel, so it spans it rather than hugging its text. */
+  width: 100%;
+}

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useMemo, useState } from 'react'
 import { describe, expect, it } from 'vitest'
@@ -11,7 +11,7 @@ import { Controls } from './Controls'
 import type { OpenMenu } from './Controls'
 import { HintPanel } from './HintPanel'
 import { Keypad } from './Keypad'
-import { WinBanner } from './WinBanner'
+import { WinDialog } from './WinDialog'
 
 /** A minimal wiring of useGame + Board + Keypad, standing in for App.tsx's game view. */
 function TestGame() {
@@ -19,7 +19,17 @@ function TestGame() {
   // an open panel suspends the board's keyboard shortcuts.
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null)
   const [theme, setTheme] = useState<Theme>('system')
-  const game = useGame(SAMPLE_PUZZLE, { suspended: openMenu !== null })
+  // The solved dialog is modal too, so it suspends the board's keyboard the
+  // same way an open popover does. Same two-flag arrangement as App.
+  const [solvedSeen, setSolvedSeen] = useState(false)
+  const [winDismissed, setWinDismissed] = useState(false)
+  const winOpen = solvedSeen && !winDismissed
+  const game = useGame(SAMPLE_PUZZLE, { suspended: openMenu !== null || winOpen })
+  const solved = game.state.status === 'solved'
+  if (solved !== solvedSeen) {
+    setSolvedSeen(solved)
+    setWinDismissed(false)
+  }
   const checkErrors = useMemo(() => createErrorChecker(game.state.puzzle), [game.state.puzzle])
   const errors = useMemo(() => checkErrors(game.state.values), [checkErrors, game.state.values])
   return (
@@ -45,7 +55,14 @@ function TestGame() {
         onSelect={game.select}
       />
       <HintPanel phase={game.state.hint} onDismiss={game.dismissHint} onReveal={game.revealCell} />
-      <WinBanner visible={game.state.status === 'solved'} />
+      <WinDialog
+        visible={winOpen}
+        onDismiss={() => setWinDismissed(true)}
+        onNewGame={() => {
+          setWinDismissed(true)
+          setOpenMenu('new-game')
+        }}
+      />
       <Keypad
         size={game.state.puzzle.size}
         mode={game.state.mode}
@@ -283,10 +300,10 @@ describe('Board + Keypad + useGame integration', () => {
     expect(valueOf(cells[0])).toBe('2')
   })
 
-  it('shows the win banner once the whole solution is entered', async () => {
+  it('shows the solved dialog once the whole solution is entered, and lets it be dismissed', async () => {
     const user = userEvent.setup()
     render(<TestGame />)
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 
     const cells = screen.getAllByRole('gridcell')
     for (let i = 0; i < SAMPLE_PUZZLE.solution.length; i++) {
@@ -294,7 +311,38 @@ describe('Board + Keypad + useGame integration', () => {
       await user.keyboard(String(SAMPLE_PUZZLE.solution[i]))
     }
 
-    expect(screen.getByRole('status')).toHaveTextContent(/solved/i)
+    expect(screen.getByRole('dialog', { name: 'Solved' })).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(/nice work/i)
+
+    // Dismissing leaves the finished board on screen and hands the keyboard back.
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(valueOf(cells[0])).toBe(String(SAMPLE_PUZZLE.solution[0]))
+  })
+
+  it('the solved dialog hands off to the new-game wizard, focus and all', async () => {
+    const user = userEvent.setup()
+    render(<TestGame />)
+
+    const cells = screen.getAllByRole('gridcell')
+    for (let i = 0; i < SAMPLE_PUZZLE.solution.length; i++) {
+      await user.click(cells[i])
+      await user.keyboard(String(SAMPLE_PUZZLE.solution[i]))
+    }
+
+    // Two buttons wear the label at this moment - the header trigger and the
+    // dialog's own. Only the dialog is reachable, so only it is asked.
+    const solvedDialog = screen.getByRole('dialog', { name: 'Solved' })
+    await user.click(within(solvedDialog).getByRole('button', { name: 'New game' }))
+
+    /*
+     * One panel closes as the other opens. The button that was pressed goes
+     * with the closing panel, so the arriving wizard has to be the one that
+     * ends up with focus - on the size being played, as always.
+     */
+    expect(screen.queryByRole('dialog', { name: 'Solved' })).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Size' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '4 by 4' })).toHaveFocus()
   })
 
   it('entering a value clears the matching pencil mark from row/column peers, leaving unrelated marks', async () => {

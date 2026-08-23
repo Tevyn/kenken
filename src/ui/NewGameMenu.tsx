@@ -74,12 +74,9 @@ function NewGameWizard({ size, difficulty, onStartGame }: WizardProps) {
         it — and there is no way back to check.
       */}
       <h2 className="kk-popover__heading" id={HEADING_ID}>
-        <span className="kk-newgame__chosen" aria-label={`${pendingSize} by ${pendingSize}`}>
+        <span aria-label={`${pendingSize} by ${pendingSize}`}>
           {pendingSize}×{pendingSize}
-        </span>
-        <span className="kk-newgame__sep" aria-hidden="true">
-          ·
-        </span>
+        </span>{' '}
         Difficulty
       </h2>
       <div className="kk-newgame__options kk-newgame__options--difficulty" ref={difficultyRef}>
@@ -139,7 +136,6 @@ export function NewGameMenu({
         </>
       }
       triggerClassName="kk-control--stack"
-      placement="center"
       open={open}
       onOpenChange={onOpenChange}
       disabled={disabled}

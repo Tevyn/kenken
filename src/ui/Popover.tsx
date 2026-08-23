@@ -1,10 +1,193 @@
 import { useCallback, useEffect, useRef } from 'react'
-import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react'
+import type { KeyboardEvent as ReactKeyboardEvent, ReactNode, RefObject } from 'react'
 import './Popover.css'
 
 /** Anything that can hold focus inside a panel, in DOM order. */
 const FOCUSABLE =
   'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])'
+
+export interface PopoverPanelProps {
+  open: boolean
+  /** Dismissal — Escape, or a press outside the panel. Never a commit. */
+  onClose: () => void
+  /** Accessible name, used only when `labelledBy` is not given. */
+  label?: string
+  /** Id of the element naming the panel — normally its own heading. */
+  labelledBy?: string
+  /**
+   * The control the panel hangs off, when it has one. It is exempt from the
+   * outside-press check (its own click already toggles the panel) and takes
+   * focus back when the panel closes.
+   */
+  anchorRef?: RefObject<HTMLElement | null>
+  children: ReactNode
+}
+
+/**
+ * The panel half of a popover: the surface, the scrim behind it, and the modal
+ * mechanics.
+ *
+ * Split out from `Popover` because not every panel has a trigger — the solved
+ * dialog opens because the puzzle was solved, not because anything was pressed
+ * — and the mechanics are the same either way: `Escape` and outside presses
+ * close it, focus moves in on open and back out on close, and Tab cycles
+ * within it. The panel owns the keyboard outright while it is open, so it is
+ * announced as `aria-modal`.
+ */
+export function PopoverPanel({
+  open,
+  onClose,
+  label,
+  labelledBy,
+  anchorRef,
+  children,
+}: PopoverPanelProps) {
+  const panelRef = useRef<HTMLDivElement>(null)
+  const wasOpen = useRef(false)
+  /** Where focus was when the panel opened; the fallback when there is no anchor. */
+  const returnTo = useRef<HTMLElement | null>(null)
+  /*
+   * Set when a press outside the panel closed it: the player is already
+   * pointing somewhere else, so yanking focus back would fight whatever they
+   * just clicked.
+   */
+  const skipRestore = useRef(false)
+
+  useEffect(() => {
+    if (open) {
+      returnTo.current =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null
+
+      const focusable = Array.from(
+        panelRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? [],
+      )
+      /*
+       * The option already marked as current is the one the player is oriented
+       * by, so start there rather than at whatever happens to be first.
+       *
+       * A checked radio counts as current, and not only for orientation: in a
+       * radio group the checked input is the group's only tab stop, so landing
+       * on any other one is actively wrong.
+       */
+      const current = focusable.find((element) => {
+        const value = element.getAttribute('aria-current')
+        if (value !== null && value !== 'false') return true
+        return element instanceof HTMLInputElement && element.type === 'radio' && element.checked
+      })
+      ;(current ?? focusable[0])?.focus()
+    } else if (wasOpen.current && !skipRestore.current) {
+      /*
+       * Only reclaim focus that the close orphaned. One panel can close by
+       * opening another — the solved dialog hands off to the new-game wizard —
+       * and the arriving panel places focus itself, in an effect that runs
+       * before this one. Focus on anything but `<body>` therefore means someone
+       * else already owns it, and taking it back would yank the player out of
+       * the panel that just opened.
+       */
+      const active = document.activeElement
+      if (active === null || active === document.body) {
+        /*
+         * The anchor first, because it outlives the panel. The remembered
+         * element is the fallback for an anchorless panel, and it can be gone
+         * by now — the button that was pressed may have gone with the panel —
+         * so it is only used while it is still in the document.
+         */
+        const target = anchorRef?.current ?? returnTo.current
+        if (target?.isConnected) target.focus()
+      }
+    }
+    wasOpen.current = open
+    skipRestore.current = false
+  }, [open, anchorRef])
+
+  useEffect(() => {
+    if (!open) return
+    /*
+     * Defensive: a skip request belongs to the close it was raised for. The
+     * effect above clears it on every close, but an owner that ignored or
+     * deferred one would leave it latched, so every fresh open starts clean.
+     */
+    skipRestore.current = false
+
+    function onMouseDown(event: MouseEvent) {
+      const target = event.target as Node
+      if (panelRef.current?.contains(target)) return
+      /*
+       * The anchor's own press closes the panel through its click handler
+       * instead of reopening it right after this. Only the anchor is exempt:
+       * checking the whole popover root, as this used to, meant the scrim —
+       * a child of that root — counted as inside, so a press on the dimmed
+       * page did nothing at all.
+       */
+      if (anchorRef?.current?.contains(target)) return
+      skipRestore.current = true
+      onClose()
+    }
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== 'Escape') return
+      /*
+       * Captured on the document, ahead of the target, so the game's global
+       * Escape handler never sees it: while a panel is open the key closes the
+       * panel and nothing else.
+       */
+      event.stopPropagation()
+      event.preventDefault()
+      onClose()
+    }
+
+    document.addEventListener('mousedown', onMouseDown)
+    document.addEventListener('keydown', onKeyDown, true)
+    return () => {
+      document.removeEventListener('mousedown', onMouseDown)
+      document.removeEventListener('keydown', onKeyDown, true)
+    }
+  }, [open, onClose, anchorRef])
+
+  /** Keep Tab inside the panel: last wraps to first, first wraps back to last. */
+  const onPanelKeyDown = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Tab') return
+    const panel = panelRef.current
+    if (!panel) return
+
+    const focusable = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE))
+    if (focusable.length === 0) return
+
+    const first = focusable[0]
+    const last = focusable[focusable.length - 1]
+    const active = document.activeElement
+
+    if (event.shiftKey ? active === first : active === last) {
+      event.preventDefault()
+      ;(event.shiftKey ? last : first).focus()
+    }
+  }, [])
+
+  if (!open) return null
+
+  return (
+    <>
+      {/*
+        Purely a backdrop: it dims the page so the panel reads as modal rather
+        than as something floating loose over the board. Closing is handled by
+        the document-level mousedown listener above, so this deliberately
+        carries no handlers of its own.
+      */}
+      <div className="kk-popover__scrim" aria-hidden="true" />
+      <div
+        ref={panelRef}
+        className="kk-popover__panel"
+        role="dialog"
+        aria-modal="true"
+        aria-label={labelledBy ? undefined : label}
+        aria-labelledby={labelledBy}
+        onKeyDown={onPanelKeyDown}
+      >
+        {children}
+      </div>
+    </>
+  )
+}
 
 export interface PopoverProps {
   /** Accessible name for the trigger button. */
@@ -32,24 +215,16 @@ export interface PopoverProps {
   disabled?: boolean
   /** Extra class on the trigger button, for per-popover styling. */
   triggerClassName?: string
-  /**
-   * Where the panel sits. `anchored` (the default) hangs it off the trigger;
-   * `center` floats it in the middle of the screen behind a scrim, for a panel
-   * big enough that hanging it off a corner would leave it lopsided.
-   */
-  placement?: 'anchored' | 'center'
   children: ReactNode
 }
 
 /**
  * A button plus the modal panel it opens, rendered next to it in the DOM.
  *
- * Shared by every popover in the app so the mechanics only exist once:
- * `Escape` and outside clicks close it, focus moves into the panel on open and
- * back to the trigger on close, and Tab cycles within the panel while it is
- * open. The panel owns the keyboard outright — the game's window-level
- * shortcuts stand down while one is open — so it is announced as
- * `aria-modal`.
+ * Every panel is centred behind a scrim. There used to be a second, anchored
+ * placement that hung the panel off its trigger; both header popovers are big
+ * enough that dangling one from a corner left it lopsided, so the choice is
+ * now put where the player is already looking and the option is gone.
  */
 export function Popover({
   label,
@@ -59,104 +234,13 @@ export function Popover({
   onOpenChange,
   disabled = false,
   triggerClassName,
-  placement = 'anchored',
   children,
 }: PopoverProps) {
-  const rootRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
-  const panelRef = useRef<HTMLDivElement>(null)
-  const wasOpen = useRef(false)
-  /*
-   * Set when a press outside the popover closed it: the player is already
-   * pointing somewhere else, so yanking focus back to the trigger would fight
-   * whatever they just clicked.
-   */
-  const skipRestore = useRef(false)
-
-  useEffect(() => {
-    if (open) {
-      const focusable = Array.from(
-        panelRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? [],
-      )
-      /*
-       * The option already marked as current is the one the player is oriented
-       * by, so start there rather than at whatever happens to be first.
-       *
-       * A checked radio counts as current, and not only for orientation: in a
-       * radio group the checked input is the group's only tab stop, so landing
-       * on any other one is actively wrong.
-       */
-      const current = focusable.find((element) => {
-        const value = element.getAttribute('aria-current')
-        if (value !== null && value !== 'false') return true
-        return element instanceof HTMLInputElement && element.type === 'radio' && element.checked
-      })
-      ;(current ?? focusable[0])?.focus()
-    } else if (wasOpen.current && !skipRestore.current) {
-      triggerRef.current?.focus()
-    }
-    wasOpen.current = open
-    skipRestore.current = false
-  }, [open])
-
-  useEffect(() => {
-    if (!open) return
-    /*
-     * Defensive: a skip request belongs to the close it was raised for. The
-     * effect above clears it on every close, but an owner that ignored or
-     * deferred one would leave it latched, so every fresh open starts clean.
-     */
-    skipRestore.current = false
-
-    function onMouseDown(event: MouseEvent) {
-      // The trigger lives inside the root, so its own press closes the popover
-      // through the click handler instead of reopening it right after this.
-      if (rootRef.current?.contains(event.target as Node)) return
-      skipRestore.current = true
-      onOpenChange(false)
-    }
-
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key !== 'Escape') return
-      /*
-       * Captured on the document, ahead of the target, so the game's global
-       * Escape handler never sees it: while a popover is open the key closes
-       * the popover and nothing else.
-       */
-      event.stopPropagation()
-      event.preventDefault()
-      onOpenChange(false)
-    }
-
-    document.addEventListener('mousedown', onMouseDown)
-    document.addEventListener('keydown', onKeyDown, true)
-    return () => {
-      document.removeEventListener('mousedown', onMouseDown)
-      document.removeEventListener('keydown', onKeyDown, true)
-    }
-  }, [open, onOpenChange])
-
-  /** Keep Tab inside the panel: last wraps to first, first wraps back to last. */
-  const onPanelKeyDown = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== 'Tab') return
-    const panel = panelRef.current
-    if (!panel) return
-
-    const focusable = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE))
-    if (focusable.length === 0) return
-
-    const first = focusable[0]
-    const last = focusable[focusable.length - 1]
-    const active = document.activeElement
-
-    if (event.shiftKey ? active === first : active === last) {
-      event.preventDefault()
-      ;(event.shiftKey ? last : first).focus()
-    }
-  }, [])
+  const handleClose = useCallback(() => onOpenChange(false), [onOpenChange])
 
   return (
-    <div className="kk-popover" ref={rootRef}>
+    <div className="kk-popover">
       <button
         type="button"
         ref={triggerRef}
@@ -177,33 +261,15 @@ export function Popover({
         {trigger}
       </button>
 
-      {open && placement === 'center' && (
-        /*
-          Purely a backdrop: it dims the page behind a centred panel so the
-          panel reads as modal rather than as something floating loose over the
-          board. Closing is already handled by the document-level mousedown
-          listener above, so this deliberately carries no handlers of its own.
-        */
-        <div className="kk-popover__scrim" aria-hidden="true" />
-      )}
-
-      {open && (
-        <div
-          ref={panelRef}
-          className={
-            placement === 'center'
-              ? 'kk-popover__panel kk-popover__panel--center'
-              : 'kk-popover__panel'
-          }
-          role="dialog"
-          aria-modal="true"
-          aria-label={panelLabelledBy ? undefined : label}
-          aria-labelledby={panelLabelledBy}
-          onKeyDown={onPanelKeyDown}
-        >
-          {children}
-        </div>
-      )}
+      <PopoverPanel
+        open={open}
+        onClose={handleClose}
+        label={label}
+        labelledBy={panelLabelledBy}
+        anchorRef={triggerRef}
+      >
+        {children}
+      </PopoverPanel>
     </div>
   )
 }

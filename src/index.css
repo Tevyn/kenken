@@ -102,27 +102,19 @@
   --hint-panel-bg: color-mix(in oklab, var(--accent) 8%, var(--surface));
   --hint-panel-border: color-mix(in oklab, var(--accent) 34%, var(--surface));
 
-  --success-bg: color-mix(in oklab, var(--success) 14%, var(--surface));
-
   /*
-   * A popover floats above the page, so it steps one surface further from it.
-   * In light that is the plain surface plus a cast shadow; in dark a shadow on
-   * a near-black page is invisible, so the panel lifts by getting lighter and
-   * catching a highlight on its top edge (both handled below).
-   */
-  --surface-popover: color-mix(in oklab, var(--text) 4%, var(--surface));
-  --border-popover: var(--border);
-
-  /*
-   * A shadow isn't a colour, but its *colour slots* are, so `light-dark()`
-   * still reaches inside one. Light casts a shadow; dark can't (a black shadow
-   * on a near-black page is invisible), so it leans on the highlight below
-   * and a near-opaque spread instead.
+   * A popover is the board's own surface behind the board's own frame, so it
+   * needs no colour of its own: it reads as another instance of the one object
+   * the page already has. What it used to be — a tinted surface, a hairline
+   * border and a lit top edge — was a second visual language for panels, and
+   * those three tokens are gone with it.
+   *
+   * The shadow survives. A shadow isn't a colour, but its *colour slots* are,
+   * so `light-dark()` still reaches inside one. Light casts it; dark can't (a
+   * black shadow on a near-black page is invisible) and leans on the frame.
    */
   --shadow-popover: 0 14px 30px light-dark(#1c212226, #00000073),
     0 2px 6px light-dark(#1c21221a, #00000059);
-  /* The lit top edge that does dark's lifting. Transparent in light. */
-  --popover-highlight: light-dark(#ffffff00, #ffffff1f);
 
   /* The one token left that `light-dark()` can't hold: it isn't a colour. */
   --hint-dim-opacity: 0.4;
@@ -141,7 +133,7 @@
 
   --r-sm: 6px; /* inline chips, marks */
   --r-md: 10px; /* keys, buttons, triggers */
-  --r-lg: 14px; /* panels, popovers (never the board - it is square) */
+  --r-lg: 14px; /* large cards (the board and the popovers are square) */
 
   /*
    * The width every zone lines up on. The header, the board and the controls
@@ -150,6 +142,14 @@
    * visibly wider than the puzzle they operate.
    */
   --content: min(100%, 30rem);
+
+  /*
+   * The heavy line around the board, and around every popover panel: one frame,
+   * so a panel is the same object as the grid rather than chrome floating over
+   * it. `cqw` is resolved where the token is *used*, against `.kk-app`, so both
+   * consumers compute the same number.
+   */
+  --frame: max(2px, calc(min(100cqw, 30rem) * 0.008));
 
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;

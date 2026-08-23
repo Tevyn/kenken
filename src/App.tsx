@@ -10,7 +10,7 @@ import { Controls } from './ui/Controls'
 import type { OpenMenu } from './ui/Controls'
 import { HintPanel } from './ui/HintPanel'
 import { Keypad } from './ui/Keypad'
-import { WinBanner } from './ui/WinBanner'
+import { WinDialog } from './ui/WinDialog'
 import './App.css'
 
 function App() {
@@ -22,6 +22,19 @@ function App() {
    * about it.
    */
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null)
+  /*
+   * The solved dialog, as two facts rather than one. `solvedSeen` mirrors the
+   * game's own status, and `winDismissed` records that this solve has already
+   * been acknowledged — a dismissal leaves the grid finished, so "solved" and
+   * "still saying so" have to be able to disagree.
+   *
+   * Both live above `useGame` because, like `openMenu`, an open dialog takes
+   * the keyboard away from the board. The reconciliation that keeps the mirror
+   * honest is below, where the game's status is finally known.
+   */
+  const [solvedSeen, setSolvedSeen] = useState(false)
+  const [winDismissed, setWinDismissed] = useState(false)
+  const winOpen = solvedSeen && !winDismissed
 
   // Lazy initialiser so storage is read once, at mount, rather than on every render.
   const [initialAutoClearMarks] = useState(loadAutoClearMarks)
@@ -41,11 +54,41 @@ function App() {
 
   const game = useGame(SAMPLE_PUZZLE, {
     autoClearMarks: initialAutoClearMarks,
-    suspended: openMenu !== null,
+    suspended: openMenu !== null || winOpen,
   })
 
   const newPuzzle = game.newPuzzle
   const setAutoClearMarks = game.setAutoClearMarks
+
+  /*
+   * The dialog follows the status in both directions, and only on the change:
+   * solving opens it, and anything that unsolves the grid — undo, restart, a
+   * new puzzle — takes it away rather than leaving it stranded over a board
+   * that is no longer finished. Solving again reopens it, dismissed or not.
+   *
+   * Adjusted during render rather than in an effect. React re-runs this render
+   * before committing, so `useGame` above is called again with the corrected
+   * `suspended` and nothing is ever painted with the mirror out of date; an
+   * effect would commit one render in which the board is solved and the
+   * keyboard still live.
+   */
+  const solved = game.state.status === 'solved'
+  if (solved !== solvedSeen) {
+    setSolvedSeen(solved)
+    setWinDismissed(false)
+  }
+
+  const handleWinDismiss = useCallback(() => setWinDismissed(true), [])
+
+  /*
+   * "New game" from the solved dialog opens the wizard rather than starting
+   * something itself: the size and the difficulty are still choices, and the
+   * wizard is the one place that asks for them.
+   */
+  const handleWinNewGame = useCallback(() => {
+    setWinDismissed(true)
+    setOpenMenu('new-game')
+  }, [])
 
   const handleAutoClearMarksChange = useCallback(
     (enabled: boolean) => {
@@ -119,7 +162,7 @@ function App() {
           */}
           <p className="kk-app__meta">
             <span aria-hidden="true">
-              {game.state.puzzle.size}×{game.state.puzzle.size} · {difficultyLabel}
+              {game.state.puzzle.size}×{game.state.puzzle.size} {difficultyLabel}
             </span>
             <span className="kk-sr-only">
               {`Playing ${game.state.puzzle.size} by ${game.state.puzzle.size}, ${game.state.puzzle.difficulty}`}
@@ -178,7 +221,6 @@ function App() {
           onDismiss={game.dismissHint}
           onReveal={game.revealCell}
         />
-        <WinBanner visible={game.state.status === 'solved'} />
       </main>
 
       {/* Anchored to the bottom, in the thumb zone, and never moved by anything
@@ -198,6 +240,12 @@ function App() {
           hintPending={game.hintPending}
         />
       </div>
+
+      {/*
+        Floats over everything rather than sitting in a zone, so finishing the
+        puzzle doesn't move the board or the keypad.
+      */}
+      <WinDialog visible={winOpen} onDismiss={handleWinDismiss} onNewGame={handleWinNewGame} />
     </div>
   )
 }
