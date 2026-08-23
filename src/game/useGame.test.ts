@@ -1,11 +1,18 @@
 import { act, renderHook } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { SAMPLE_PUZZLE } from '../fixtures/samplePuzzle'
 import { useGame } from './useGame'
 
 function pressKey(key: string, init: KeyboardEventInit = {}) {
   act(() => {
     window.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, ...init }))
+  })
+}
+
+/** A press that starts on the document, the way the clearing listener sees one. */
+function pressMouse() {
+  act(() => {
+    document.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
   })
 }
 
@@ -123,32 +130,71 @@ describe('useGame auto-clear preference', () => {
   })
 })
 
-describe('useGame hints', () => {
-  it('H explains a step, and a second H applies it', () => {
-    const { result } = renderHook(() => useGame(SAMPLE_PUZZLE))
+/*
+ * H no longer does anything to the game: it opens a panel the game does not
+ * own, so all it can do is say so.
+ */
+describe('useGame and the H shortcut', () => {
+  it('forwards H to the owner without touching the board', () => {
+    const onRequestHint = vi.fn()
+    const { result } = renderHook(() => useGame(SAMPLE_PUZZLE, { onRequestHint }))
 
     pressKey('h')
-    expect(result.current.hintPending).toBe(true)
+    expect(onRequestHint).toHaveBeenCalledTimes(1)
+    expect(result.current.state.hint).toEqual({ kind: 'idle' })
+    expect(result.current.state.values.every((v) => v === null)).toBe(true)
+  })
+
+  it('Ctrl+H is left to the browser', () => {
+    const onRequestHint = vi.fn()
+    renderHook(() => useGame(SAMPLE_PUZZLE, { onRequestHint }))
+    pressKey('h', { ctrlKey: true })
+    expect(onRequestHint).not.toHaveBeenCalled()
+  })
+
+  it('ignores H while a text input is focused', () => {
+    const input = document.createElement('input')
+    document.body.appendChild(input)
+    input.focus()
+
+    const onRequestHint = vi.fn()
+    renderHook(() => useGame(SAMPLE_PUZZLE, { onRequestHint }))
+    act(() => {
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'h', bubbles: true }))
+    })
+    expect(onRequestHint).not.toHaveBeenCalled()
+
+    document.body.removeChild(input)
+  })
+
+  // The panel that H opens sets `suspended`, so the key must not reopen or
+  // re-trigger anything while one is already up.
+  it('stands down while a panel is open', () => {
+    const onRequestHint = vi.fn()
+    renderHook(() => useGame(SAMPLE_PUZZLE, { onRequestHint, suspended: true }))
+    pressKey('h')
+    expect(onRequestHint).not.toHaveBeenCalled()
+  })
+})
+
+describe('useGame hints', () => {
+  it('showHint explains a step without writing it', () => {
+    const { result } = renderHook(() => useGame(SAMPLE_PUZZLE))
+
+    act(() => result.current.showHint())
     expect(result.current.state.hint.kind).toBe('shown')
     expect(result.current.state.values[14]).toBeNull()
     expect(result.current.highlight?.focus).toEqual([14])
-
-    pressKey('h')
-    expect(result.current.state.values[14]).toBe(2)
-    expect(result.current.hintPending).toBe(false)
-    expect(result.current.state.recentHints).toEqual(['freebie-cage|14|2'])
-    expect(result.current.highlight).toBeUndefined()
   })
 
   it('biases the hint toward the selected cell', () => {
     function focusAfterSelecting(cell: number): number[] {
       const { result } = renderHook(() => useGame(SAMPLE_PUZZLE))
-      // Take the single rank-10 freebie out of the running first, so several
+      // Take the single rank-10 freebie off the board first, so several
       // equally-ranked cage hints are left and proximity is what decides.
-      pressKey('h')
-      pressKey('h')
+      act(() => result.current.placeNumber())
       act(() => result.current.select(cell))
-      pressKey('h')
+      act(() => result.current.showHint())
       const phase = result.current.state.hint
       return phase.kind === 'shown' ? phase.hint.highlight.focus : []
     }
@@ -157,45 +203,121 @@ describe('useGame hints', () => {
     expect(focusAfterSelecting(15)).toContain(15)
   })
 
-  it('Escape dismisses without applying', () => {
+  it('Escape drops the hint left on the board once the panel has closed', () => {
     const { result } = renderHook(() => useGame(SAMPLE_PUZZLE))
-    pressKey('h')
+    act(() => result.current.showHint())
     pressKey('Escape')
     expect(result.current.state.hint).toEqual({ kind: 'idle' })
     expect(result.current.state.values[14]).toBeNull()
   })
 
-  it('Ctrl+H is left to the browser', () => {
+  it('placeNumber writes one digit, in one undo step', () => {
     const { result } = renderHook(() => useGame(SAMPLE_PUZZLE))
-    pressKey('h', { ctrlKey: true })
-    expect(result.current.state.hint).toEqual({ kind: 'idle' })
-  })
 
-  it('ignores H while a text input is focused', () => {
-    const input = document.createElement('input')
-    document.body.appendChild(input)
-    input.focus()
-
-    const { result } = renderHook(() => useGame(SAMPLE_PUZZLE))
+    let wrote = false
     act(() => {
-      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'h', bubbles: true }))
+      wrote = result.current.placeNumber()
     })
-    expect(result.current.state.hint).toEqual({ kind: 'idle' })
-
-    document.body.removeChild(input)
+    expect(wrote).toBe(true)
+    expect(result.current.state.values[14]).toBe(2)
+    expect(result.current.state.placed).toEqual([14])
+    // An ordinary entry, however it got there.
+    act(() => result.current.undo())
+    expect(result.current.state.values[14]).toBeNull()
   })
 
-  it('revealCell turns the escape hatch into an ordinary two-press hint', () => {
+  /*
+   * The ladder walks past elimination-only steps to reach a placement, so the
+   * number it writes need not be the one the Tip would have explained.
+   */
+  it('placeNumber reaches a number even when the easiest step is an elimination', () => {
     const { result } = renderHook(() => useGame(SAMPLE_PUZZLE))
+
+    // Clear the openings so the ladder has to work for the next placement.
+    act(() => result.current.placeNumber())
+    act(() => result.current.placeNumber())
+    act(() => result.current.placeNumber())
+
+    const filled = result.current.state.values.filter((v) => v !== null)
+    expect(filled).toHaveLength(3)
+    // Every one of them agrees with the solution: this is the engine's answer.
+    for (let cell = 0; cell < 16; cell++) {
+      const value = result.current.state.values[cell]
+      if (value !== null) expect(value).toBe(SAMPLE_PUZZLE.solution[cell])
+    }
+  })
+
+  /* Owed an answer either way — the ladder's own verdict is why there is none. */
+  it('placeNumber reports failure and says what it found instead', () => {
+    const { result } = renderHook(() => useGame(SAMPLE_PUZZLE))
+
+    // Cell 0 is 1 in the solution, and 2 is legal in its cage, so only the
+    // solution-aware mistake check notices.
     act(() => result.current.select(0))
-    act(() => result.current.revealCell())
+    act(() => result.current.enterDigit(2))
 
-    const phase = result.current.state.hint
-    expect(phase.kind).toBe('shown')
-    if (phase.kind === 'shown') expect(phase.hint.technique).toBe('reveal')
-    expect(result.current.state.values.some((v) => v !== null)).toBe(false)
+    let wrote = true
+    act(() => {
+      wrote = result.current.placeNumber()
+    })
+    expect(wrote).toBe(false)
+    expect(result.current.state.hint.kind).toBe('message')
+    expect(result.current.state.values[0]).toBe(2)
+    expect(result.current.state.placed).toEqual([])
+  })
+})
 
-    act(() => result.current.pressHint())
-    expect(result.current.state.values.some((v) => v !== null)).toBe(true)
+describe('useGame correctness check', () => {
+  it('splits the filled cells and leaves the empty ones out of it', () => {
+    const { result } = renderHook(() => useGame(SAMPLE_PUZZLE))
+
+    act(() => result.current.select(0))
+    act(() => result.current.enterDigit(SAMPLE_PUZZLE.solution[0] as number))
+    act(() => result.current.select(1))
+    act(() => result.current.enterDigit(SAMPLE_PUZZLE.solution[1] === 1 ? 2 : 1))
+    act(() => result.current.checkBoard())
+
+    expect(result.current.state.verdict.correct).toEqual([0])
+    expect(result.current.state.verdict.incorrect).toEqual([1])
+  })
+
+  /*
+   * The press that asked for the check is a `click`, and a click is the end of
+   * an interaction that began with a mousedown. So the listener installed by
+   * that click can only ever see the *next* press.
+   */
+  it('green goes on the next press, red stays until its own cell is edited', () => {
+    const { result } = renderHook(() => useGame(SAMPLE_PUZZLE))
+
+    act(() => result.current.select(0))
+    act(() => result.current.enterDigit(SAMPLE_PUZZLE.solution[0] as number))
+    act(() => result.current.select(1))
+    act(() => result.current.enterDigit(SAMPLE_PUZZLE.solution[1] === 1 ? 2 : 1))
+    act(() => result.current.checkBoard())
+
+    pressMouse()
+    expect(result.current.state.verdict.correct).toEqual([])
+    expect(result.current.state.verdict.incorrect).toEqual([1])
+
+    // Still there several presses later: red belongs to the cell, not the moment.
+    pressMouse()
+    pressKey('ArrowLeft')
+    expect(result.current.state.verdict.incorrect).toEqual([1])
+
+    act(() => result.current.select(1))
+    act(() => result.current.erase())
+    expect(result.current.state.verdict.incorrect).toEqual([])
+  })
+
+  it('a placed digit loses its ink on the next press', () => {
+    const { result } = renderHook(() => useGame(SAMPLE_PUZZLE))
+
+    act(() => result.current.placeNumber())
+    expect(result.current.state.placed).toEqual([14])
+
+    pressKey('ArrowDown')
+    expect(result.current.state.placed).toEqual([])
+    // The digit itself is untouched — only its ink was temporary.
+    expect(result.current.state.values[14]).toBe(2)
   })
 })

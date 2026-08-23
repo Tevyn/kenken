@@ -31,10 +31,11 @@
   container-type: inline-size;
 }
 
-/* Every zone lines up on the same column, so their edges agree. */
+/* Every zone lines up on the same column, so their edges agree. The hint panel
+   and the solved banner used to line up here too; both are popovers now, and a
+   popover is centred on the viewport rather than laid into a zone. */
 .kk-app__header,
-.kk-app__controls,
-.kk-hint {
+.kk-app__controls {
   width: var(--content);
   margin-inline: auto;
 }

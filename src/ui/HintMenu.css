@@ -1,0 +1,75 @@
+/*
+ * The popover root is one of the action row's five grid cells, so it stretches
+ * like the four bare buttons beside it instead of hugging its own trigger.
+ */
+.kk-hint-menu {
+  display: flex;
+}
+
+.kk-hint-menu > .kk-popover__trigger {
+  flex: 1;
+}
+
+/*
+ * Up and to the left, which is the only direction left. The controls are
+ * anchored to the bottom of the viewport (STYLE_GUIDE.md §1.1), so a panel
+ * hanging below the trigger hangs off the screen; the trigger is the last of
+ * five, so one opening rightward runs past the content column. Its bottom edge
+ * stays level with the row it belongs to and it grows upward, covering Undo,
+ * Redo, Erase and Notes — which are unusable while a modal panel is open.
+ */
+.kk-hint-menu .kk-popover__panel {
+  top: auto;
+  bottom: 0;
+  right: calc(100% + var(--sp-2));
+  padding: var(--sp-3);
+  /*
+   * Exactly the room to the left of the trigger: four of the row's five columns
+   * plus the gaps between them, so the panel tracks the content column - 266px
+   * on a 375px phone, 376px once the column caps out. Anything wider would open
+   * off the left edge of the page.
+   *
+   * Stated as a width rather than a cap because shrink-to-fit measures against
+   * the containing block, and the containing block here is the trigger's own
+   * 65px cell: left to itself the panel collapses to one word per line.
+   */
+  width: calc(0.8 * min(100cqw, 30rem) - var(--sp-2));
+  min-width: 0;
+  max-width: none;
+}
+
+/*
+ * The close button parked in this corner is a transparent 44px touch target
+ * (§4.4), so the heading's row has to be tall enough to contain it. Otherwise
+ * it reaches down over the last choice and quietly eats presses meant for it.
+ */
+.kk-hint-menu .kk-popover__heading {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+}
+
+/*
+ * Three across, glyph over label, the same stack the toolbar underneath wears
+ * (§4.1) - the panel is an extension of that row and reads as one.
+ */
+.kk-hint-menu__choices {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-1);
+  margin-top: var(--sp-2);
+}
+
+/* The label is the whole width the choice gets; it must not be clipped. */
+.kk-hint-menu__choice .kk-control__label {
+  overflow-wrap: anywhere;
+}
+
+/* The hint itself. Prose is informational, so it takes ink rather than accent
+   (§4.1) - the accent in this panel belongs to the choices. */
+.kk-hint-menu__text {
+  margin: var(--sp-2) 0 0;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--text-h);
+}

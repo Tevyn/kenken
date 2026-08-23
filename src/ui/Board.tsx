@@ -7,7 +7,7 @@ import type { HintHighlight } from '../engine/hints'
 import { edgeClassNames, computeCellEdges } from './cageBorders'
 import { Cell } from './Cell'
 import type { HintRole } from './Cell'
-import type { Marks } from '../game/state'
+import type { Marks, Verdict } from '../game/state'
 import './Board.css'
 
 export interface BoardProps {
@@ -26,10 +26,20 @@ export interface BoardProps {
    * roles here, so nothing about hint rendering is stored in the reducer.
    */
   highlight?: HintHighlight
+  /**
+   * What the hint panel's correctness check found. Stored state rather than
+   * derived, unlike `errors`: it is what the board looked like when the player
+   * asked, and it has to survive edits that would recompute a derived answer.
+   */
+  verdict?: Verdict
+  /** Cells the panel's Number choice filled in. */
+  placed?: readonly CellIndex[]
   onSelect: (index: CellIndex) => void
 }
 
 const NO_ERRORS: GridErrors = { cells: new Set(), duplicates: new Set(), badCages: [] }
+const NO_VERDICT: Verdict = { correct: [], incorrect: [] }
+const NOTHING_PLACED: readonly CellIndex[] = []
 
 /** What one cell has to render from the highlight. */
 interface CellHint {
@@ -51,10 +61,16 @@ export function Board({
   selected,
   errors = NO_ERRORS,
   highlight,
+  verdict = NO_VERDICT,
+  placed = NOTHING_PLACED,
   onSelect,
 }: BoardProps) {
   const { size } = puzzle
   const cellCount = size * size
+
+  const correct = useMemo(() => new Set(verdict.correct), [verdict])
+  const incorrect = useMemo(() => new Set(verdict.incorrect), [verdict])
+  const placedCells = useMemo(() => new Set(placed), [placed])
 
   const cageIds = useMemo(() => cageIdByCell(puzzle), [puzzle])
 
@@ -151,6 +167,9 @@ export function Board({
                 selected != null && selected !== index && cageIds[index] === selectedCage
               }
               isError={errors.cells.has(index)}
+              isCorrect={correct.has(index)}
+              isIncorrect={incorrect.has(index)}
+              isPlaced={placedCells.has(index)}
               hintRole={hint?.role}
               strikeDigits={hint?.strike}
               hintCageEdges={hint?.cageEdges}

@@ -189,6 +189,15 @@ export function PopoverPanel({
   )
 }
 
+/**
+ * The app's one open-panel slot. Only ever one popover at a time, and it lives
+ * here rather than with any of them because the third — the keypad's hint
+ * panel — is nowhere near the two in the header, and all three share the slot
+ * for the same reason: an open panel owns the keyboard, so whoever owns the
+ * board's shortcuts has to know one is open.
+ */
+export type OpenMenu = 'new-game' | 'settings' | 'hint' | null
+
 export interface PopoverProps {
   /** Accessible name for the trigger button. */
   label: string
@@ -215,6 +224,10 @@ export interface PopoverProps {
   disabled?: boolean
   /** Extra class on the trigger button, for per-popover styling. */
   triggerClassName?: string
+  /** Extra class on the popover root, for per-popover placement of the trigger. */
+  className?: string
+  /** Keyboard shortcut that opens this panel, advertised on the trigger. */
+  triggerKeyShortcuts?: string
   children: ReactNode
 }
 
@@ -225,6 +238,10 @@ export interface PopoverProps {
  * placement that hung the panel off its trigger; both header popovers are big
  * enough that dangling one from a corner left it lopsided, so the choice is
  * now put where the player is already looking and the option is gone.
+ *
+ * Every panel opened this way also carries the same close button in its
+ * corner. Escape and a press outside both close it, but neither is visible;
+ * the × is the way out that can be seen, in the same place every time.
  */
 export function Popover({
   label,
@@ -234,13 +251,15 @@ export function Popover({
   onOpenChange,
   disabled = false,
   triggerClassName,
+  className,
+  triggerKeyShortcuts,
   children,
 }: PopoverProps) {
   const triggerRef = useRef<HTMLButtonElement>(null)
   const handleClose = useCallback(() => onOpenChange(false), [onOpenChange])
 
   return (
-    <div className="kk-popover">
+    <div className={className ? `kk-popover ${className}` : 'kk-popover'}>
       <button
         type="button"
         ref={triggerRef}
@@ -253,6 +272,7 @@ export function Popover({
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-disabled={disabled || undefined}
+        aria-keyshortcuts={triggerKeyShortcuts}
         onClick={() => {
           if (disabled) return
           onOpenChange(!open)
@@ -269,6 +289,33 @@ export function Popover({
         anchorRef={triggerRef}
       >
         {children}
+
+        {/*
+          Permanent chrome: every panel opened by a trigger gets one whether or
+          not it asked, so the way out of a popover is in the same corner every
+          time. Escape and a press outside the panel do the same thing, but a
+          player using a pointer has to guess that either exists.
+
+          It is deliberately the *last* focusable thing in the panel. The open
+          effect falls back to `focusable[0]` when nothing is marked current,
+          and a close button ahead of the content would make that fallback "the
+          way out" — the panel would open with the player's finger on the exit.
+          Last also keeps it clear of the panels whose entry focus lands on a
+          current option they still reach first.
+
+          `PopoverPanel` itself does not add one: a panel with no trigger is
+          not always a popover. The solved dialog is the case in point — it
+          offers the move that follows instead, and a dismiss button beside it
+          would make leaving look like a decision.
+        */}
+        <button
+          type="button"
+          className="kk-control kk-popover__close"
+          aria-label={`Close ${label}`}
+          onClick={handleClose}
+        >
+          ×
+        </button>
       </PopoverPanel>
     </div>
   )

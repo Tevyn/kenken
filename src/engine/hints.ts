@@ -18,8 +18,9 @@
  *    This is what stops candidate-narrowing hints repeating forever: apply one
  *    and the marks it writes make it stop firing.
  *
- * `puzzle.solution` is read in exactly two places, both of them non-deductive:
- * mistake detection (§8.2) and the `reveal` escape hatch (§8.3).
+ * `puzzle.solution` is read in exactly three places, none of them deductive:
+ * mistake detection (§8.2), the `reveal` escape hatch (§8.3), and
+ * `checkCorrectness`.
  */
 
 import {
@@ -38,8 +39,8 @@ import {
   type MarkSets,
 } from './candidates';
 import { enumerateCageCombos } from './solver';
-import { findInnies, findOuties, unitTotal } from './unitSums';
-import { cageLabel, colOf, rowOf, type CellIndex, type Grid, type Puzzle } from './types';
+import { findInnies, findOuties } from './unitSums';
+import { colOf, rowOf, type CellIndex, type Grid, type Puzzle } from './types';
 
 export type { MarkSets } from './candidates';
 export { cageSumSet, candidateSets, visibleSets } from './candidates';
@@ -183,7 +184,16 @@ export function detectContext(puzzle: Puzzle, values: Grid, marks: MarkSets): De
 /* Wording helpers                                                      */
 /* ------------------------------------------------------------------ */
 
-/** `"row 2, column 3"`, 1-based. */
+/*
+ * `text` is one short clause and nothing more: no technique name, no "because"
+ * tail, and no per-cell coordinates — the highlight is what says where, and
+ * repeating it in words only competes with it. A row or column number appears
+ * only in `Only 3 can go here in column 2`, where the line is not the location
+ * but the whole reason. `secondary` still carries the technique's proper name
+ * for anyone who wants the vocabulary.
+ */
+
+/** `"row 2, column 3"`, 1-based. Not used in hint text; see the note above. */
 export function cellRef(cell: CellIndex, size: number): string {
   return `row ${rowOf(cell, size) + 1}, column ${colOf(cell, size) + 1}`;
 }
@@ -208,8 +218,11 @@ function joinList(parts: readonly string[], conjunction: 'and' | 'or'): string {
 const digitList = (digits: readonly number[], conjunction: 'and' | 'or' = 'and'): string =>
   joinList(digits.map(String), conjunction);
 
-const cageRef = (puzzle: Puzzle, cageIndex: number): string =>
-  `the ${cageLabel(puzzle.cages[cageIndex])} cage`;
+/** `"This cell has to be 2"` — the plain placement. */
+const placedHere = (digit: number): string => `This cell has to be ${digit}`;
+
+/** `"3 and 5 cannot go here"` — the plain elimination. */
+const ruledOutHere = (digits: readonly number[]): string => `${digitList(digits)} cannot go here`;
 
 /* ------------------------------------------------------------------ */
 /* Hint construction                                                    */
@@ -234,6 +247,10 @@ function unitBand(key: number, size: number): Pick<HintHighlight, 'rows' | 'cols
 
 const ascending = (values: Iterable<number>): number[] =>
   [...new Set(values)].sort((a, b) => a - b);
+
+/** Every digit an elimination removes anywhere, ascending. */
+const removedDigits = (cells: ReadonlyArray<{ digits: number[] }>): number[] =>
+  ascending(cells.flatMap((e) => e.digits));
 
 /** §6.3. `digits` is the placed value(s) or the eliminated digits, sorted. */
 export function hintSignature(
@@ -287,7 +304,7 @@ const detectFreebieCage: Detector = (ctx) => {
     out.push(
       makeHint(
         'freebie-cage',
-        `The cage marked ${cageLabel(info.cage)} has only one cell, so it has to be ${digit}.`,
+        placedHere(digit),
         'Given cell',
         highlight,
         { kind: 'place', cells: [{ cell, value: digit }] },
@@ -322,11 +339,10 @@ const detectLastCellInUnit: Detector = (ctx) => {
     Object.assign(highlight, unitBand(key, ctx.size));
 
     const kind = unitKind(key, ctx.size);
-    const othersList = digitList(ascending(present));
     out.push(
       makeHint(
         'last-cell-in-unit',
-        `${capitalize(unitName(key, ctx.size))} already has ${othersList} — the only digit left for ${cellRef(cell, ctx.size)} is ${digit}.`,
+        `Only ${digit} can go here in ${unitName(key, ctx.size)}`,
         `Last cell in a ${kind}`,
         highlight,
         { kind: 'place', cells: [{ cell, value: digit }] },
@@ -353,7 +369,6 @@ const detectSingleCageCombination: Detector = (ctx) => {
     const multisets = new Set(list.map((combo) => [...combo].sort((a, b) => a - b).join(',')));
     if (multisets.size !== 1) continue;
     const multiset = [...list[0]].sort((a, b) => a - b);
-    const label = cageLabel(info.cage);
 
     if (list.length === 1) {
       const combo = list[0];
@@ -365,14 +380,13 @@ const detectSingleCageCombination: Detector = (ctx) => {
       const highlight = emptyHighlight();
       highlight.focus = info.cells.slice();
       highlight.cages = [info.cage.id];
-      const assignments = joinList(
-        info.cells.map((cell, k) => `${combo[k]} at ${cellRef(cell, ctx.size)}`),
-        'and',
-      );
+      // Board order, and neither sorted nor de-duplicated: a bent cage can
+      // legally repeat a digit, so the list has to read the way the cage does.
+      const inOrder = places.slice().sort((a, b) => a.cell - b.cell);
       out.push(
         makeHint(
           'single-cage-combination',
-          `There is only one way to fill the ${label} cage: ${assignments}.`,
+          `This cage has to be ${digitList(inOrder.map((e) => e.value))}`,
           'Cage combination',
           highlight,
           { kind: 'place', cells: places },
@@ -398,11 +412,14 @@ const detectSingleCageCombination: Detector = (ctx) => {
     highlight.cages = [info.cage.id];
     highlight.strike = removals.map((r) => ({ cell: r.cell, digits: r.digits }));
 
-    const digits = digitList(multiset);
+    const gone = removedDigits(removals);
     out.push(
       makeHint(
         'single-cage-combination',
-        `There is only one set of digits that makes ${label}: ${digits}. So the ${info.cells.length} cells of that cage hold ${digits} in some order — nothing else fits.`,
+        // "Here" only works while the strike lands on one cell. Widen it to the
+        // cage rather than list co-ordinates: the digits are barred from all of
+        // it, so the wider claim is the true one anyway.
+        removals.length === 1 ? ruledOutHere(gone) : `${digitList(gone)} cannot go in this cage`,
         'Cage combination',
         highlight,
         { kind: 'eliminate', cells: removals },
@@ -454,17 +471,11 @@ const detectNakedSingle: Detector = (ctx) => {
     const cageAlone = rawUnionFor(cageIndex)[info.cells.indexOf(cell)];
 
     // Prefer the simpler story when both hold: "its row and column already use
-    // everything else" needs no knowledge of cages at all.
+    // everything else" needs no knowledge of cages at all. The text no longer
+    // spells the reason out, but the highlight still shows it, and which cells
+    // it points at depends entirely on this.
     const reason: 'peers' | 'cage' | 'mixed' =
       popcount(peersAlone) === 1 ? 'peers' : popcount(cageAlone) === 1 ? 'cage' : 'mixed';
-
-    const label = cageLabel(info.cage);
-    const tail =
-      reason === 'peers'
-        ? 'every other digit already appears in its row or column'
-        : reason === 'cage'
-          ? `no other digit works with the ${label} cage`
-          : `the other digits are blocked by its row, its column, or the ${label} cage`;
 
     const highlight = emptyHighlight();
     highlight.focus = [cell];
@@ -484,7 +495,7 @@ const detectNakedSingle: Detector = (ctx) => {
     out.push(
       makeHint(
         'naked-single',
-        `${capitalize(cellRef(cell, ctx.size))} can only be ${digit} — ${tail}.`,
+        placedHere(digit),
         'Naked single',
         highlight,
         { kind: 'place', cells: [{ cell, value: digit }] },
@@ -516,7 +527,7 @@ const detectHiddenSingle: Detector = (ctx) => {
       out.push(
         makeHint(
           'hidden-single',
-          `In ${unitName(key, ctx.size)}, only ${cellRef(cell, ctx.size)} can still hold a ${digit} — every other cell there is blocked.`,
+          `Only ${digit} can go here in ${unitName(key, ctx.size)}`,
           'Hidden single',
           highlight,
           { kind: 'place', cells: [{ cell, value: digit }] },
@@ -529,14 +540,8 @@ const detectHiddenSingle: Detector = (ctx) => {
 
 /** rank 60. The row/column total, with one cell uncovered. */
 const detectUnitSumInnie: Detector = (ctx) => {
-  const T = unitTotal(ctx.size);
   return findInnies(ctx.state).map((found) => {
     const kind = unitKind(found.unitKey, ctx.size);
-    const labels = joinList(
-      found.insideCages.map((ci) => cageRef(ctx.puzzle, ci)),
-      'and',
-    );
-    const verb = found.insideCages.length === 1 ? 'adds' : 'add';
 
     const highlight = emptyHighlight();
     highlight.focus = [found.cell];
@@ -548,7 +553,7 @@ const detectUnitSumInnie: Detector = (ctx) => {
 
     return makeHint(
       'unit-sum-innie',
-      `Every ${kind} adds up to ${T}. In ${unitName(found.unitKey, ctx.size)}, ${labels} ${verb} together ${found.coveredSum}, so the one cell left over — ${cellRef(found.cell, ctx.size)} — must be ${found.digit}.`,
+      placedHere(found.digit),
       `${capitalize(kind)} total (innie)`,
       highlight,
       { kind: 'place', cells: [{ cell: found.cell, value: found.digit }] },
@@ -558,15 +563,8 @@ const detectUnitSumInnie: Detector = (ctx) => {
 
 /** rank 70. The row/column total, with one cage poking out of it. */
 const detectUnitSumOutie: Detector = (ctx) => {
-  const T = unitTotal(ctx.size);
   return findOuties(ctx.state).map((found) => {
     const kind = unitKind(found.unitKey, ctx.size);
-    const insideLabels = joinList(
-      found.insideCages.map((ci) => cageRef(ctx.puzzle, ci)),
-      'and',
-    );
-    const verb = found.insideCages.length === 1 ? 'adds' : 'add';
-    const label = cageLabel(ctx.puzzle.cages[found.straddlingCage]);
 
     const highlight = emptyHighlight();
     highlight.focus = [found.cell];
@@ -582,7 +580,7 @@ const detectUnitSumOutie: Detector = (ctx) => {
 
     return makeHint(
       'unit-sum-outie',
-      `Every ${kind} adds up to ${T}. In ${unitName(found.unitKey, ctx.size)}, ${insideLabels} ${verb} ${found.coveredSum}, so the part of the ${label} cage sitting there adds to ${found.remainder}. That whole cage adds to ${found.cageSum}, so its cell outside — ${cellRef(found.cell, ctx.size)} — must be ${found.digit}.`,
+      placedHere(found.digit),
       `${capitalize(kind)} total (outie)`,
       highlight,
       { kind: 'place', cells: [{ cell: found.cell, value: found.digit }] },
@@ -620,13 +618,7 @@ const detectCageLocksLine: Detector = (ctx) => {
       }
       if (removals.length === 0) continue;
 
-      const digits = maskToDigits(forced, ctx.size);
-      const label = cageLabel(info.cage);
       const unit = unitName(overlap.key, ctx.size);
-      const claim =
-        digits.length === 1
-          ? `its ${digits[0]} ends up in ${unit}`
-          : `its ${digitList(digits)} end up in ${unit}`;
 
       const highlight = emptyHighlight();
       highlight.focus = removals.map((r) => r.cell);
@@ -635,10 +627,15 @@ const detectCageLocksLine: Detector = (ctx) => {
       highlight.strike = removals.map((r) => ({ cell: r.cell, digits: r.digits }));
       Object.assign(highlight, unitBand(overlap.key, ctx.size));
 
+      const gone = removedDigits(removals);
       out.push(
         makeHint(
           'cage-locks-line',
-          `However the ${label} cage works out, ${claim}. So no other cell in ${unit} can be ${digitList(digits, 'or')}.`,
+          // With several cells struck at once "here" would be a lie, and the
+          // line is the only honest "where" that needs no co-ordinates.
+          removals.length === 1
+            ? ruledOutHere(gone)
+            : `${digitList(gone)} cannot go anywhere else in ${unit}`,
           'Cage confinement',
           highlight,
           { kind: 'eliminate', cells: removals },
@@ -759,36 +756,31 @@ export function pickHint(hints: readonly Hint[], near: CellIndex | null, size: n
 
 const SOLVED_RESULT: HintResult = {
   kind: 'solved',
-  text: "That's it — the grid is complete and correct. Nothing left to hint.",
+  text: 'The grid is complete',
   secondary: 'Solved',
 };
 
 const STUCK_RESULT: HintResult = {
+  // "I can't find" rather than "there is no": a unique solution always exists,
+  // so this only ever means our ladder ran out. See §8.3.
   kind: 'stuck',
-  text: "I can't find a next step that follows from what's on the board. This one needs a leap — pick a cell with two options and see where it leads. Or I can just tell you one.",
+  text: "I can't find a next step here",
   secondary: 'No forced step',
 };
 
 const VAGUE_MISTAKE = {
-  text: "Something on the board can't be right, so I can't work out the next step. Try undoing back to where you were sure.",
+  text: "Something on the board doesn't fit",
   secondary: 'Check your work',
 };
 
-function mistakeResult(
-  wrong: readonly CellIndex[],
-  size: number,
-  revealCell: boolean,
-): HintResult {
+function mistakeResult(wrong: readonly CellIndex[], revealCell: boolean): HintResult {
   if (!revealCell || wrong.length === 0) {
     return { kind: 'mistake', cells: [...wrong], ...VAGUE_MISTAKE };
   }
-  const first = wrong[0];
-  const extra =
-    wrong.length > 1 ? ` (There are ${wrong.length} cells that don't fit; this is the first.)` : '';
   return {
     kind: 'mistake',
     cells: [...wrong],
-    text: `Something on the board can't be right — ${cellRef(first, size)} doesn't fit the puzzle. Clear it and I can pick up from there.${extra}`,
+    text: wrong.length === 1 ? "This cell doesn't fit" : `These ${wrong.length} cells don't fit`,
     secondary: 'Check this cell',
   };
 }
@@ -827,13 +819,13 @@ export function findHint(
     filled++;
     if (value !== puzzle.solution[i]) wrong.push(i);
   }
-  if (wrong.length > 0) return mistakeResult(wrong, size, revealCell);
+  if (wrong.length > 0) return mistakeResult(wrong, revealCell);
   if (filled === cellCount) return SOLVED_RESULT;
 
   // 3. Bookkeeping fixpoint. A contradiction here with no wrong cell means the
   //    puzzle data itself is broken, not the player — say so vaguely.
   const ctx = detectContext(puzzle, values, marks);
-  if (ctx.state.contradiction) return mistakeResult([], size, revealCell);
+  if (ctx.state.contradiction) return mistakeResult([], revealCell);
 
   // 4 + 5. Easiest rank first. `recent` suppresses repeats, but never turns a
   //        real hint into "stuck": if it filters everything, take it again.
@@ -854,9 +846,8 @@ export function findHint(
 }
 
 /**
- * Last-resort reveal, used by the "Reveal a cell" button on `kind: 'stuck'`.
- * Sources its digit from `puzzle.solution` — the only place in the engine that
- * reads it apart from mistake detection.
+ * Last-resort reveal. Sources its digit from `puzzle.solution`, one of the
+ * three non-deductive reads of it in this file.
  */
 export function revealHint(
   puzzle: Puzzle,
@@ -894,9 +885,100 @@ export function revealHint(
   highlight.focus = [best];
   return makeHint(
     'reveal',
-    `I can't prove the next step from what's on the board. If you'd like to keep moving: ${cellRef(best, size)} is ${digit}.`,
+    placedHere(digit),
     'Revealed',
     highlight,
     { kind: 'place', cells: [{ cell: best, value: digit }] },
   );
+}
+
+/* ------------------------------------------------------------------ */
+/* findNextNumber                                                       */
+/* ------------------------------------------------------------------ */
+
+/** One placement, found by running hints forward past elimination-only steps. */
+export interface NextNumber {
+  cell: CellIndex;
+  value: number;
+}
+
+/**
+ * The first value that would be placed if hints were applied repeatedly.
+ *
+ * The ladder often answers a fresh board with an elimination — a cage narrowed
+ * to two digits, a line a cage has claimed — and a player who asked for *a
+ * number* is owed a number, not pencil work. So elimination steps are replayed
+ * against a private copy of `marks`, exactly as `APPLY_HINT` would write them,
+ * until a placement falls out. The caller's `marks` never see any of it.
+ *
+ * Returns null when no placement is reachable: a mistake, a stuck ladder, a
+ * finished grid, or a search that ran past its cap.
+ */
+export function findNextNumber(
+  puzzle: Puzzle,
+  values: Grid,
+  marks: MarkSets,
+  opts: HintOptions = {},
+): NextNumber | null {
+  const size = puzzle.size;
+  const cellCount = size * size;
+  const working: number[][] = Array.from({ length: cellCount }, (_, cell) => [
+    ...(marks[cell] ?? []),
+  ]);
+
+  // Each elimination strictly narrows what a cell can still show, so the loop
+  // ends of its own accord. The cap is a backstop against a detector that ever
+  // stops making progress, not the mechanism that terminates the search.
+  const cap = cellCount * (size + 2);
+
+  for (let step = 0; step < cap; step++) {
+    const result = findHint(puzzle, values, working, opts);
+    if (result.kind !== 'hint') return null;
+
+    const { apply } = result.hint;
+    if (apply.kind === 'place') {
+      let first = apply.cells[0];
+      for (const entry of apply.cells) if (entry.cell < first.cell) first = entry;
+      return { cell: first.cell, value: first.value };
+    }
+
+    // Mirrors `APPLY_HINT`: a bare cell is seeded with what the player could
+    // already work out, so the elimination has something to take away from.
+    const visible = visibleMasks(puzzle, values, working);
+    for (const { cell, digits } of apply.cells) {
+      const base = working[cell].length > 0 ? working[cell] : maskToDigits(visible[cell], size);
+      working[cell] = base.filter((d) => !digits.includes(d)).sort((a, b) => a - b);
+    }
+  }
+  return null;
+}
+
+/* ------------------------------------------------------------------ */
+/* checkCorrectness                                                     */
+/* ------------------------------------------------------------------ */
+
+/** Filled cells split by agreement with `puzzle.solution`. Empty cells appear in neither. */
+export interface CorrectnessReport {
+  correct: CellIndex[];
+  incorrect: CellIndex[];
+}
+
+/**
+ * Which of the player's entries are right.
+ *
+ * Solution-aware on purpose, and that is why it lives here rather than beside
+ * `findGridErrors`: `errors.ts` answers "does this board contradict itself",
+ * which a player could work out unaided, and it never opens the answer key so
+ * that its verdict is always one they could have reached. This answers "am I
+ * right", which nothing can answer honestly without looking.
+ */
+export function checkCorrectness(puzzle: Puzzle, values: Grid): CorrectnessReport {
+  const correct: CellIndex[] = [];
+  const incorrect: CellIndex[] = [];
+  for (let cell = 0; cell < puzzle.size * puzzle.size; cell++) {
+    const value = values[cell];
+    if (value === null || value === undefined) continue;
+    (value === puzzle.solution[cell] ? correct : incorrect).push(cell);
+  }
+  return { correct, incorrect };
 }

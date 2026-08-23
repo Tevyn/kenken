@@ -110,10 +110,11 @@ Two invariants follow, and they resolve the two obvious failure modes:
   digit from `visible[cell]` for at least one target cell. A placement hint is
   only offered if `values[cell] == null`.
 
-The novelty test makes elimination hints self-limiting: the first press
-explains "the 3÷ cage can only be 1 and 3", the second press writes those
-pencil marks, and from then on `visible` equals `book` for those cells so the
-hint stops firing. Without it, cage-narrowing hints would repeat forever.
+The novelty test makes elimination hints self-limiting: the hint says "2 and 4
+cannot go in this cage", applying it writes the surviving pencil marks, and from
+then on `visible` equals `book` for those cells so the hint stops firing.
+Without it, cage-narrowing hints would repeat forever. `findNextNumber` (§9.3)
+leans on exactly this to walk past them.
 
 ---
 
@@ -185,13 +186,42 @@ what "cage splitting" does) is deliberately **out of scope**; see §10.
 
 Every hint carries two strings:
 
-- `text` — player-facing. **No jargon.** No "candidate", "unit", "eliminate",
-  "naked", "locked". Say "digit", "row", "rule out", "blocked".
+- `text` — player-facing, and **one short clause**. No technique jargon, no
+  "because" tail, no arithmetic shown, and no per-cell `row R, column C`
+  co-ordinates. The highlight (§5) is what says *where*; a sentence that repeats
+  it in words only competes with it. No terminal full stop — these are labels,
+  not prose.
 - `secondary` — the technique's proper name, shown smaller/dimmer, so a player
-  who wants to learn the vocabulary can. e.g. `"Hidden single"`.
+  who wants to learn the vocabulary can. e.g. `"Hidden single"`. This is
+  unchanged, and is the only place a technique is ever named.
 
-Cell references render as `row R, column C`, both 1-based. Cage references
-render as the printed label from `cageLabel()`, e.g. `the 12+ cage`.
+Every technique uses one of these shapes:
+
+| shape | when |
+|---|---|
+| `This cell has to be 2` | a placement whose reason is not a whole line |
+| `This cage has to be 1, 2 and 1` | a placement covering a whole cage |
+| `Only 3 can go here in column 2` | a placement where the row or column *is* the reason |
+| `3 and 5 cannot go here` | an elimination striking exactly one cell |
+| `3 and 5 cannot go in this cage` | an elimination barring digits from a whole cage |
+| `3 and 5 cannot go anywhere else in row 1` | an elimination clearing digits from the rest of a unit |
+| `3 and 5 cannot go in these cells` | an elimination with no true widening (deferred techniques only) |
+
+A row or column number therefore appears in `text` only when the line is the
+reason, never as an address. The cage-placement list is read in **board order**
+and is neither sorted nor de-duplicated: a bent cage may legally repeat a digit
+(§11, "dog leg"), so `1, 2 and 1` is the honest reading of a cage that holds two
+1s, and sorting it would misdescribe the board.
+
+Where an elimination reaches several cells at once, widen the claim to the
+structure that carries it — the cage, or the line — rather than list
+co-ordinates. Check the widening is actually true before using it: for
+`single-cage-combination` the digits really are barred from all of the cage, and
+for `cage-locks-line` they really cannot appear anywhere else in the line. It is
+false for `line-locks-cage`, whose struck digits do still live elsewhere in the
+same cage. A technique with no true widening falls back to
+`3 and 5 cannot go in these cells`, which claims nothing beyond what the strike
+marks show. Only deferred techniques (§10) need it today.
 
 The worked examples below use the verified 4×4 fixture from `docs/KENKEN.md`.
 Cells are flat indices `row*4 + col`; the unique solution is:
@@ -213,28 +243,27 @@ Row/column total for this grid: `T = 4·5/2 = 10`.
 ### `freebie-cage` — rank 10
 
 ```
-text:      "The cage marked {label} has only one cell, so it has to be {digit}."
+text:      "This cell has to be {digit}"
 secondary: "Given cell"
 ```
 
 **Example** — cage H is the single cell 15 with target 1.
-> The cage marked 1 has only one cell, so it has to be 1.
+> This cell has to be 1
 
 ---
 
 ### `last-cell-in-unit` — rank 20
 
 ```
-text:      "{Unit} already has {othersList} — the only digit left for
-            row {r}, column {c} is {digit}."
+text:      "Only {digit} can go here in {unit}"
 secondary: "Last cell in a {unitKind}"
 ```
 
-`othersList` is the filled digits in the unit, ascending, joined as
-`"1, 2 and 3"`.
+The unit is named because it is the whole reason — everything else in it is
+already spoken for.
 
 **Example** — the player has filled row 4 (cells 12,13,14) with 4, 3, 2.
-> Row 4 already has 2, 3 and 4 — the only digit left for row 4, column 4 is 1.
+> Only 1 can go here in row 4
 
 ---
 
@@ -243,71 +272,69 @@ secondary: "Last cell in a {unitKind}"
 Two variants; pick by whether the cage has exactly one surviving arrangement.
 
 ```
-variant "narrowed":
-text:      "There is only one set of digits that makes {label}: {digitList}.
-            So the {n} cells of that cage hold {digitList} in some order —
-            nothing else fits."
+variant "narrowed", one cell struck:
+text:      "{removedList} cannot go here"
+secondary: "Cage combination"
+
+variant "narrowed", several cells struck:
+text:      "{removedList} cannot go in this cage"
 secondary: "Cage combination"
 
 variant "placed":
-text:      "There is only one way to fill the {label} cage: {assignmentList}."
+text:      "This cage has to be {valueList}"
 secondary: "Cage combination"
 ```
 
-`assignmentList` renders as `"3 at row 1, column 3 and 4 at row 1, column 4"`.
+`removedList` is every digit the elimination removes anywhere, ascending and
+de-duplicated. `valueList` is the placed values in **board order**, neither
+sorted nor de-duplicated.
 
 **Example (narrowed)** — cage E is `3÷` over cells 0 and 4 in a 4×4. Pairs with
 `max/min = 3`: only `{1,3}`.
-> There is only one set of digits that makes 3÷: 1 and 3. So the 2 cells of
-> that cage hold 1 and 3 in some order — nothing else fits.
+> 2 and 4 cannot go in this cage
 
 Eliminates 2 and 4 from cells 0 and 4. Novelty test passes at game start
 because `visible` for both cells is `{1,2,3,4}`.
 
-**Example (placed)** — after the player writes 3 into cell 4, cage E's only
-surviving arrangement is `(1,3)`.
-> There is only one way to fill the 3÷ cage: 1 at row 1, column 1 and 3 at
-> row 2, column 1.
+**Example (placed)** — `SAMPLE_PUZZLE`'s `2×` cage covers cells 0, 1 and 5, and
+its only surviving arrangement is `(1, 2, 1)`.
+> This cage has to be 1, 2 and 1
 
 ---
 
 ### `naked-single` — rank 40
 
-The `reason` discriminator picks the tail of the sentence.
-
 ```
-text:      "Row {r}, column {c} can only be {digit} — {reason}."
+text:      "This cell has to be {digit}"
 secondary: "Naked single"
-
-reason = 'peers' : "every other digit already appears in its row or column"
-reason = 'cage'  : "no other digit works with the {label} cage"
-reason = 'mixed' : "the other digits are blocked by its row, its column, or
-                   the {label} cage"
 ```
 
-Pick `'cage'` when the cage's combination list alone pins the cell,
-`'peers'` when row/column elimination alone does, `'mixed'` otherwise.
+The `reason` discriminator — `'cage'` when the cage's combination list alone
+pins the cell, `'peers'` when row/column elimination alone does, `'mixed'`
+otherwise — no longer changes the text. It still decides the **highlight**
+(§5), which is now the only thing that says *why*, so the detector must keep
+computing it.
 
 **Example** — the player has written 3 in cell 4. Cage E allows only `{1,3}`
 for cell 0; the 3 in cell 4 is a column peer.
-> Row 1, column 1 can only be 1 — the other digits are blocked by its row, its
-> column, or the 3÷ cage.
+> This cell has to be 1
 
 ---
 
 ### `hidden-single` — rank 50
 
 ```
-text:      "In {unit}, only row {r}, column {c} can still hold a {digit} —
-            every other cell there is blocked."
+text:      "Only {digit} can go here in {unit}"
 secondary: "Hidden single"
 ```
+
+Shares its shape with `last-cell-in-unit`: in both, the line is the reason and
+the highlighted cell is the answer.
 
 **Example** — verified on the fixture with an empty grid. After bookkeeping,
 row 1's cells are: cell 0 ∈ {1,3} (cage E), cell 1 ∈ {2,4} (cage A), cells 2
 and 3 ∈ {3,4} (cage D, `7+`). Digit 1 has exactly one home.
-> In row 1, only row 1, column 1 can still hold a 1 — every other cell there is
-> blocked.
+> Only 1 can go here in row 1
 
 Correct: cell 0 = 1.
 
@@ -316,30 +343,26 @@ Correct: cell 0 = 1.
 ### `unit-sum-innie` — rank 60
 
 ```
-text:      "Every {unitKind} adds up to {T}. In {unit}, the {label list}
-            {cageVerb} together {covered}, so the one cell left over —
-            row {r}, column {c} — must be {digit}."
-secondary: "Row total (innie)"
+text:      "This cell has to be {digit}"
+secondary: "{Row|Column} total (innie)"
 ```
 
-`cageVerb` is `"adds"` for one cage, `"add"` for several. `label list` renders
-as `"the 4+ cage and the 8+ cage"`.
+The arithmetic is deliberately not shown. It is the one place this hurts — the
+sum *is* the teaching — but a player who wants the name of the trick has
+`secondary`, and the highlight bands the unit and outlines the covering cages,
+which is the whole picture minus the addition.
 
 **Example (schematic, 5×5, `T = 15`)** — column 3 is covered by a 2-cell `4+`
 cage and a 3-cell `8+` cage that both sit entirely inside it, leaving one cell.
-> Every column adds up to 15. In column 3, the 4+ cage and the 8+ cage add
-> together 12, so the one cell left over — row 2, column 3 — must be 3.
+> This cell has to be 3
 
 ---
 
 ### `unit-sum-outie` — rank 70
 
 ```
-text:      "Every {unitKind} adds up to {T}. In {unit}, {insideLabels}
-            {cageVerb} {covered}, so the part of the {label} cage sitting
-            there adds to {remainder}. That whole cage adds to {cageSum},
-            so its cell outside — row {r}, column {c} — must be {digit}."
-secondary: "Row total (outie)"
+text:      "This cell has to be {digit}"
+secondary: "{Row|Column} total (outie)"
 ```
 
 **Example (verified on the fixture, empty grid)** — column 2 holds cage A
@@ -353,9 +376,7 @@ cells 9 and 13 are in column 2, cell 14 is not).
   Singleton.
 - Cell 14 = `6 − 4 = 2`.
 
-> Every column adds up to 10. In column 2, the 8× cage adds 6, so the part of
-> the 6× cage sitting there adds to 4. That whole cage adds to 6, so its cell
-> outside — row 4, column 3 — must be 2.
+> This cell has to be 2
 
 Correct: cell 14 = 2. Note this deduction is **unavailable to the current
 solver by propagation** — it is exactly the kind of step that today forces a
@@ -366,17 +387,14 @@ branch.
 ### `cage-locks-line` — rank 80
 
 ```
-text:      "However the {label} cage works out, its {digitList} end up in
-            {unit}. So no other cell in {unit} can be {digitList}."
-secondary: "Cage confinement"
+one cell struck:      "{removedList} cannot go here"
+several cells struck: "{removedList} cannot go anywhere else in {unit}"
+secondary:            "Cage confinement"
 ```
-
-Use `"its {digit} ends up"` for a single digit.
 
 **Example (verified, empty grid)** — cage D is `7+` over cells 2 and 3, both in
 row 1. The only pair from 1..4 summing to 7 is `{3,4}`.
-> However the 7+ cage works out, its 3 and 4 end up in row 1. So no other cell
-> in row 1 can be 3 or 4.
+> 3 and 4 cannot go anywhere else in row 1
 
 Eliminates 3 and 4 from cells 0 and 1. Correct: cell 0 = 1, cell 1 = 2.
 
@@ -385,11 +403,12 @@ Eliminates 3 and 4 from cells 0 and 1. Correct: cell 0 = 1, cell 1 = 2.
 ### `unit-sum-bound` — rank 90
 
 ```
-text:      "Every {unitKind} adds up to {T}. The rest of {unit} can only
-            supply between {minRest} and {maxRest}, so row {r}, column {c}
-            has to be between {lo} and {hi} — that rules out {removedList}."
-secondary: "Row total (bounds)"
+text:      "{removedList} cannot go here"
+secondary: "{Row|Column} total (bounds)"
 ```
+
+The bound itself does not survive the terse voice, which is part of why this one
+stays deferred (§10) — the sentence was most of its value.
 
 **Example (verified on the fixture, empty grid)** — column 4 holds cage F
 (`1−`, cells 7 and 11, entirely inside), cage H (`=1`, cell 15, entirely
@@ -400,8 +419,7 @@ inside), and cell 3, which belongs to cage D and pokes out of the column.
 - Cage H: sum 1.
 - Cell 3 = `10 − 1 − F ∈ {6, 4, 2}` → only 4 and 2 are legal digits.
 
-> Every column adds up to 10. The rest of column 4 can only supply between 4
-> and 8, so row 1, column 4 has to be between 2 and 6 — that rules out 1 and 3.
+> 1 and 3 cannot go here
 
 Cell 3 is now `{2,4}`; combined with cage D's `{3,4}` it collapses to 4.
 Correct.
@@ -411,56 +429,60 @@ Correct.
 ### `line-locks-cage` — rank 100
 
 ```
-text:      "In {unit}, the only cells that can still hold a {digit} all belong
-            to the {label} cage. So that cage has to use its {digit} there —
-            which rules out {removedList} in {cellList}."
-secondary: "Locked candidate (row into cage)"
+one cell struck:      "{removedList} cannot go here"
+several cells struck: "{removedList} cannot go in these cells"
+secondary:            "Locked candidate (row into cage)"
 ```
+
+Not `"in this cage"`: the struck digits remain perfectly legal in the cage's
+*other* cells, which is exactly what the deduction says.
 
 **Example (verified, empty grid)** — in row 1, only cell 0 can hold a 1, and
 cell 0 belongs to cage E (`3÷`). Cage E's combinations are `(1,3)` and `(3,1)`;
 pruning to those placing 1 at cell 0 leaves `(1,3)`.
-> In row 1, the only cells that can still hold a 1 all belong to the 3÷ cage.
-> So that cage has to use its 1 there — which rules out 3 in row 1, column 1.
+> 3 cannot go here
 
 ---
 
 ### `naked-set` — rank 110
 
 ```
-text:      "{cellList} between them can only hold {digitList}, so those digits
-            are used up there — nothing else in {unit} can be {digitList}."
-secondary: "Naked {pair|triple}"
+one cell struck:      "{removedList} cannot go here"
+several cells struck: "{removedList} cannot go anywhere else in {unit}"
+secondary:            "Naked {pair|triple}"
 ```
 
 **Example (verified, empty grid)** — cells 2 and 3 (cage D, `7+`) both have
 `book = {3,4}`.
-> Row 1, column 3 and row 1, column 4 between them can only hold 3 and 4, so
-> those digits are used up there — nothing else in row 1 can be 3 or 4.
+> 3 and 4 cannot go anywhere else in row 1
 
-Note this reaches the same conclusion as the `cage-locks-line` example above.
-The rank ordering means the player is shown the cage-based phrasing, which is
-more concrete. Good illustration of why the ladder tolerates overlap.
+Note this reaches the same conclusion as the `cage-locks-line` example above,
+and under the terse voice it reaches it in the same words — the two differ only
+in `secondary` and in which cells the highlight calls support. That is a second
+argument for leaving `naked-set` deferred: the wording it used to win on is
+gone, so it now duplicates rank 80 outright.
 
 ---
 
 ### `hidden-set` — rank 120
 
 ```
-text:      "In {unit}, {digitList} can only go in {cellList}. Those cells are
-            spoken for, so {removedList} can be crossed off there."
-secondary: "Hidden {pair|triple}"
+one cell struck:      "{removedList} cannot go here"
+several cells struck: "{removedList} cannot go in these cells"
+secondary:            "Hidden {pair|triple}"
 ```
+
+The strike lands on the `k` cornered cells, not on the rest of the unit, so
+there is no line to widen to.
 
 ---
 
 ### `unit-parity` — rank 130
 
 ```
-text:      "{Unit} holds exactly {k} odd digits. {knownLabels} already account
-            for {j} of them, so the {label} cage must contribute {k−j} —
-            that rules out {removedList}."
-secondary: "Parity"
+one cell struck:      "{removedList} cannot go here"
+several cells struck: "{removedList} cannot go in these cells"
+secondary:            "Parity"
 ```
 
 Every row and column of an N×N grid contains exactly `ceil(N/2)` odd digits.
@@ -471,11 +493,12 @@ Tier 2 (§10) — it fires rarely and the arithmetic reads badly.
 ### `x-wing` — rank 140
 
 ```
-text:      "In rows {r1} and {r2}, {digit} can only go in columns {c1} and
-            {c2}. Those two rows use up both of those spots, so {digit} can
-            be crossed off the rest of columns {c1} and {c2}."
-secondary: "X-Wing"
+one cell struck:      "{digit} cannot go here"
+several cells struck: "{digit} cannot go in these cells"
+secondary:            "X-Wing"
 ```
+
+Its strike spans two columns, so even the line widening is unavailable.
 
 Tier 2, and recommended against — see §10.
 
@@ -484,10 +507,13 @@ Tier 2, and recommended against — see §10.
 ### `reveal` — escape hatch
 
 ```
-text:      "I can't prove the next step from what's on the board. If you'd
-            like to keep moving: row {r}, column {c} is {digit}."
+text:      "This cell has to be {digit}"
 secondary: "Revealed"
 ```
+
+Identical to a deduced placement on purpose. The player asked to be told; the
+apology the old wording carried was for the engine's benefit, not theirs, and
+`secondary` still says `"Revealed"` for anyone who wants to know.
 
 ---
 
@@ -632,7 +658,16 @@ Do **not** compute hints eagerly on every keystroke.
 
 ## 7. Progressive disclosure
 
-Two presses, as decided: **explain, then apply.**
+**Three choices, one press.** The Hint button opens a panel offering
+Correctness, Tip and Number; the player picks how much help they want, rather
+than pressing the same button twice to get more of it.
+
+This replaces an earlier two-press design — explain, then apply — and the reason
+is that "apply" was never one thing: applying an elimination writes pencil marks
+and applying a placement writes a digit, so the same second press did wildly
+different amounts of the player's work depending on which hint the ladder had
+found. Number does the digit outright, Tip does the explaining, and neither
+pretends to be the other.
 
 ### 7.1 State machine
 
@@ -646,15 +681,23 @@ type HintPhase =
   | { kind: 'message'; message: HintMessage }   // solved / mistake / stuck
 ```
 
+No arm means "armed": `shown` says only that a sentence is on screen and a
+highlight is on the board, so dropping the phase can never lose the player
+anything.
+
 | Event | From | To | Effect |
 |---|---|---|---|
-| press Hint | `idle` | `shown` or `message` | run `findHint` |
-| press Hint | `shown` | `idle` | **apply** the hint; push its signature onto `recent` |
-| press Hint | `message` | `idle` then immediately re-run | dismiss and retry (a mistake may have been fixed) |
+| choose Tip | any | `shown` or `message` | run `findHint` |
+| choose Number | any | `idle`, or `message` | run `findNextNumber`; on a hit `APPLY_HINT` writes the one cell, on a miss show what `findHint` says instead |
+| choose Correctness | any | `idle` | the check speaks about the whole board, so it takes it over |
 | `SELECT` / `MOVE` | `shown` | `shown` | unchanged — moving the cursor to look at the highlight must not destroy it |
 | `DIGIT` / `ERASE` / `UNDO` / `REDO` | any | `idle` | the board changed; the hint is stale |
 | `NEW_PUZZLE` / `RESET` | any | `idle` | also clear `recent` |
-| Escape, or click the hint banner's dismiss | `shown` / `message` | `idle` | — |
+| Escape with no panel open | `shown` / `message` | `idle` | — |
+
+Closing the panel deliberately leaves the phase alone. Reading the sentence and
+then studying the highlight is one thought, not two, and the panel sits over the
+action row rather than the board precisely so both are on screen at once.
 
 ### 7.2 What "apply" writes
 
@@ -684,20 +727,27 @@ A single `APPLY_HINT` action performs all of the above and calls
 undo step.
 
 ```ts
-| { type: 'APPLY_HINT'; apply: HintApply; visible: number[][] }
+| { type: 'APPLY_HINT'; apply: HintApply; visible: number[][]; signature?: string }
 ```
 
 `visible` is passed in rather than recomputed inside the reducer so the reducer
 stays a pure function of its inputs with no engine dependency.
 
+`signature` is optional, and the Number choice is the caller that omits it:
+`findNextNumber` may walk several eliminations past the hint the player would
+have been shown, so there is no single technique it can honestly name. A
+made-up signature would sit in `recent` matching nothing and suppressing
+nothing, which is worse than an admitted gap.
+
 ### 7.3 Undo/redo interaction
 
 - `HistorySnapshot` is unchanged (`values`, `marks`, `status`). Hint phase and
   `recent` are not restored by undo.
-- On `UNDO`, if the snapshot being reverted was produced by `APPLY_HINT`, pop
-  that signature off `recent`. Track this with a parallel
+- On `UNDO`, if the snapshot being reverted was produced by a *signed*
+  `APPLY_HINT`, pop that signature off `recent`. Track this with a parallel
   `pastWasHint: boolean[]`, or by widening `HistorySnapshot` with an optional
-  `hintSignature?: string`. The latter is cleaner and costs one field.
+  `hintSignature?: string`. The latter is cleaner and costs one field, and it
+  falls out correctly for an unsigned apply: nothing went on, nothing comes off.
 - `REDO` of a hint application pushes the signature back.
 - Undoing *into* a hint's `shown` phase is not a thing — any `UNDO` sends the
   phase to `idle`.
@@ -706,22 +756,22 @@ stays a pure function of its inputs with no engine dependency.
 
 **Recommendation: do not limit hints, and do not count them.** This app has no
 scoring, no leaderboard, and no monetisation hook that a hint budget would
-serve; a cap would only punish the learning use case the two-press design
-exists for. Mature coaching-oriented apps trend the same way — SudoSketch's
+serve; a cap would only punish the learning use case the panel exists for. Mature coaching-oriented apps trend the same way — SudoSketch's
 Coach frames itself as "a companion, not a shortcut" with unlimited graduated
 help, while hint *budgets* cluster in ad-supported casual apps where the limit
 exists to sell refills.
 
-If a "hints used" figure is ever wanted for a post-game summary, count applied
-hints only (phase `shown` → apply), never explanations. Looking at a hint and
-then solving the step yourself should cost nothing.
+If a "hints used" figure is ever wanted for a post-game summary, count the
+Number choice only, never Tip. Looking at a hint and then solving the step
+yourself should cost nothing.
 
 ---
 
 ## 8. Degenerate cases
 
-Exact strings. Each renders in the hint banner with the same layout as a normal
-hint (`text` on top, `secondary` beneath).
+Exact strings. Each renders in the hint panel exactly as a normal hint does —
+`text` alone, in the same slot. `secondary` is still on the type and still not
+shown.
 
 ### 8.1 Empty grid
 
@@ -739,32 +789,26 @@ worked example in §4).
 Fires whenever `values[i] !== solution[i]` for a filled cell — including errors
 that are *not* yet a visible conflict, which `findConflicts()` cannot see.
 
-Default wording (names the cell, not the correct digit):
+Default wording. `cells` carries every wrong cell and the highlight puts a
+`focus` on all of them, so the text counts rather than addresses:
 
 ```
-text:      "Something on the board can't be right — row {r}, column {c}
-            doesn't fit the puzzle. Clear it and I can pick up from there."
-secondary: "Check this cell"
-```
-
-If more than one cell is wrong, name the **earliest by flat index** and add:
-
-```
-            "(There are {n} cells that don't fit; this is the first.)"
+one cell:            "This cell doesn't fit"
+more than one cell:  "These {n} cells don't fit"
+secondary:           "Check this cell"
 ```
 
 Behind `opts.revealMistakeCell: false` (for a stricter mode that refuses to
 point):
 
 ```
-text:      "Something on the board can't be right, so I can't work out the
-            next step. Try undoing back to where you were sure."
+text:      "Something on the board doesn't fit"
 secondary: "Check your work"
 ```
 
-Highlight: `focus = wrong`, `dimRest = true`. **No apply step** — pressing hint
-again dismisses and re-runs. Never auto-erase the player's digit; that is their
-call.
+Highlight: `focus = wrong`, `dimRest = true`. **No apply step** — the panel
+prints the sentence and stops. Never auto-erase the player's digit; that is
+their call.
 
 Implementation note: comparing against `puzzle.solution` is exact and O(n²), and
 `Puzzle.solution` is a required field, so there is no reason to detect
@@ -774,36 +818,36 @@ as a defensive assert against a malformed puzzle, not as the primary path.
 ### 8.3 No logical step exists
 
 ```
-text:      "I can't find a next step that follows from what's on the board.
-            This one needs a leap — pick a cell with two options and see
-            where it leads. Or I can just tell you one."
+text:      "I can't find a next step here"
 secondary: "No forced step"
 ```
 
-The banner shows a **"Reveal a cell"** button. Pressing it returns the `reveal`
-hint (§4), which places `puzzle.solution[cell]` for the cell chosen as: the
-empty cell with the fewest `book` candidates, tie-broken by proximity to
-`opts.near`, then by lowest index. Reveal is an ordinary `place` apply, so it
-is one undo step like any other.
+The panel offers no escape hatch of its own here: **Number is the escape
+hatch**, and it is one choice away on the screen the player just came from.
+`revealHint` (§4) stays on the engine's surface for a caller that wants a
+solution-fed placement without the ladder, but nothing in the UI calls it — the
+banner button that used to is gone with the banner.
 
 **Honesty note for the implementer:** because the generator guarantees a unique
 solution, `kind: 'stuck'` does *not* prove the puzzle needs guessing — it
 proves *our implemented ladder ran out*. With only the Tier 1 set (§10) this
-will happen on some `hard`/`expert` puzzles. The wording above is deliberately
-phrased as "I can't find" rather than "there is no", and the reveal button
-means the player is never actually blocked. Log `kind: 'stuck'` occurrences in
+will happen on some `hard`/`expert` puzzles. The wording above keeps "I can't
+find" rather than "there is no" for exactly that reason — it is the one piece of
+the old sentence worth the words — and Number means the player is never actually
+blocked. Log `kind: 'stuck'` occurrences in
 development against the generator's `SolveStats.solvedByPropagation` to see how
 often it bites.
 
 ### 8.4 Already solved
 
 ```
-text:      "That's it — the grid is complete and correct. Nothing left to hint."
+text:      "The grid is complete"
 secondary: "Solved"
 ```
 
-The Hint button should be disabled when `status === 'solved'`; this string is
-the fallback for the race where it is pressed anyway.
+Nothing disables the Hint button on a solved grid — Correctness is still a
+reasonable thing to ask for — so this string is what Tip and Number say once
+there is nothing left to work out.
 
 ---
 
@@ -858,7 +902,7 @@ export type HintApply =
 export interface Hint {
   technique: TechniqueId
   rank: number
-  /** Player-facing, jargon-free. */
+  /** Player-facing, jargon-free, one short clause. No full stop. See §4. */
   text: string
   /** The technique's proper name, e.g. "Hidden single". */
   secondary: string
@@ -901,15 +945,46 @@ export function findHint(
 ): HintResult
 
 /**
- * Last-resort reveal, used by the "Reveal a cell" button on `kind: 'stuck'`.
- * Sources its digit from `puzzle.solution` — the only place in the hint
- * engine that reads it apart from mistake detection.
+ * Last-resort reveal for a player who would rather be told. Sources its digit
+ * from `puzzle.solution` — one of three non-deductive reads of it in this file,
+ * the others being mistake detection and `checkCorrectness`.
  */
 export function revealHint(
   puzzle: Puzzle,
   values: Grid,
   opts?: Pick<HintOptions, 'near'>,
 ): Hint
+
+/** One placement, found by running hints forward past elimination-only steps. */
+export interface NextNumber {
+  cell: CellIndex
+  value: number
+}
+
+/**
+ * The first value that would be placed if hints were applied repeatedly.
+ * Elimination steps are simulated against a private copy of `marks` and never
+ * returned. Returns null when no placement is reachable — a mistake, a stuck
+ * ladder, or a finished grid.
+ */
+export function findNextNumber(
+  puzzle: Puzzle,
+  values: Grid,
+  marks: MarkSets,
+  opts?: HintOptions,
+): NextNumber | null
+
+/** Filled cells split by agreement with `puzzle.solution`. Empty cells appear in neither. */
+export interface CorrectnessReport {
+  correct: CellIndex[]
+  incorrect: CellIndex[]
+}
+
+/**
+ * Which of the player's entries are right. Solution-aware, which is why it
+ * lives here rather than in `errors.ts` — see §9.3.
+ */
+export function checkCorrectness(puzzle: Puzzle, values: Grid): CorrectnessReport
 
 /**
  * Candidate digits per cell after rules (A)+(B) to a fixpoint, seeded from
@@ -963,17 +1038,63 @@ exact `text`.
 
 ### 9.2 UI wiring
 
-- `GameState` gains `hint: HintPhase` and `recentHints: string[]`.
+- `GameState` gains `hint: HintPhase` and `recentHints: string[]`, plus the two
+  things the panel writes onto the board rather than into words: `verdict` and
+  `placed` (§9.3).
 - `GameAction` gains `{ type: 'REQUEST_HINT'; result: HintResult }`,
-  `{ type: 'APPLY_HINT'; apply: HintApply; visible: number[][]; signature: string }`,
-  and `{ type: 'DISMISS_HINT' }`. `findHint` is called in `useGame`, not in the
-  reducer, so the reducer stays engine-free and synchronously testable.
+  `{ type: 'APPLY_HINT'; apply: HintApply; visible: number[][]; signature?: string }`,
+  `{ type: 'CHECK_CORRECTNESS'; report: CorrectnessReport }`,
+  `{ type: 'CLEAR_FEEDBACK' }` and `{ type: 'DISMISS_HINT' }`. Every engine call
+  happens in `useGame`, never in the reducer, so the reducer stays engine-free
+  and synchronously testable.
 - `BoardProps` gains `highlight?: HintHighlight`; `CellProps` gains
   `hintRole?: 'focus' | 'support' | 'band' | 'dim'` and
   `strikeDigits?: readonly number[]`. Board derives per-cell roles from the
   highlight once, in a `useMemo`.
-- Suggested keyboard shortcut: `H`. It is currently unbound in `useGame`'s
-  handler, and pressing it twice is the whole interaction.
+- Keyboard shortcut: `H`, which opens the panel. `useGame` forwards it rather
+  than handling it — the panel is owned above the game, and opening one is what
+  suspends the game's own shortcuts.
+
+### 9.3 `findNextNumber` and `checkCorrectness`
+
+Two entry points that serve a player who wants an answer rather than a step.
+
+**`findNextNumber`** exists because the ladder frequently opens with an
+elimination, and a player who asked for *a number* is owed a number. It calls
+`findHint` in a loop; a `place` result answers immediately, an `eliminate`
+result is written to a **private copy** of `marks` — mirroring `APPLY_HINT`
+(§7.2), bare cells seeded from `visible` first — and the loop goes round again.
+The caller's `marks` are never touched, so consuming a step costs the player
+nothing. A `mistake`, `stuck` or `solved` result ends the search with null.
+
+The loop terminates because each elimination strictly narrows what some cell can
+still show, so the novelty test (§2) retires it. Note the consequence: `book`
+depends only on `values`, so simulated eliminations never *create* a placement —
+they retire the lower-ranked elimination hints that were shadowing one. A grid
+with no placement in `book` at all yields null after exhausting them. Keep an
+iteration cap anyway, as a backstop rather than as the mechanism.
+
+Where a hint places several cells at once, return the first in board order.
+
+**`checkCorrectness`** simply splits the filled cells against `puzzle.solution`.
+It lives in `hints.ts` for one reason: this file is where every read of
+`solution` is accounted for, and there are now three. It must never migrate to
+`errors.ts`, whose whole discipline is answering "does this board contradict
+itself" without opening the answer key, so that its verdict is always one the
+player could have reached alone.
+
+The report is stored, not derived, because its two halves expire differently and
+neither expiry is a function of the grid: `correct` is a claim about the board as
+the player left it and is gone on their next move, while `incorrect` belongs to
+its cell and is dropped only by that cell's own edit — a player told they are
+wrong has to still be told it while they fix it. `placed` (the cell the Number
+choice filled) expires the same way `correct` does.
+
+Both green treatments are cleared by a window-level `mousedown`/`keydown`
+listener rather than by a reducer case, because "the next interaction" includes
+presses the reducer never sees. The listener can safely be installed by the very
+click that created the state: a click is the *end* of an interaction that began
+with a mousedown, so the press being answered is already spent.
 
 ---
 
@@ -990,7 +1111,7 @@ exact `text`.
 | 50 | `hidden-single` | Free — rule (C). The workhorse for anything above `easy`. |
 | 60 | `unit-sum-innie` | **New code, ~60 lines.** The signature KenKen deduction. |
 | 70 | `unit-sum-outie` | **New code, shares ~90% with innie.** Highest teaching value per line in the entire document. |
-| 80 | `cage-locks-line` | Free — rule (D1) already exists and explains cleanly ("however this cage works out…"). |
+| 80 | `cage-locks-line` | Free — rule (D1) already exists, and its conclusion is one a line can carry ("3 and 4 cannot go anywhere else in row 1"). |
 | — | `reveal` | ~15 lines. Required so §8.3 is never a dead end. |
 
 Six of the nine are already computed by `solver.ts`; the marginal cost is the
@@ -1078,8 +1199,7 @@ Hint UX:
 - [SudoSketch Coach](https://www.sudosketch.com/sudoku-coach.html) — the
   "companion, not a shortcut" framing, one-idea-at-a-time disclosure, and the
   explicit `Nudge` → `Look` → `Show me` escalation. Closest published analogue
-  to the two-press design specified here; source for §7.4's
-  no-limit recommendation.
+  to the panel's three choices; source for §7.4's no-limit recommendation.
 - [sudoku.coach](https://sudokucoach.app/) — the convention of pairing a
   *named* technique with a plain-English restatement and highlighted cells
   rather than a bare answer. The pattern behind this document's `text` /

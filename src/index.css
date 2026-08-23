@@ -99,8 +99,6 @@
   --hint-focus-ring: var(--accent);
   --hint-cage-outline: var(--accent);
   --hint-strike: var(--accent);
-  --hint-panel-bg: color-mix(in oklab, var(--accent) 8%, var(--surface));
-  --hint-panel-border: color-mix(in oklab, var(--accent) 34%, var(--surface));
 
   /*
    * A popover is the board's own surface behind the board's own frame, so it

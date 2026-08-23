@@ -22,6 +22,19 @@ export interface CellProps {
   isInSelectedCage: boolean
   /** This entry is provably wrong — see `createErrorChecker` in the engine. */
   isError: boolean
+  /**
+   * The last correctness check confirmed this entry against the solution.
+   * Transient: gone on the player's next move.
+   */
+  isCorrect?: boolean
+  /**
+   * The last correctness check rejected it. A different claim from `isError` —
+   * that one never opens the answer key — but the same news to a player, so it
+   * wears the same treatment and holds until the cell is edited.
+   */
+  isIncorrect?: boolean
+  /** The panel's Number choice wrote this entry. Transient, like `isCorrect`. */
+  isPlaced?: boolean
   /** Derived in `Board` from the hint's `HintHighlight`; absent when no hint is shown. */
   hintRole?: HintRole
   /** Pencil digits this hint rules out, drawn struck through. */
@@ -49,6 +62,9 @@ export function Cell({
   isInSelectedLine,
   isInSelectedCage,
   isError,
+  isCorrect = false,
+  isIncorrect = false,
+  isPlaced = false,
   hintRole,
   strikeDigits = NO_STRIKE,
   hintCageEdges,
@@ -67,16 +83,31 @@ export function Cell({
   // as both, so the classes coexist and the stylesheet decides what wins.
   if (hintRole) classNames.push(`kk-cell--hint-${hintRole}`)
   if (hintCageEdges) classNames.push(hintCageEdges)
-  if (isError) classNames.push('kk-cell--error')
+  if (isPlaced) classNames.push('kk-cell--placed')
+  if (isCorrect) classNames.push('kk-cell--correct')
+  if (isError || isIncorrect) classNames.push('kk-cell--error')
 
   const status = value != null ? `value ${value}` : 'empty'
   // Colour alone must not carry the highlight, so the role is named in the
   // accessible name too (§5).
   const hintNote =
     hintRole === 'focus' ? ', hint focus' : hintRole === 'support' ? ', hint context' : ''
+  /*
+   * Correct and incorrect are the same shape in two colours, so nothing but the
+   * words separates them for a reader who cannot see the difference (§9).
+   * `conflict` is the stronger claim and comes first when a cell is both.
+   */
+  const checkNote = isError
+    ? ', conflict'
+    : isIncorrect
+      ? ', incorrect'
+      : isCorrect
+        ? ', correct'
+        : ''
   const ariaLabel =
     `Row ${row + 1}, column ${col + 1}, cage ${cageLabelText}, ${status}` +
-    (isError ? ', conflict' : '') +
+    checkNote +
+    (isPlaced ? ', filled in for you' : '') +
     hintNote
 
   return (

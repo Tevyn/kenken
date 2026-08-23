@@ -57,12 +57,38 @@
 }
 
 /*
+ * The way out, in the same corner of every panel. A bare control like any
+ * other (STYLE_GUIDE.md §4.1 — accent ink, no border, no fill at rest), and
+ * small: an escape hatch must not be the loudest thing on the panel (§10.3).
+ *
+ * Taken out of flow rather than given a row of its own: a panel has empty
+ * space beside its heading, and none to spare for a strip that only holds a
+ * dismiss. The panel is already `position: fixed`, so it is the containing
+ * block without needing a `position: relative` of its own.
+ */
+.kk-popover__close {
+  position: absolute;
+  top: var(--sp-1);
+  right: var(--sp-1);
+  /* §4.4: the 44px floor is the box, not the glyph. `.kk-control` has the
+     height; the padding it would use for width would push the × off-centre. */
+  min-width: 44px;
+  padding: 0;
+  font-size: 20px;
+  line-height: 1;
+}
+
+/*
  * Every panel's section heading, and the same line as the header's puzzle meta
  * (STYLE_GUIDE.md §6.1): grey, 13px, sentence case. It used to be uppercase and
  * letter-spaced, which made a label louder than the choices under it.
  */
 .kk-popover__heading {
   margin: 0;
+  /* Clears the close button parked above it, so a heading that grows (the
+     wizard's second step restates the chosen size) wraps instead of running
+     under the ×. */
+  padding-right: var(--sp-5);
   font-size: 13px;
   font-weight: 500;
   line-height: 1.2;

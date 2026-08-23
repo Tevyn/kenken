@@ -1,4 +1,4 @@
-import type { Hint, HintApply, HintHighlight, HintResult } from '../engine/hints'
+import type { CorrectnessReport, Hint, HintApply, HintHighlight, HintResult } from '../engine/hints'
 import type { CellIndex, Grid, Puzzle } from '../engine/types'
 
 /** Whether digit input writes a value into the cell or toggles a pencil mark. */
@@ -8,8 +8,14 @@ export type Mode = 'value' | 'mark'
 export type HintMessage = Exclude<HintResult, { kind: 'hint' }>
 
 /**
- * Hint disclosure state (docs/HINTS.md §7.1). Ephemeral UI state like
- * `selected`: it lives in `GameState` but never in a `HistorySnapshot`.
+ * What the hint panel is explaining, and what the board draws underneath it.
+ * Ephemeral UI state like `selected`: it lives in `GameState` but never in a
+ * `HistorySnapshot`.
+ *
+ * No arm means "armed". Explaining and writing are two separate choices in the
+ * panel now, so `shown` says only that these words are on screen and this
+ * highlight is on the board — nothing is queued behind it, which is why
+ * dropping the phase can never lose the player anything.
  */
 export type HintPhase =
   | { kind: 'idle' }
@@ -17,6 +23,34 @@ export type HintPhase =
   | { kind: 'message'; message: HintMessage }
 
 const IDLE_HINT: HintPhase = { kind: 'idle' }
+
+/**
+ * What the panel's Correctness check found. Ephemeral like `hint` — it is a
+ * photograph of one moment, not a fact about the grid — so it is stored here
+ * and never in a `HistorySnapshot`.
+ *
+ * Stored rather than derived because the two halves expire differently, and
+ * neither expiry is a function of the board: `correct` is gone the moment the
+ * player moves again, while `incorrect` belongs to its cell and outlives
+ * everything until that cell is edited. A player who is told they are wrong
+ * has to still be told it while they fix it.
+ */
+export interface Verdict {
+  correct: readonly CellIndex[]
+  incorrect: readonly CellIndex[]
+}
+
+const NO_VERDICT: Verdict = { correct: [], incorrect: [] }
+const NOTHING_PLACED: readonly CellIndex[] = []
+
+/**
+ * The check's red on every cell except the one just edited. Green never
+ * survives an edit at all — it is a claim about a board that no longer exists —
+ * and the edited cell has outrun whatever the check said about it.
+ */
+function afterEdit(verdict: Verdict, cell: CellIndex): Verdict {
+  return { correct: [], incorrect: verdict.incorrect.filter((c) => c !== cell) }
+}
 
 /** How many applied-hint signatures `recentHints` remembers. See §6.3. */
 export const RECENT_HINT_LIMIT = 3
@@ -41,8 +75,16 @@ export interface GameState {
   past: HistorySnapshot[]
   /** Redo stack: snapshots popped off `past` by `UNDO`, most recent last. */
   future: HistorySnapshot[]
-  /** Two-press hint disclosure. Never travels through undo/redo. */
+  /** What the hint panel is explaining. Never travels through undo/redo. */
   hint: HintPhase
+  /** The last Correctness check, or two empty lists. Never travels through undo/redo. */
+  verdict: Verdict
+  /**
+   * Cells the panel's Number choice wrote for the player. The values are
+   * ordinary entries; only their ink is special, and only until the player's
+   * next move.
+   */
+  placed: readonly CellIndex[]
   /** Ring buffer of the last `RECENT_HINT_LIMIT` applied hint signatures. */
   recentHints: string[]
   /**
@@ -82,7 +124,16 @@ export type GameAction =
   | { type: 'RESET' }
   | { type: 'NEW_PUZZLE'; puzzle: Puzzle }
   | { type: 'REQUEST_HINT'; result: HintResult }
-  | { type: 'APPLY_HINT'; apply: HintApply; visible: number[][]; signature: string }
+  /**
+   * `signature` is optional because the panel's Number choice has none to give:
+   * `findNextNumber` may walk several eliminations past the hint the player
+   * would have been shown, so there is no single technique to remember. A
+   * made-up one would sit in `recentHints` matching nothing and suppressing
+   * nothing, which is worse than an honest gap.
+   */
+  | { type: 'APPLY_HINT'; apply: HintApply; visible: number[][]; signature?: string }
+  | { type: 'CHECK_CORRECTNESS'; report: CorrectnessReport }
+  | { type: 'CLEAR_FEEDBACK' }
   | { type: 'DISMISS_HINT' }
 
 /** True once every cell is filled and matches the puzzle's unique solution. */
@@ -112,6 +163,8 @@ export function createInitialState(puzzle: Puzzle, autoClearMarks = true): GameS
     past: [],
     future: [],
     hint: IDLE_HINT,
+    verdict: NO_VERDICT,
+    placed: NOTHING_PLACED,
     recentHints: [],
     autoClearMarks,
   }
@@ -238,6 +291,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       if (value < 1 || value > state.puzzle.size) return state
       const selected = state.selected
       const history = pushHistory(state)
+      const judged = { verdict: afterEdit(state.verdict, selected), placed: NOTHING_PLACED }
 
       if (state.mode === 'value') {
         const values = state.values.slice()
@@ -248,14 +302,14 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         // the entry and the peer cleanup together.
         if (state.autoClearMarks) clearPeerMarks(marks, selected, value, state.puzzle.size)
         const status: Status = isGridSolved(state.puzzle, values) ? 'solved' : 'playing'
-        return { ...state, ...history, values, marks, status, hint: IDLE_HINT }
+        return { ...state, ...history, ...judged, values, marks, status, hint: IDLE_HINT }
       }
 
       // mark mode: only pencil-mark empty cells
       if (state.values[selected] != null) return state
       const marks = state.marks.slice()
       marks[selected] = toggleMark(marks[selected], value)
-      return { ...state, ...history, marks, hint: IDLE_HINT }
+      return { ...state, ...history, ...judged, marks, hint: IDLE_HINT }
     }
 
     case 'ERASE': {
@@ -268,7 +322,16 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const marks = state.marks.slice()
       marks[selected] = []
       const status: Status = isGridSolved(state.puzzle, values) ? 'solved' : 'playing'
-      return { ...state, ...history, values, marks, status, hint: IDLE_HINT }
+      return {
+        ...state,
+        ...history,
+        values,
+        marks,
+        status,
+        hint: IDLE_HINT,
+        verdict: afterEdit(state.verdict, selected),
+        placed: NOTHING_PLACED,
+      }
     }
 
     case 'SET_MODE':
@@ -307,7 +370,18 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const recentHints = prev.hintSignature
         ? popSignature(state.recentHints, prev.hintSignature)
         : state.recentHints
-      return { ...state, ...restore(prev), past, future, recentHints, hint: IDLE_HINT }
+      // A whole snapshot moved under it, so nothing the check said still names
+      // the board it was looking at — red included.
+      return {
+        ...state,
+        ...restore(prev),
+        past,
+        future,
+        recentHints,
+        hint: IDLE_HINT,
+        verdict: NO_VERDICT,
+        placed: NOTHING_PLACED,
+      }
     }
 
     case 'REDO': {
@@ -318,7 +392,16 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const recentHints = next.hintSignature
         ? pushSignature(state.recentHints, next.hintSignature)
         : state.recentHints
-      return { ...state, ...restore(next), past, future, recentHints, hint: IDLE_HINT }
+      return {
+        ...state,
+        ...restore(next),
+        past,
+        future,
+        recentHints,
+        hint: IDLE_HINT,
+        verdict: NO_VERDICT,
+        placed: NOTHING_PLACED,
+      }
     }
 
     case 'RESET': {
@@ -330,6 +413,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         marks: emptyMarks(state.puzzle.size),
         status: 'playing',
         hint: IDLE_HINT,
+        verdict: NO_VERDICT,
+        placed: NOTHING_PLACED,
         recentHints: [],
       }
     }
@@ -349,17 +434,22 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     /*
-     * The second press. Everything the hint writes — values, the placed cells'
-     * own marks, and the peer mark cleanup a player would do by hand — happens
-     * against one `pushHistory`, so the whole hint is a single undo step no
-     * matter how many cells it touches.
+     * Everything the hint writes — values, the placed cells' own marks, and the
+     * peer mark cleanup a player would do by hand — happens against one
+     * `pushHistory`, so the whole hint is a single undo step no matter how many
+     * cells it touches.
      */
     case 'APPLY_HINT': {
       const { apply, visible, signature } = action
       if (apply.cells.length === 0) return { ...state, hint: IDLE_HINT }
       const history = pushHistory(state, signature)
-      const recentHints = pushSignature(state.recentHints, signature)
+      const recentHints = signature
+        ? pushSignature(state.recentHints, signature)
+        : state.recentHints
       const size = state.puzzle.size
+      // Placing a digit here says nothing about the cells the check already
+      // called wrong, so only the green goes.
+      const verdict: Verdict = { correct: [], incorrect: state.verdict.incorrect }
 
       if (apply.kind === 'place') {
         const values = state.values.slice()
@@ -372,7 +462,17 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         // goes with a placement whether or not the player has it automated.
         for (const { cell, value } of apply.cells) clearPeerMarks(marks, cell, value, size)
         const status: Status = isGridSolved(state.puzzle, values) ? 'solved' : 'playing'
-        return { ...state, ...history, values, marks, status, recentHints, hint: IDLE_HINT }
+        return {
+          ...state,
+          ...history,
+          values,
+          marks,
+          status,
+          recentHints,
+          hint: IDLE_HINT,
+          verdict,
+          placed: apply.cells.map((entry) => entry.cell),
+        }
       }
 
       // An elimination on a bare cell would otherwise change nothing the player
@@ -382,7 +482,42 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         const base = marks[cell].length > 0 ? marks[cell] : (visible[cell] ?? [])
         marks[cell] = base.filter((d) => !digits.includes(d)).sort((a, b) => a - b)
       }
-      return { ...state, ...history, marks, recentHints, hint: IDLE_HINT }
+      return {
+        ...state,
+        ...history,
+        marks,
+        recentHints,
+        hint: IDLE_HINT,
+        verdict,
+        placed: NOTHING_PLACED,
+      }
+    }
+
+    /*
+     * The check speaks about the whole board at once, so it takes the board
+     * over from whatever the panel was explaining: a hint's dim and rings would
+     * only argue with the verdict now painted over the same cells.
+     */
+    case 'CHECK_CORRECTNESS':
+      return {
+        ...state,
+        hint: IDLE_HINT,
+        verdict: { correct: action.report.correct, incorrect: action.report.incorrect },
+        placed: NOTHING_PLACED,
+      }
+
+    /*
+     * The player's next move, whatever it was. Green is a claim about the board
+     * as it stood a moment ago and expires with the moment; red is a claim about
+     * a cell and is dropped by that cell's own edit instead.
+     */
+    case 'CLEAR_FEEDBACK': {
+      if (state.verdict.correct.length === 0 && state.placed.length === 0) return state
+      return {
+        ...state,
+        verdict: { correct: [], incorrect: state.verdict.incorrect },
+        placed: NOTHING_PLACED,
+      }
     }
 
     case 'DISMISS_HINT':

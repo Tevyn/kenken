@@ -3,11 +3,9 @@ import type { Difficulty } from '../engine/types'
 import type { Theme } from '../game/preferences'
 import { RestartIcon } from './icons'
 import { NewGameMenu } from './NewGameMenu'
+import type { OpenMenu } from './Popover'
 import { SettingsMenu } from './SettingsMenu'
 import './Controls.css'
-
-/** Which popover, if any, is open. Only ever one at a time. */
-export type OpenMenu = 'new-game' | 'settings' | null
 
 export interface ControlsProps {
   /** The size currently being played; shown as the current choice in the wizard. */
@@ -29,7 +27,8 @@ export interface ControlsProps {
   /**
    * The open popover, owned by the app rather than by this component: a popover
    * takes the keyboard away from the board while it is open, so whoever owns
-   * the board's shortcuts has to know one is open.
+   * the board's shortcuts has to know one is open. The slot is shared with the
+   * keypad's hint panel, so opening either header trigger closes that too.
    */
   openMenu: OpenMenu
   onOpenMenuChange: (menu: OpenMenu) => void

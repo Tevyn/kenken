@@ -15,7 +15,14 @@ function baseProps(mode: Mode = 'value') {
     onRedo: vi.fn(),
     canUndo: true,
     canRedo: true,
-    onHint: vi.fn(),
+    hint: {
+      open: false,
+      onOpenChange: vi.fn(),
+      text: null,
+      onCorrectness: vi.fn(),
+      onTip: vi.fn(),
+      onNumber: vi.fn(() => true),
+    },
   }
 }
 
@@ -42,9 +49,10 @@ describe('Keypad', () => {
   })
 
   /*
-   * The labels are the accessible names now, rather than an `aria-label`
+   * The labels are the accessible names, rather than an `aria-label`
    * duplicating a glyph nobody could read. Nothing carries a `title`, so
-   * nothing hovers.
+   * nothing hovers. Hint is the exception on `aria-label` only, because every
+   * popover trigger in the app names its panel that way.
    */
   it('each of the five actions pairs a glyph with a visible label', () => {
     const { container } = render(<Keypad {...baseProps()} />)
@@ -52,7 +60,6 @@ describe('Keypad', () => {
     expect(actions).toHaveLength(5)
     for (const action of actions) {
       expect(action).not.toHaveAttribute('title')
-      expect(action).not.toHaveAttribute('aria-label')
       expect(action.querySelector('svg')).not.toBeNull()
       expect(action.querySelector('.kk-control__label')?.textContent).toBeTruthy()
     }
@@ -115,24 +122,33 @@ describe('Keypad', () => {
     expect(props.onRedo).toHaveBeenCalledTimes(1)
   })
 
-  it('hint button calls onHint and advertises its shortcut', async () => {
+  it('the hint button opens a panel rather than acting, and advertises its shortcut', async () => {
     const user = userEvent.setup()
     const props = baseProps()
     render(<Keypad {...props} />)
+
     const hint = screen.getByRole('button', { name: 'Hint' })
     expect(hint).toHaveAttribute('aria-keyshortcuts', 'H')
+    expect(hint).toHaveAttribute('aria-haspopup', 'dialog')
+    expect(hint).toHaveAttribute('aria-expanded', 'false')
+
     await user.click(hint)
-    expect(props.onHint).toHaveBeenCalledTimes(1)
+    expect(props.hint.onOpenChange).toHaveBeenCalledWith(true)
+    // The keypad owns none of it: nothing opens until the owner says so.
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
   /*
-   * Hint is not a toggle, so an OFF/ON badge would be nonsense - the label is
-   * where a transient armed state gets said out loud.
+   * The button no longer renames itself, because nothing is ever armed behind
+   * it: one press opens the panel, and the panel's own choices act.
    */
-  it('the hint button renames itself to "Apply" once a hint is waiting', () => {
-    render(<Keypad {...baseProps()} hintPending />)
-    const hint = screen.getByRole('button', { name: 'Apply' })
-    expect(hint).toHaveAttribute('aria-keyshortcuts', 'H')
-    expect(screen.queryByRole('button', { name: 'Hint' })).not.toBeInTheDocument()
+  it('the hint button keeps its label whatever the panel is doing', () => {
+    const props = baseProps()
+    const { rerender } = render(<Keypad {...props} />)
+    expect(screen.getByRole('button', { name: 'Hint' })).toBeInTheDocument()
+
+    rerender(<Keypad {...props} hint={{ ...props.hint, open: true, text: 'This cell has to be 2' }} />)
+    expect(screen.getByRole('button', { name: 'Hint' })).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.queryByRole('button', { name: 'Apply' })).not.toBeInTheDocument()
   })
 })

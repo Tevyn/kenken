@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react'
-import { findHint, revealHint, visibleSets } from '../engine'
+import { checkCorrectness, findHint, findNextNumber } from '../engine'
 import type { CellIndex, Puzzle } from '../engine/types'
 import type { Direction, GameAction, Mode } from './state'
 import { createInitialState, gameReducer, hintHighlight } from './state'
@@ -26,6 +26,12 @@ export interface UseGameOptions {
    * read on every render, not just at mount.
    */
   suspended?: boolean
+  /**
+   * The `H` shortcut. Forwarded rather than handled, because the panel it opens
+   * is owned above the game — opening one is what sets `suspended` — and the
+   * game has no business reaching up to open it.
+   */
+  onRequestHint?: () => void
 }
 
 function directionForKey(key: string): Direction | null {
@@ -52,8 +58,8 @@ function directionForKey(key: string): Direction | null {
  * - Backspace / Delete: erase the selected cell.
  * - Space: toggle value/mark input mode.
  * - Ctrl/Cmd+Z: undo. Ctrl/Cmd+Shift+Z or Ctrl+Y: redo.
- * - H: hint. The first press explains a step, the second applies it.
- * - Escape: dismiss the hint currently on screen.
+ * - H: open the hint panel, via `options.onRequestHint`.
+ * - Escape: dismiss the hint left on the board after the panel closed.
  *
  * Ignored while a text input, textarea, select, or contenteditable element is
  * focused, and ignored entirely while `options.suspended` is set — that is how
@@ -71,12 +77,20 @@ export function useGame(initialPuzzle: Puzzle, options?: UseGameOptions) {
     createInitialState(puzzle, initialAutoClearMarks),
   )
 
-  // `pressHint` has to read the live grid but must stay identity-stable for the
-  // keyboard listener, so it reads state through a ref rather than closing over it.
+  // The panel's three choices all have to read the live grid but must stay
+  // identity-stable for the popover that hangs off them, so they read state
+  // through a ref rather than closing over it.
   const stateRef = useRef(state)
   useEffect(() => {
     stateRef.current = state
   }, [state])
+
+  // Same trick for the H shortcut: the listener below is installed once, so it
+  // must not close over a callback the owner is free to redefine every render.
+  const requestHintRef = useRef(options?.onRequestHint)
+  useEffect(() => {
+    requestHintRef.current = options?.onRequestHint
+  }, [options?.onRequestHint])
 
   const select = useCallback((index: CellIndex) => dispatch({ type: 'SELECT', index }), [])
   const move = useCallback((direction: Direction) => dispatch({ type: 'MOVE', direction }), [])
@@ -92,43 +106,53 @@ export function useGame(initialPuzzle: Puzzle, options?: UseGameOptions) {
   const redo = useCallback(() => dispatch({ type: 'REDO' }), [])
   const reset = useCallback(() => dispatch({ type: 'RESET' }), [])
   const newPuzzle = useCallback((puzzle: Puzzle) => dispatch({ type: 'NEW_PUZZLE', puzzle }), [])
-  const dismissHint = useCallback(() => dispatch({ type: 'DISMISS_HINT' }), [])
+
+  /** Options every ladder call shares: bias toward the cursor, skip what was just applied. */
+  const hintOptions = useCallback(() => {
+    const current = stateRef.current
+    return { near: current.selected, recent: current.recentHints }
+  }, [])
 
   /**
-   * One press of the Hint button (docs/HINTS.md §7.1).
-   *
-   * From `shown` it applies the hint that is already on screen; from `idle` or
-   * `message` it looks for a new one. `findHint` is pure but not free, so it is
-   * called here, on the press, and never during render or in an effect.
+   * The panel's Tip choice: explain the easiest step available, in words and in
+   * highlight. `findHint` is pure but not free, so it is called here, on the
+   * press, and never during render or in an effect.
    */
-  const pressHint = useCallback(() => {
+  const showHint = useCallback(() => {
     const current = stateRef.current
-
-    if (current.hint.kind === 'shown') {
-      const { apply, signature } = current.hint.hint
-      // Only an elimination consults `visible`, so only it pays for the fixpoint.
-      const visible =
-        apply.kind === 'eliminate'
-          ? visibleSets(current.puzzle, current.values, current.marks)
-          : []
-      dispatch({ type: 'APPLY_HINT', apply, visible, signature })
-      return
-    }
-
-    // `idle`, or a message being retried — the mistake it named may be fixed by now.
-    const result = findHint(current.puzzle, current.values, current.marks, {
-      near: current.selected,
-      recent: current.recentHints,
-    })
+    const result = findHint(current.puzzle, current.values, current.marks, hintOptions())
     dispatch({ type: 'REQUEST_HINT', result })
+  }, [hintOptions])
+
+  /** The panel's Correctness choice: judge every filled cell against the solution. */
+  const checkBoard = useCallback(() => {
+    const current = stateRef.current
+    dispatch({ type: 'CHECK_CORRECTNESS', report: checkCorrectness(current.puzzle, current.values) })
   }, [])
 
-  /** The `stuck` escape hatch: turn a revealed cell into an ordinary shown hint. */
-  const revealCell = useCallback(() => {
+  /**
+   * The panel's Number choice: write the next digit the ladder would reach.
+   *
+   * Reports whether it wrote one, because the panel has to decide between
+   * getting out of the way and staying open to explain itself. Nothing to place
+   * means the ladder had something else to say — a mistake, a dead end, a
+   * finished grid — so that is what goes on screen instead of silence.
+   */
+  const placeNumber = useCallback((): boolean => {
     const current = stateRef.current
-    const hint = revealHint(current.puzzle, current.values, { near: current.selected })
-    dispatch({ type: 'REQUEST_HINT', result: { kind: 'hint', hint } })
-  }, [])
+    const options = hintOptions()
+    const next = findNextNumber(current.puzzle, current.values, current.marks, options)
+    if (!next) {
+      dispatch({
+        type: 'REQUEST_HINT',
+        result: findHint(current.puzzle, current.values, current.marks, options),
+      })
+      return false
+    }
+    // `visible` is only ever read by the eliminate branch, and this is a placement.
+    dispatch({ type: 'APPLY_HINT', apply: { kind: 'place', cells: [next] }, visible: [] })
+    return true
+  }, [hintOptions])
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -176,7 +200,7 @@ export function useGame(initialPuzzle: Puzzle, options?: UseGameOptions) {
       // Bare H only: Ctrl/Cmd+H belongs to the browser.
       if (!isMeta && (event.key === 'h' || event.key === 'H')) {
         event.preventDefault()
-        pressHint()
+        requestHintRef.current?.()
         return
       }
 
@@ -194,12 +218,38 @@ export function useGame(initialPuzzle: Puzzle, options?: UseGameOptions) {
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [pressHint, suspended])
+  }, [suspended])
+
+  const expiring = state.verdict.correct.length > 0 || state.placed.length > 0
+
+  /*
+   * The green treatments last exactly one move: a confirmed cell and a
+   * placed digit are both statements about the board as the player left it, and
+   * the moment they touch it again the statement is about something else.
+   *
+   * `mousedown` and `keydown` rather than `click` and `keyup`, and that is the
+   * whole trick: both states are created by a `click` on a panel button, and a
+   * click is the *end* of an interaction that began with a mousedown (or, for
+   * Enter on a button, with a keydown whose default action dispatches the
+   * click). So the press that asked for the treatment is already spent by the
+   * time this listener exists, and the next one — anywhere on the page — is the
+   * first it can possibly see. No timer, and no dependence on when effects run.
+   */
+  useEffect(() => {
+    if (!expiring) return
+    function clear() {
+      dispatch({ type: 'CLEAR_FEEDBACK' })
+    }
+    window.addEventListener('mousedown', clear)
+    window.addEventListener('keydown', clear)
+    return () => {
+      window.removeEventListener('mousedown', clear)
+      window.removeEventListener('keydown', clear)
+    }
+  }, [expiring])
 
   const canUndo = state.past.length > 0
   const canRedo = state.future.length > 0
-  /** True when a hint is explained and waiting for the second press. */
-  const hintPending = state.hint.kind === 'shown'
   const highlight = useMemo(() => hintHighlight(state.hint), [state.hint])
 
   return useMemo(
@@ -217,12 +267,11 @@ export function useGame(initialPuzzle: Puzzle, options?: UseGameOptions) {
       redo,
       reset,
       newPuzzle,
-      pressHint,
-      dismissHint,
-      revealCell,
+      showHint,
+      checkBoard,
+      placeNumber,
       canUndo,
       canRedo,
-      hintPending,
       highlight,
     }),
     [
@@ -238,12 +287,11 @@ export function useGame(initialPuzzle: Puzzle, options?: UseGameOptions) {
       redo,
       reset,
       newPuzzle,
-      pressHint,
-      dismissHint,
-      revealCell,
+      showHint,
+      checkBoard,
+      placeNumber,
       canUndo,
       canRedo,
-      hintPending,
       highlight,
     ],
   )

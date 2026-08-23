@@ -25,7 +25,7 @@ The app is a full-height column of three zones, in this order:
 |---|---|---|
 | **Header** | Wordmark, puzzle meta, new game, settings | Fixed height, hugs the top |
 | **Play** | The board, centred | `flex: 1` — absorbs all leftover height |
-| **Controls** | Hint slot, action row, digit pad | Fixed height, anchored to the bottom |
+| **Controls** | Action row, digit pad | Fixed height, anchored to the bottom |
 
 The controls are **anchored to the bottom of the viewport**, in the thumb zone.
 The play zone takes whatever height is left and centres the board inside it.
@@ -66,11 +66,17 @@ is comfortable on a 375px screen.
 
 ### 1.4 Reserved slots
 
-Any element that appears and disappears during play reserves its space.
-Specifically the hint banner: it sits between the board and the controls and
-must hold a `min-height` while idle. It previously collapsed to `0`, so an
-arriving hint shoved the entire keypad down under the player's thumb at the
-exact moment they were reading.
+Any element that appears and disappears **inside the layout flow** reserves its
+space. The hint banner is the case this rule was written for: it sat between the
+board and the controls, collapsed to `0` while idle, and an arriving hint shoved
+the entire keypad down under the player's thumb at the exact moment they started
+reading.
+
+That banner is gone. The hint now arrives in a popover, floating over the
+action row instead of displacing it — which is the other way to satisfy the
+rule, and the better one where it is available: an element that is not in the
+flow cannot push anything. What stays forbidden is
+the third option, a flow element that grows from nothing.
 
 ### 1.5 Spacing scale
 
@@ -120,8 +126,16 @@ is never decorative and never used to draw the eye to something the player did
 not ask about. It is applied as **ink** — the colour of the glyph or the word
 itself — and as a fill only for board state and state badges (§4.1).
 
-Everything else is neutral grey. Only two colours break the monochrome, and
-both are status, not accent: red for a proven error, green for the win state.
+Everything else is neutral grey. Two colours break the monochrome, and both are
+status rather than accent: **red is "this is wrong", green is "this is right".**
+
+Each carries more than one claim, deliberately. Red is a proven contradiction —
+a repeated digit, a cage that can no longer be completed — *and* an entry the
+correctness check found disagrees with the solution. The two are reached
+differently, but they are the same news to a player, so they get one appearance.
+Green is the win state, a cell the check confirmed, and a digit the hint panel
+placed on the player's behalf. What tells those apart is the channel each lands
+in (§5.1), never a second hue.
 
 ### 2.2 Tokens
 
@@ -251,9 +265,18 @@ this replaces — a rounded, tinted surface with a hairline border and a lit top
 edge — was that second language, and it made a menu read as chrome floating over
 the puzzle instead of as part of it.
 
-Panels are **centred**, never hung off their trigger. Both header panels are
-wide enough that anchoring one to a corner left it lopsided, and centring puts
-the choice where the player is already looking.
+Panels are **centred**, never hung off their trigger. All three — New game,
+Settings and Hint — are wide enough that anchoring one to a corner left it
+lopsided, and centring puts the choice where the player is already looking.
+
+**A panel opened by a trigger carries a close button**, in the same corner every
+time, and it is the last stop in the panel's Tab cycle rather than the first —
+entry focus belongs on the content, not on the way out. Escape and a press
+outside do the same job, but neither is visible, and a player using a pointer
+should not have to guess. It stays small: an escape hatch is never the loudest
+thing on the panel (§10.3). A panel with no trigger is not always a popover and
+does not get one automatically — the solved dialog offers the move that follows
+instead, and a dismiss button beside it would make leaving look like a decision.
 
 ---
 
@@ -317,9 +340,11 @@ like, which a first-time player does not.
 - **A persistent toggle carries a literal `OFF`/`ON` badge**, visible in both
   states, on the glyph's shoulder. Notes is the live case. `aria-pressed`
   carries the same fact for assistive tech.
-- **A transient state renames the control.** Hint becomes **Apply** once a hint
-  is explained and the next press will write it in. An `OFF` badge on Hint
-  would be nonsense — it is not a toggle.
+- **A transient state renames the control**, where a control has one. Hint used
+  to become **Apply** while an explained hint waited for a second press; that
+  press is gone, and Hint now opens a panel and says nothing else. The rule
+  stands for the next control that needs it — an `OFF` badge on something that
+  is not a toggle would be nonsense.
 - **Every icon action carries a visible text label**, and that label is the
   accessible name. No `aria-label` duplicating a glyph nobody can read, and no
   `title`, so nothing hovers.
@@ -382,12 +407,22 @@ channel so they never have to fight for one property:
 | Hint band | Fill | Accent, very low strength (only ever while dimmed) |
 | Hint support | Fill | Accent, low strength |
 | **Hint focus** | Ring | Accent ring, inset |
+| **Correct** | Ring | `--success` ring, inset. Gone on the player's next move |
 | **Error** | Ring + text | `--danger` ring, `--danger` value at weight 700 |
+| **Incorrect** | Ring + text | The error treatment exactly. Held until *that cell* is edited |
+| Placed by a hint | Text | `--success` value, italic. Gone on the player's next move |
 | Hint dim | Opacity | Everything not named by the hint drops to ~0.4 |
 
 Precedence: **the error ring always wins the ring channel.** Fill and ring are
 different channels, so a cell that is selected, wrong, and a hint's focus still
 reads as all three.
+
+Correct and incorrect are the same ring in two colours, which is the one place
+in this table where colour comes close to carrying a state alone. It does not:
+both are named in the cell's accessible name, and the two can never appear on
+the same cell to be confused with one another. A placed digit is safe in the
+text channel for the same reason — it is by construction correct, so it never
+has to argue with the red value it would otherwise collide with.
 
 ### 5.2 Why hints share the accent hue
 
@@ -398,7 +433,7 @@ That separation is no longer needed, because a hint changes the *whole board*:
 `dimRest` drops every uninvolved cell to 40% opacity. Nothing else in the app
 does that, so hint mode is unmistakable from context before colour is even
 considered. Within that mode, geometry separates the two meanings — **selection
-is a fill, the hint's conclusion is a ring** — and the hint banner names the
+is a fill, the hint's conclusion is a ring** — and the hint panel names the
 conclusion in prose besides.
 
 One hue, one meaning. If in practice the ring and the fill turn out to be
@@ -409,9 +444,11 @@ than to reintroduce a second hue.
 
 ## 6. Feedback and copy
 
-- **The hint banner** is the app's voice: full sentences, plain English,
-  explain before applying. It reserves its slot (§1.4) and its text lives in an
-  `aria-live="polite"` region.
+- **The hint panel** is the app's voice: one short sentence, plain English, no
+  technique names. It floats over the action row rather than sitting in the
+  layout (§1.4), and focus moves onto the sentence as it arrives, which is what
+  reads it aloud — a live region inside a dialog the reader has only just
+  entered competes with the dialog's own announcement.
 - **Errors are shown on the cells**, not narrated in a banner. The board's live
   region announces them for screen readers only.
 - **Never punish.** No "wrong!", no counters, no red banners. An error is a red

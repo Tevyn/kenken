@@ -787,3 +787,125 @@ describe('hintHighlight', () => {
     ).toBeUndefined()
   })
 })
+
+/* ------------------------------------------------------------------ */
+/* The correctness check                                                */
+/* ------------------------------------------------------------------ */
+
+/** A board with cell 0 right and cell 1 wrong, already judged. */
+function judged(): GameState {
+  const wrong = SOLUTION[1] === 1 ? 2 : 1
+  const state = enter(enter(fresh(), 0, SOLUTION[0] as number), 1, wrong)
+  return gameReducer(state, {
+    type: 'CHECK_CORRECTNESS',
+    report: { correct: [0], incorrect: [1] },
+  })
+}
+
+describe('CHECK_CORRECTNESS', () => {
+  it('records the report and takes the board over from any hint on it', () => {
+    const state = gameReducer(shown(fresh(), fakeHint()), {
+      type: 'CHECK_CORRECTNESS',
+      report: { correct: [0], incorrect: [1] },
+    })
+    expect(state.verdict).toEqual({ correct: [0], incorrect: [1] })
+    expect(state.hint).toEqual({ kind: 'idle' })
+  })
+
+  it('is not an edit: nothing to undo, nothing changed on the grid', () => {
+    const before = enter(fresh(), 0, 1)
+    const after = gameReducer(before, {
+      type: 'CHECK_CORRECTNESS',
+      report: { correct: [0], incorrect: [] },
+    })
+    expect(after.past).toEqual(before.past)
+    expect(after.values).toBe(before.values)
+  })
+})
+
+/*
+ * Two lifetimes, and the split is the point: green is a claim about the board
+ * as it stood a moment ago, red is a claim about one cell.
+ */
+describe('the two halves of a verdict expire differently', () => {
+  it('CLEAR_FEEDBACK drops the green and keeps the red', () => {
+    const state = gameReducer(judged(), { type: 'CLEAR_FEEDBACK' })
+    expect(state.verdict).toEqual({ correct: [], incorrect: [1] })
+  })
+
+  it('CLEAR_FEEDBACK with nothing to clear is a no-op', () => {
+    const settled = gameReducer(judged(), { type: 'CLEAR_FEEDBACK' })
+    expect(gameReducer(settled, { type: 'CLEAR_FEEDBACK' })).toBe(settled)
+
+    const untouched = fresh()
+    expect(gameReducer(untouched, { type: 'CLEAR_FEEDBACK' })).toBe(untouched)
+  })
+
+  it('red survives an edit to any cell but its own', () => {
+    const elsewhere = enter(judged(), 5, 1)
+    expect(elsewhere.verdict.incorrect).toEqual([1])
+
+    const itsOwn = enter(judged(), 1, 3)
+    expect(itsOwn.verdict.incorrect).toEqual([])
+  })
+
+  it('erasing the offending cell drops its red too', () => {
+    const state = gameReducer(gameReducer(judged(), { type: 'SELECT', index: 1 }), {
+      type: 'ERASE',
+    })
+    expect(state.verdict.incorrect).toEqual([])
+  })
+
+  it('any edit ends the green, wherever it lands', () => {
+    expect(enter(judged(), 5, 1).verdict.correct).toEqual([])
+  })
+
+  /* A whole snapshot moved underneath, so the check is not about this board. */
+  it('undo and redo drop the verdict entirely', () => {
+    const undone = gameReducer(judged(), { type: 'UNDO' })
+    expect(undone.verdict).toEqual({ correct: [], incorrect: [] })
+    expect(gameReducer(undone, { type: 'REDO' }).verdict).toEqual({ correct: [], incorrect: [] })
+  })
+
+  it('reset and a new puzzle drop it as well', () => {
+    expect(gameReducer(judged(), { type: 'RESET' }).verdict).toEqual({
+      correct: [],
+      incorrect: [],
+    })
+    expect(
+      gameReducer(judged(), { type: 'NEW_PUZZLE', puzzle: SAMPLE_PUZZLE }).verdict,
+    ).toEqual({ correct: [], incorrect: [] })
+  })
+})
+
+describe('a hint-written placement is marked until the next move', () => {
+  it('APPLY_HINT names the cells it filled', () => {
+    expect(applied(fresh(), fakeHint()).placed).toEqual([14])
+  })
+
+  it('CLEAR_FEEDBACK strips the mark without touching the digit', () => {
+    const state = gameReducer(applied(fresh(), fakeHint()), { type: 'CLEAR_FEEDBACK' })
+    expect(state.placed).toEqual([])
+    expect(state.values[14]).toBe(2)
+  })
+
+  it('placing says nothing about cells the check already called wrong', () => {
+    const state = applied(judged(), fakeHint())
+    expect(state.verdict).toEqual({ correct: [], incorrect: [1] })
+  })
+
+  /*
+   * The Number choice has no technique to name, so it brings no signature and
+   * the ring buffer stays truthful about what was actually applied.
+   */
+  it('an unsigned APPLY_HINT remembers nothing', () => {
+    const state = gameReducer(fresh(), {
+      type: 'APPLY_HINT',
+      apply: { kind: 'place', cells: [{ cell: 14, value: 2 }] },
+      visible: [],
+    })
+    expect(state.values[14]).toBe(2)
+    expect(state.recentHints).toEqual([])
+    expect(gameReducer(state, { type: 'UNDO' }).values[14]).toBeNull()
+  })
+})

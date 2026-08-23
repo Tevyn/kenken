@@ -7,9 +7,8 @@ import { applyTheme, loadAutoClearMarks, loadTheme, saveAutoClearMarks, saveThem
 import { useGame } from './game/useGame'
 import { Board } from './ui/Board'
 import { Controls } from './ui/Controls'
-import type { OpenMenu } from './ui/Controls'
-import { HintPanel } from './ui/HintPanel'
 import { Keypad } from './ui/Keypad'
+import type { OpenMenu } from './ui/Popover'
 import { WinDialog } from './ui/WinDialog'
 import './App.css'
 
@@ -17,9 +16,10 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   /*
-   * Which header popover is open lives here, not in `Controls`: an open panel
-   * is modal enough to own the keyboard, so the game's shortcuts have to know
-   * about it.
+   * Which popover is open lives here, not with any of them: an open panel is
+   * modal enough to own the keyboard, so the game's shortcuts have to know
+   * about it. One slot for all three, so opening the hint panel closes the
+   * wizard and vice versa.
    */
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null)
   /*
@@ -35,6 +35,12 @@ function App() {
   const [solvedSeen, setSolvedSeen] = useState(false)
   const [winDismissed, setWinDismissed] = useState(false)
   const winOpen = solvedSeen && !winDismissed
+
+  const openHint = useCallback(() => setOpenMenu('hint'), [])
+  const handleHintOpenChange = useCallback(
+    (open: boolean) => setOpenMenu(open ? 'hint' : null),
+    [],
+  )
 
   // Lazy initialiser so storage is read once, at mount, rather than on every render.
   const [initialAutoClearMarks] = useState(loadAutoClearMarks)
@@ -55,7 +61,22 @@ function App() {
   const game = useGame(SAMPLE_PUZZLE, {
     autoClearMarks: initialAutoClearMarks,
     suspended: openMenu !== null || winOpen,
+    onRequestHint: openHint,
   })
+
+  /*
+   * The panel prints whatever the game last worked out, whichever choice asked
+   * for it — a hint, or the reason there was no number to place. `secondary` is
+   * deliberately not shown: the technique's proper name is still on the type,
+   * but naming it here would put jargon in front of a player who asked for a
+   * sentence.
+   */
+  const hintText =
+    game.state.hint.kind === 'shown'
+      ? game.state.hint.hint.text
+      : game.state.hint.kind === 'message'
+        ? game.state.hint.message.text
+        : null
 
   const newPuzzle = game.newPuzzle
   const setAutoClearMarks = game.setAutoClearMarks
@@ -201,9 +222,7 @@ function App() {
 
       {/*
         The play zone absorbs all the leftover height (STYLE_GUIDE.md §1.1), so
-        the board sits centred in whatever the header and controls leave. The
-        hint banner lives here rather than with the controls for the same
-        reason: it can appear and disappear without the keypad moving.
+        the board sits centred in whatever the header and controls leave.
       */}
       <main className="kk-app__play" aria-busy={loading || undefined}>
         <div className="kk-app__stage">
@@ -215,6 +234,8 @@ function App() {
               selected={game.state.selected}
               errors={errors}
               highlight={game.highlight}
+              verdict={game.state.verdict}
+              placed={game.state.placed}
               onSelect={game.select}
             />
           </div>
@@ -225,12 +246,6 @@ function App() {
             </p>
           )}
         </div>
-
-        <HintPanel
-          phase={game.state.hint}
-          onDismiss={game.dismissHint}
-          onReveal={game.revealCell}
-        />
       </main>
 
       {/* Anchored to the bottom, in the thumb zone, and never moved by anything
@@ -246,8 +261,14 @@ function App() {
           onRedo={game.redo}
           canUndo={game.canUndo}
           canRedo={game.canRedo}
-          onHint={game.pressHint}
-          hintPending={game.hintPending}
+          hint={{
+            open: openMenu === 'hint',
+            onOpenChange: handleHintOpenChange,
+            text: hintText,
+            onCorrectness: game.checkBoard,
+            onTip: game.showHint,
+            onNumber: game.placeNumber,
+          }}
         />
       </div>
 

@@ -1,6 +1,8 @@
 import type { CSSProperties } from 'react'
 import type { Mode } from '../game/state'
-import { EraseIcon, HintIcon, MarksIcon, RedoIcon, UndoIcon } from './icons'
+import { HintMenu } from './HintMenu'
+import type { HintMenuProps } from './HintMenu'
+import { EraseIcon, MarksIcon, RedoIcon, UndoIcon } from './icons'
 import './Keypad.css'
 
 export interface KeypadProps {
@@ -13,10 +15,13 @@ export interface KeypadProps {
   onRedo: () => void
   canUndo: boolean
   canRedo: boolean
-  /** One press of the hint button: explain a step, or apply the one on screen. */
-  onHint: () => void
-  /** True once a hint is explained and the next press will apply it. */
-  hintPending?: boolean
+  /**
+   * Everything the hint popover needs, passed through untouched. Grouped
+   * because it is one control's worth of wiring and the keypad only hosts it:
+   * the panel reads the grid and writes to it, which is the owner's business
+   * rather than the digit pad's.
+   */
+  hint: HintMenuProps
 }
 
 /**
@@ -29,8 +34,8 @@ export interface KeypadProps {
  *
  * The five actions carry a visible label under the glyph rather than relying
  * on an icon alone, and state is spelled out rather than tinted: Notes shows a
- * literal OFF/ON badge, and Hint renames itself to "Apply" once a hint is on
- * the board waiting to be written in.
+ * literal OFF/ON badge. Hint is the odd one out - it opens a panel rather than
+ * doing anything itself, so it is a popover trigger wearing the same stack.
  */
 export function Keypad({
   size,
@@ -42,8 +47,7 @@ export function Keypad({
   onRedo,
   canUndo,
   canRedo,
-  onHint,
-  hintPending = false,
+  hint,
 }: KeypadProps) {
   const digits = Array.from({ length: size }, (_, i) => i + 1)
 
@@ -106,19 +110,7 @@ export function Keypad({
           </span>
           <span className="kk-control__label">Notes</span>
         </button>
-        {/*
-          Not a toggle, so no OFF/ON badge would make sense here - "armed" is a
-          transient state, and the label is the honest place to say it.
-        */}
-        <button
-          type="button"
-          className="kk-control kk-control--stack kk-keypad__action"
-          onClick={onHint}
-          aria-keyshortcuts="H"
-        >
-          <HintIcon size={22} />
-          <span className="kk-control__label">{hintPending ? 'Apply' : 'Hint'}</span>
-        </button>
+        <HintMenu {...hint} />
       </div>
 
       <div

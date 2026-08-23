@@ -1,13 +1,16 @@
 import { render } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import {
+  CorrectnessIcon,
   EraseIcon,
   HintIcon,
   MarksIcon,
   MenuIcon,
   NewGameIcon,
+  NumberIcon,
   RedoIcon,
   RestartIcon,
+  TipIcon,
   UndoIcon,
 } from './icons'
 
@@ -20,6 +23,9 @@ const icons = [
   ['MenuIcon', MenuIcon],
   ['NewGameIcon', NewGameIcon],
   ['RestartIcon', RestartIcon],
+  ['CorrectnessIcon', CorrectnessIcon],
+  ['TipIcon', TipIcon],
+  ['NumberIcon', NumberIcon],
 ] as const
 
 /**
@@ -118,6 +124,31 @@ describe('icons', () => {
     expect(
       serializeGeometry(newGameContainer.querySelector('svg') as SVGSVGElement),
     ).not.toEqual(serializeGeometry(restartContainer.querySelector('svg') as SVGSVGElement))
+  })
+
+  it('CorrectnessIcon draws a tick and a cross, not a lone tick', () => {
+    // A single mark is the "you win" glyph. This control is offered mid-solve
+    // on a board that may be entirely wrong, so the cross has to be there.
+    const { container } = render(<CorrectnessIcon />)
+    const svg = container.querySelector('svg') as SVGSVGElement
+    expect(svg.querySelectorAll('path, line')).toHaveLength(3)
+  })
+
+  it('TipIcon is its own glyph, not the lightbulb that opens the menu', () => {
+    const { container: tipContainer } = render(<TipIcon />)
+    const { container: hintContainer } = render(<HintIcon />)
+    const tip = serializeGeometry(tipContainer.querySelector('svg') as SVGSVGElement)
+    const hint = serializeGeometry(hintContainer.querySelector('svg') as SVGSVGElement)
+    expect(tip).not.toEqual(hint)
+  })
+
+  it('NumberIcon fills the cell it marks rather than outlining it', () => {
+    // The inherited 2-unit stroke would grow the block back out over the grid
+    // lines around it, so the filled square opts out of the shell's stroke.
+    const { container } = render(<NumberIcon />)
+    const filled = container.querySelector('[fill="currentColor"]')
+    expect(filled).not.toBeNull()
+    expect(filled).toHaveAttribute('stroke', 'none')
   })
 
   it('UndoIcon and RedoIcon are mirror images, not copies of each other', () => {

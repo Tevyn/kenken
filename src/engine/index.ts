@@ -28,15 +28,18 @@ export {
   ENABLED_TECHNIQUES,
   TECHNIQUE_RANK,
   candidateSets,
+  checkCorrectness,
   detectContext,
   detectorFor,
   findHint,
+  findNextNumber,
   hintSignature,
   pickHint,
   revealHint,
   visibleSets,
 } from './hints';
 export type {
+  CorrectnessReport,
   DetectContext,
   Detector,
   Hint,
@@ -45,6 +48,7 @@ export type {
   HintOptions,
   HintResult,
   MarkSets,
+  NextNumber,
   TechniqueId,
 } from './hints';
 export { unitTotal } from './unitSums';

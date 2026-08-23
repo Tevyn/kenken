@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   ENABLED_TECHNIQUES,
   TECHNIQUE_RANK,
+  checkCorrectness,
   detectContext,
   detectorFor,
   findHint,
+  findNextNumber,
   hintSignature,
   revealHint,
   visibleSets,
@@ -258,7 +260,7 @@ describe('detector: freebie-cage', () => {
   it('reads the answer straight off a one-cell cage', () => {
     const hints = detect('freebie-cage', DOC_PUZZLE);
     expect(hints).toHaveLength(1);
-    expect(hints[0].text).toBe('The cage marked 1 has only one cell, so it has to be 1.');
+    expect(hints[0].text).toBe('This cell has to be 1');
     expect(hints[0].secondary).toBe('Given cell');
     expect(hints[0].apply).toEqual({ kind: 'place', cells: [{ cell: 15, value: 1 }] });
     expect(hints[0].highlight).toMatchObject({ focus: [15], cages: [7], dimRest: true });
@@ -270,13 +272,11 @@ describe('detector: freebie-cage', () => {
 });
 
 describe('detector: last-cell-in-unit', () => {
-  it('names the digits already there and the one that is left', () => {
+  it('names the digit that is left, and the row that leaves it', () => {
     const values = withValues(4, { 12: 4, 13: 3, 14: 2 });
     const hints = detect('last-cell-in-unit', DOC_PUZZLE, values);
     const hint = hints.find((h) => h.highlight.focus[0] === 15);
-    expect(hint?.text).toBe(
-      'Row 4 already has 2, 3 and 4 — the only digit left for row 4, column 4 is 1.',
-    );
+    expect(hint?.text).toBe('Only 1 can go here in row 4');
     expect(hint?.secondary).toBe('Last cell in a row');
     expect(hint?.apply).toEqual({ kind: 'place', cells: [{ cell: 15, value: 1 }] });
     expect(hint?.highlight).toMatchObject({ focus: [15], support: [12, 13, 14], rows: [3], cols: [] });
@@ -287,9 +287,7 @@ describe('detector: last-cell-in-unit', () => {
     const hint = detect('last-cell-in-unit', DOC_PUZZLE, values).find(
       (h) => h.highlight.focus[0] === 12,
     );
-    expect(hint?.text).toBe(
-      'Column 1 already has 1, 2 and 3 — the only digit left for row 4, column 1 is 4.',
-    );
+    expect(hint?.text).toBe('Only 4 can go here in column 1');
     expect(hint?.secondary).toBe('Last cell in a column');
     expect(hint?.highlight).toMatchObject({ rows: [], cols: [0] });
   });
@@ -304,9 +302,7 @@ describe('detector: single-cage-combination', () => {
   it('narrows a cage whose arrangements all use the same digits', () => {
     const hints = detect('single-cage-combination', NARROWED_CAGE);
     expect(hints).toHaveLength(1);
-    expect(hints[0].text).toBe(
-      'There is only one set of digits that makes 7+: 3 and 4. So the 2 cells of that cage hold 3 and 4 in some order — nothing else fits.',
-    );
+    expect(hints[0].text).toBe('1 and 2 cannot go in this cage');
     expect(hints[0].secondary).toBe('Cage combination');
     expect(hints[0].apply).toEqual({
       kind: 'eliminate',
@@ -322,11 +318,11 @@ describe('detector: single-cage-combination', () => {
   });
 
   it('places every cell when only one arrangement survives', () => {
+    // Board order, repeats kept: the 2x cage genuinely holds a 1 twice, and
+    // sorting or de-duplicating the list would misdescribe it.
     const hints = detect('single-cage-combination', SAMPLE_PUZZLE);
     const hint = hints.find((h) => h.highlight.cages[0] === 0);
-    expect(hint?.text).toBe(
-      'There is only one way to fill the 2× cage: 1 at row 1, column 1, 2 at row 1, column 2 and 1 at row 2, column 2.',
-    );
+    expect(hint?.text).toBe('This cage has to be 1, 2 and 1');
     expect(hint?.apply).toEqual({
       kind: 'place',
       cells: [
@@ -350,35 +346,38 @@ describe('detector: single-cage-combination', () => {
     marks[2] = [2, 3, 4];
     marks[3] = [3, 4];
     const hints = detect('single-cage-combination', NARROWED_CAGE, empty(4), marks);
+    // One cell struck, so "here" is precise enough to say.
+    expect(hints[0].text).toBe('2 cannot go here');
     expect(hints[0].apply).toEqual({ kind: 'eliminate', cells: [{ cell: 2, digits: [2] }] });
     expect(hints[0].highlight).toMatchObject({ focus: [2], support: [3] });
   });
 });
 
 describe('detector: naked-single', () => {
-  it('blames the cage when the cage alone pins the cell', () => {
+  /*
+   * The text is the same short sentence whatever pinned the cell — the reason
+   * lives in the highlight now, so these three cases are distinguished by which
+   * cells it points at rather than by a clause naming them.
+   */
+  it('points at the cage when the cage alone pins the cell', () => {
     const hint = detect('naked-single', SAMPLE_PUZZLE).find((h) => h.highlight.focus[0] === 0);
-    expect(hint?.text).toBe('Row 1, column 1 can only be 1 — no other digit works with the 2× cage.');
+    expect(hint?.text).toBe('This cell has to be 1');
     expect(hint?.secondary).toBe('Naked single');
     expect(hint?.highlight).toMatchObject({ focus: [0], support: [1, 5], rows: [], cols: [], cages: [0] });
   });
 
-  it('blames the peers when row and column elimination alone does it', () => {
+  it('points at the peers when row and column elimination alone does it', () => {
     const values = withValues(4, { 1: 2, 2: 3, 3: 4 });
     const hint = detect('naked-single', DOC_PUZZLE, values).find((h) => h.highlight.focus[0] === 0);
-    expect(hint?.text).toBe(
-      'Row 1, column 1 can only be 1 — every other digit already appears in its row or column.',
-    );
+    expect(hint?.text).toBe('This cell has to be 1');
     expect(hint?.highlight).toMatchObject({ focus: [0], support: [1, 2, 3], rows: [0], cols: [0] });
   });
 
-  it('blames both when it takes both — the worked example from §4', () => {
+  it('points at both when it takes both — the worked example from §4', () => {
     const hint = detect('naked-single', DOC_PUZZLE, withValues(4, { 4: 3 })).find(
       (h) => h.highlight.focus[0] === 0,
     );
-    expect(hint?.text).toBe(
-      'Row 1, column 1 can only be 1 — the other digits are blocked by its row, its column, or the 3÷ cage.',
-    );
+    expect(hint?.text).toBe('This cell has to be 1');
     expect(hint?.apply).toEqual({ kind: 'place', cells: [{ cell: 0, value: 1 }] });
     expect(hint?.highlight).toMatchObject({ focus: [0], rows: [0], cols: [0], cages: [0] });
   });
@@ -391,9 +390,7 @@ describe('detector: naked-single', () => {
 describe('detector: hidden-single', () => {
   it('finds the only home a digit has left in a row', () => {
     const hint = detect('hidden-single', HIDDEN_SINGLE).find((h) => h.highlight.focus[0] === 0);
-    expect(hint?.text).toBe(
-      'In row 1, only row 1, column 1 can still hold a 1 — every other cell there is blocked.',
-    );
+    expect(hint?.text).toBe('Only 1 can go here in row 1');
     expect(hint?.secondary).toBe('Hidden single');
     expect(hint?.apply).toEqual({ kind: 'place', cells: [{ cell: 0, value: 1 }] });
     expect(hint?.highlight).toMatchObject({ focus: [0], support: [1, 2, 3], rows: [0], cols: [] });
@@ -412,9 +409,7 @@ describe('detector: unit-sum-innie', () => {
   it('subtracts one covering cage from the row total', () => {
     const hints = detect('unit-sum-innie', INNIE_ONE_CAGE);
     const hint = hints.find((h) => h.highlight.focus[0] === 0);
-    expect(hint?.text).toBe(
-      'Every column adds up to 10. In column 1, the 6+ cage adds together 6, so the one cell left over — row 1, column 1 — must be 4.',
-    );
+    expect(hint?.text).toBe('This cell has to be 4');
     expect(hint?.secondary).toBe('Column total (innie)');
     expect(hint?.apply).toEqual({ kind: 'place', cells: [{ cell: 0, value: 4 }] });
     expect(hint?.highlight).toMatchObject({
@@ -426,12 +421,10 @@ describe('detector: unit-sum-innie', () => {
     });
   });
 
-  it('adds several covering cages, and says "add" rather than "adds"', () => {
+  it('subtracts several covering cages at once', () => {
     const hints = detect('unit-sum-innie', INNIE_TWO_CAGES);
     expect(hints).toHaveLength(1);
-    expect(hints[0].text).toBe(
-      'Every column adds up to 15. In column 1, the 7+ cage and the 6+ cage add together 13, so the one cell left over — row 5, column 1 — must be 2.',
-    );
+    expect(hints[0].text).toBe('This cell has to be 2');
     expect(hints[0].apply).toEqual({ kind: 'place', cells: [{ cell: 20, value: 2 }] });
     expect(hints[0].highlight).toMatchObject({ support: [0, 5, 10, 15], cages: [0, 1] });
   });
@@ -440,9 +433,7 @@ describe('detector: unit-sum-innie', () => {
 describe('detector: unit-sum-outie', () => {
   it('reproduces the worked example from docs/HINTS.md §4', () => {
     const hint = detect('unit-sum-outie', DOC_PUZZLE).find((h) => h.highlight.focus[0] === 14);
-    expect(hint?.text).toBe(
-      'Every column adds up to 10. In column 2, the 8× cage adds 6, so the part of the 6× cage sitting there adds to 4. That whole cage adds to 6, so its cell outside — row 4, column 3 — must be 2.',
-    );
+    expect(hint?.text).toBe('This cell has to be 2');
     expect(hint?.secondary).toBe('Column total (outie)');
     expect(hint?.apply).toEqual({ kind: 'place', cells: [{ cell: 14, value: 2 }] });
     expect(hint?.highlight).toMatchObject({
@@ -458,9 +449,7 @@ describe('detector: cage-locks-line', () => {
   it('reproduces the worked example from docs/HINTS.md §4', () => {
     const hints = detect('cage-locks-line', NARROWED_CAGE);
     expect(hints).toHaveLength(1);
-    expect(hints[0].text).toBe(
-      'However the 7+ cage works out, its 3 and 4 end up in row 1. So no other cell in row 1 can be 3 or 4.',
-    );
+    expect(hints[0].text).toBe('3 and 4 cannot go anywhere else in row 1');
     expect(hints[0].secondary).toBe('Cage confinement');
     expect(hints[0].apply).toEqual({
       kind: 'eliminate',
@@ -472,9 +461,20 @@ describe('detector: cage-locks-line', () => {
     expect(hints[0].highlight).toMatchObject({ focus: [0, 1], support: [2, 3], rows: [0], cages: [0] });
   });
 
-  it('uses the singular when one digit is locked in', () => {
-    const hint = detect('cage-locks-line', DOC_PUZZLE).find((h) => h.text.includes('ends up'));
-    expect(hint?.text).toMatch(/^However the .+ cage works out, its \d ends up in (row|column) \d\./);
+  it('drops the conjunction when only one digit is locked in', () => {
+    // Cage H is the single cell 15, so it claims a 1 for row 4 and column 4.
+    const hint = detect('cage-locks-line', DOC_PUZZLE).find((h) => h.highlight.cages[0] === 7);
+    expect(hint?.text).toMatch(/^\d cannot go anywhere else in (row|column) \d$/);
+  });
+
+  it('says "here" when the strike lands on a single cell', () => {
+    const marks = noMarks(4);
+    marks[0] = [1, 2];
+    marks[1] = [1, 2, 3];
+    const hints = detect('cage-locks-line', NARROWED_CAGE, empty(4), marks);
+    expect(hints).toHaveLength(1);
+    expect(hints[0].text).toBe('3 cannot go here');
+    expect(hints[0].apply).toEqual({ kind: 'eliminate', cells: [{ cell: 1, digits: [3] }] });
   });
 
   it('goes quiet once the player has crossed those digits off', () => {
@@ -598,7 +598,7 @@ describe('findHint: degenerate cases', () => {
     const result = findHint(DOC_PUZZLE, [...DOC_PUZZLE.solution], noMarks(4));
     expect(result).toEqual({
       kind: 'solved',
-      text: "That's it — the grid is complete and correct. Nothing left to hint.",
+      text: 'The grid is complete',
       secondary: 'Solved',
     });
   });
@@ -609,20 +609,18 @@ describe('findHint: degenerate cases', () => {
     expect(result).toEqual({
       kind: 'mistake',
       cells: [5],
-      text: "Something on the board can't be right — row 2, column 2 doesn't fit the puzzle. Clear it and I can pick up from there.",
+      text: "This cell doesn't fit",
       secondary: 'Check this cell',
     });
   });
 
-  it('names the earliest wrong cell and counts the rest', () => {
+  it('reports every wrong cell, and counts them', () => {
     const values = withValues(4, { 5: 1, 9: 4 });
     const result = findHint(DOC_PUZZLE, values, noMarks(4));
     expect(result.kind).toBe('mistake');
     if (result.kind !== 'mistake') return;
     expect(result.cells).toEqual([5, 9]);
-    expect(result.text).toBe(
-      "Something on the board can't be right — row 2, column 2 doesn't fit the puzzle. Clear it and I can pick up from there. (There are 2 cells that don't fit; this is the first.)",
-    );
+    expect(result.text).toBe("These 2 cells don't fit");
   });
 
   it('refuses to point when asked not to', () => {
@@ -632,7 +630,7 @@ describe('findHint: degenerate cases', () => {
     expect(result).toEqual({
       kind: 'mistake',
       cells: [5],
-      text: "Something on the board can't be right, so I can't work out the next step. Try undoing back to where you were sure.",
+      text: "Something on the board doesn't fit",
       secondary: 'Check your work',
     });
   });
@@ -641,7 +639,7 @@ describe('findHint: degenerate cases', () => {
     const result = findHint(NARROWED_CAGE, empty(4), noMarks(4), { maxRank: 20 });
     expect(result).toEqual({
       kind: 'stuck',
-      text: "I can't find a next step that follows from what's on the board. This one needs a leap — pick a cell with two options and see where it leads. Or I can just tell you one.",
+      text: "I can't find a next step here",
       secondary: 'No forced step',
     });
   });
@@ -656,9 +654,7 @@ describe('revealHint', () => {
     if (hint.apply.kind !== 'place') return;
     const { cell, value } = hint.apply.cells[0];
     expect(value).toBe(DOC_PUZZLE.solution[cell]);
-    expect(hint.text).toBe(
-      `I can't prove the next step from what's on the board. If you'd like to keep moving: row ${Math.floor(cell / 4) + 1}, column ${(cell % 4) + 1} is ${value}.`,
-    );
+    expect(hint.text).toBe(`This cell has to be ${value}`);
   });
 
   it('breaks ties toward the cell the player has selected', () => {
@@ -678,6 +674,90 @@ describe('revealHint', () => {
       expect(values[cell]).toBeNull();
       expect(value).toBe(puzzle.solution[cell]);
     }
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* findNextNumber                                                       */
+/* ------------------------------------------------------------------ */
+
+describe('findNextNumber', () => {
+  it('returns the placement straight away when the ladder opens with one', () => {
+    expect(findNextNumber(DOC_PUZZLE, empty(4), noMarks(4))).toEqual({ cell: 15, value: 1 });
+  });
+
+  it('runs past the eliminations the ladder would have offered first', () => {
+    // The 9+ cages narrow to {2,3,4} before anything can be placed, so the
+    // hint button would say "1 cannot go in this cage" twice over. Asking for
+    // a number has to consume both and keep going.
+    const opening = findHint(HIDDEN_SINGLE, empty(4), noMarks(4), { near: null });
+    expect(opening.kind === 'hint' && opening.hint.apply.kind).toBe('eliminate');
+
+    expect(findNextNumber(HIDDEN_SINGLE, empty(4), noMarks(4), { near: null })).toEqual({
+      cell: 0,
+      value: 1,
+    });
+  });
+
+  it('leaves the caller marks untouched', () => {
+    const marks = noMarks(4);
+    const before = JSON.stringify(marks);
+    findNextNumber(HIDDEN_SINGLE, empty(4), marks, { near: null });
+    expect(JSON.stringify(marks)).toBe(before);
+  });
+
+  it('agrees with the solution wherever it lands', () => {
+    for (const size of [4, 5]) {
+      const puzzle = generatePuzzle({ size, difficulty: 'medium', seed: `next-${size}` });
+      const values = empty(size);
+      for (let cell = 0; cell < size * size; cell += 4) values[cell] = puzzle.solution[cell];
+      const next = findNextNumber(puzzle, values, noMarks(size));
+      if (next === null) continue;
+      expect(values[next.cell]).toBeNull();
+      expect(next.value).toBe(puzzle.solution[next.cell]);
+    }
+  });
+
+  it('has nothing to offer on a finished grid', () => {
+    expect(findNextNumber(DOC_PUZZLE, [...DOC_PUZZLE.solution], noMarks(4))).toBeNull();
+  });
+
+  it('refuses to guess past a wrong digit', () => {
+    const values = withValues(4, { 5: 1 }); // solution says 4
+    expect(findNextNumber(DOC_PUZZLE, values, noMarks(4))).toBeNull();
+  });
+
+  it('gives up rather than spin when no placement is reachable', () => {
+    // NARROWED_CAGE has eliminations to spare and no placement behind them:
+    // nothing the marks record can change what `book` already knows.
+    expect(findNextNumber(NARROWED_CAGE, empty(4), noMarks(4), { near: null })).toBeNull();
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* checkCorrectness                                                     */
+/* ------------------------------------------------------------------ */
+
+describe('checkCorrectness', () => {
+  it('says nothing about an empty grid', () => {
+    expect(checkCorrectness(DOC_PUZZLE, empty(4))).toEqual({ correct: [], incorrect: [] });
+  });
+
+  it('passes a finished grid entirely', () => {
+    const report = checkCorrectness(DOC_PUZZLE, [...DOC_PUZZLE.solution]);
+    expect(report.correct).toEqual([...Array(16).keys()]);
+    expect(report.incorrect).toEqual([]);
+  });
+
+  it('splits filled cells by whether they match the solution', () => {
+    const values = withValues(4, { 0: DOC_PUZZLE.solution[0], 5: 1, 9: 4 });
+    expect(checkCorrectness(DOC_PUZZLE, values)).toEqual({ correct: [0], incorrect: [5, 9] });
+  });
+
+  it('sees a wrong digit that breaks no visible rule', () => {
+    // Cell 5 alone conflicts with nothing on an otherwise empty board, which is
+    // exactly the case `errors.ts` cannot and should not report.
+    expect(checkCorrectness(DOC_PUZZLE, withValues(4, { 5: 1 })).incorrect).toEqual([5]);
   });
 });
 

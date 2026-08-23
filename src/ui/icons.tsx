@@ -211,3 +211,87 @@ export function RestartIcon(props: IconProps) {
     </IconBase>
   )
 }
+
+/**
+ * Correctness: a tick and a cross, side by side — the marks a teacher puts
+ * down the margin of a page. It is the pairing that carries the meaning: a
+ * lone tick is the universal "done / you win" glyph, and this control is
+ * offered *before* the puzzle is finished, on a board that may be entirely
+ * wrong. Two opposed marks say "some of these are right and some are not",
+ * which is exactly what the check reports.
+ *
+ * Nothing else in the set uses a diagonal, so it is unmistakable next to the
+ * corner-hooks and boxes it sits beside.
+ *
+ * The 4-unit trench between the two marks is load-bearing, not padding: the
+ * tick's rising arm ends level with the cross's top-left terminus, so at 22px
+ * a narrower gap closes and the pair reads as one scribble. Both marks are
+ * held to ~7 units for the same reason — drawn full-width they collide before
+ * the icon is small enough to matter.
+ */
+export function CorrectnessIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M2.5 12.5 5.5 15.5 10 8.5" />
+      <path d="m14 9 7 7" />
+      <path d="m21 9-7 7" />
+    </IconBase>
+  )
+}
+
+/**
+ * Tip: a speech bubble. This choice explains the next deduction *in words*,
+ * so the glyph is the app talking, not the idea itself.
+ *
+ * Deliberately not a reuse of `HintIcon`. The lightbulb is already on the
+ * button that opens this menu, so putting it inside the menu too would offer
+ * the player the same glyph twice, one nested in the other, with no way to
+ * tell the category from the choice. That is the whole reason a third icon is
+ * drawn here rather than the obvious one reused.
+ *
+ * Lucide's `message-square`, kept empty. Two short lines of "text" inside are
+ * the conventional way to say prose, and they are the trap: the body's
+ * interior is ~11 units, so two rules inside it land ~3 units apart and fuse
+ * into a grey band at a 1.83px stroke. The tail does the work instead — it is
+ * what separates this from `EraseIcon`'s block, which is otherwise the same
+ * quadrilateral seen at a tilt.
+ */
+export function TipIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </IconBase>
+  )
+}
+
+/**
+ * Number: a board with one cell filled in. The choice writes a single correct
+ * digit into the grid, and the grid is the thing the app is about, so the
+ * icon shows the board and the one square that changes.
+ *
+ * No numeral is drawn. Any digit picked would be a lie about which one the
+ * engine is going to place, and a "1" reads as a count besides.
+ *
+ * The filled square is the one fill in the icon set, and it is why the glyph
+ * works: an outlined inner square inside an outlined cell is two nested
+ * rectangles 1.8px apart, which silts up long before 22px. It spans the cell's
+ * clear interior exactly (the grid lines are 2 units wide, so 10..14), so it
+ * reads as a cell that has been coloured in rather than as a dot parked in
+ * one. It carries `stroke="none"` because the inherited 2-unit stroke would
+ * grow it back out over the lines around it.
+ *
+ * Square corners, no `rx`: the board takes no radius (STYLE_GUIDE.md §1.6),
+ * and it is also what keeps this from reading as `EraseIcon`'s rounded block.
+ */
+export function NumberIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <rect x="3" y="3" width="18" height="18" />
+      <line x1="9" y1="3" x2="9" y2="21" />
+      <line x1="15" y1="3" x2="15" y2="21" />
+      <line x1="3" y1="9" x2="21" y2="9" />
+      <line x1="3" y1="15" x2="21" y2="15" />
+      <rect x="10" y="10" width="4" height="4" fill="currentColor" stroke="none" />
+    </IconBase>
+  )
+}

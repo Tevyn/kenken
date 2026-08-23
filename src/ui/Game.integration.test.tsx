@@ -8,15 +8,15 @@ import type { Theme } from '../game/preferences'
 import { useGame } from '../game/useGame'
 import { Board } from './Board'
 import { Controls } from './Controls'
-import type { OpenMenu } from './Controls'
-import { HintPanel } from './HintPanel'
 import { Keypad } from './Keypad'
+import type { OpenMenu } from './Popover'
 import { WinDialog } from './WinDialog'
 
 /** A minimal wiring of useGame + Board + Keypad, standing in for App.tsx's game view. */
 function TestGame() {
   // Same arrangement as App: the open popover is owned above the game, because
-  // an open panel suspends the board's keyboard shortcuts.
+  // an open panel suspends the board's keyboard shortcuts — and all three
+  // panels, the keypad's included, share the one slot.
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null)
   const [theme, setTheme] = useState<Theme>('system')
   // The solved dialog is modal too, so it suspends the board's keyboard the
@@ -24,7 +24,10 @@ function TestGame() {
   const [solvedSeen, setSolvedSeen] = useState(false)
   const [winDismissed, setWinDismissed] = useState(false)
   const winOpen = solvedSeen && !winDismissed
-  const game = useGame(SAMPLE_PUZZLE, { suspended: openMenu !== null || winOpen })
+  const game = useGame(SAMPLE_PUZZLE, {
+    suspended: openMenu !== null || winOpen,
+    onRequestHint: () => setOpenMenu('hint'),
+  })
   const solved = game.state.status === 'solved'
   if (solved !== solvedSeen) {
     setSolvedSeen(solved)
@@ -32,6 +35,12 @@ function TestGame() {
   }
   const checkErrors = useMemo(() => createErrorChecker(game.state.puzzle), [game.state.puzzle])
   const errors = useMemo(() => checkErrors(game.state.values), [checkErrors, game.state.values])
+  const hintText =
+    game.state.hint.kind === 'shown'
+      ? game.state.hint.hint.text
+      : game.state.hint.kind === 'message'
+        ? game.state.hint.message.text
+        : null
   return (
     <div>
       <Controls
@@ -54,9 +63,10 @@ function TestGame() {
         selected={game.state.selected}
         errors={errors}
         highlight={game.highlight}
+        verdict={game.state.verdict}
+        placed={game.state.placed}
         onSelect={game.select}
       />
-      <HintPanel phase={game.state.hint} onDismiss={game.dismissHint} onReveal={game.revealCell} />
       <WinDialog
         visible={winOpen}
         onDismiss={() => setWinDismissed(true)}
@@ -75,16 +85,27 @@ function TestGame() {
         onRedo={game.redo}
         canUndo={game.canUndo}
         canRedo={game.canRedo}
-        onHint={game.pressHint}
-        hintPending={game.hintPending}
+        hint={{
+          open: openMenu === 'hint',
+          onOpenChange: (open) => setOpenMenu(open ? 'hint' : null),
+          text: hintText,
+          onCorrectness: game.checkBoard,
+          onTip: game.showHint,
+          onNumber: game.placeNumber,
+        }}
       />
     </div>
   )
 }
 
-/** The hint button, by whichever of its two labels it is currently wearing. */
-function hintButton(pending = false): HTMLElement {
-  return screen.getByRole('button', { name: pending ? 'Apply' : 'Hint' })
+/** The hint button. One label, always: nothing is ever armed behind it. */
+function hintButton(): HTMLElement {
+  return screen.getByRole('button', { name: 'Hint' })
+}
+
+/** The panel's sentence, whichever choice produced it. */
+function hintText(container: HTMLElement): Element | null {
+  return container.querySelector('.kk-hint-menu__text')
 }
 
 /** The notes toggle: one button, `aria-pressed` tells you which way it is. */
@@ -179,55 +200,67 @@ describe('Board + Keypad + useGame integration', () => {
 
   /*
    * On this fixture's empty grid the easiest step is the one-cell "2" cage at
-   * index 14, so the first press always explains that and the second writes it.
+   * index 14, so every hint below starts from that.
    */
-  it('explains a hint on the first press and only writes it on the second', async () => {
+  it('Tip explains a step and writes nothing', async () => {
     const user = userEvent.setup()
     const { container } = render(<TestGame />)
     const cells = screen.getAllByRole('gridcell')
 
     await user.click(hintButton())
-    expect(container.querySelector('.kk-hint__text')).toHaveTextContent(
-      'The cage marked 2 has only one cell, so it has to be 2.',
-    )
-    expect(container.querySelector('.kk-hint__secondary')).toHaveTextContent('Given cell')
-    // The explanation is all it does: the grid is untouched.
-    expect(valueOf(cells[14])).toBeNull()
-    expect(cells.every((cell) => valueOf(cell) === null)).toBe(true)
+    await user.click(screen.getByRole('button', { name: 'Tip' }))
 
-    await user.click(hintButton(true))
+    expect(hintText(container)).toHaveTextContent('This cell has to be 2')
+    // No technique name: `secondary` is still on the type, and still not shown.
+    expect(container).not.toHaveTextContent('Given cell')
+    expect(cells.every((cell) => valueOf(cell) === null)).toBe(true)
+  })
+
+  it('Number writes one digit as an ordinary undoable entry', async () => {
+    const user = userEvent.setup()
+    render(<TestGame />)
+    const cells = screen.getAllByRole('gridcell')
+
+    await user.click(hintButton())
+    await user.click(screen.getByRole('button', { name: 'Number' }))
+
+    // It gets out of the way once it has written, so the board is visible.
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(valueOf(cells[14])).toBe('2')
-    expect(container.querySelector('.kk-hint__text')).not.toBeInTheDocument()
+    expect(cells[14].className).toContain('kk-cell--placed')
+    expect(cells[14].getAttribute('aria-label')).toMatch(/, filled in for you$/)
 
     await user.keyboard('{Control>}z{/Control}')
     expect(valueOf(cells[14])).toBeNull()
     expect(cells.every((cell) => valueOf(cell) === null)).toBe(true)
   })
 
-  it('undoes a multi-cell hint in a single step', async () => {
+  /*
+   * The press that chose Number is a click, and a click is the end of an
+   * interaction that began with a mousedown — so the press that asked for the
+   * green can never be the press that takes it away.
+   */
+  it('the placed digit keeps its ink until the very next press', async () => {
     const user = userEvent.setup()
     render(<TestGame />)
     const cells = screen.getAllByRole('gridcell')
 
-    // Take and apply the freebie first so the next hint is the three-cell
-    // "only one way to fill the 2x cage" placement over cells 0, 1 and 5.
     await user.click(hintButton())
-    await user.click(hintButton(true))
-    await user.click(hintButton())
-    await user.click(hintButton(true))
-    expect([valueOf(cells[0]), valueOf(cells[1]), valueOf(cells[5])]).toEqual(['1', '2', '1'])
+    await user.click(screen.getByRole('button', { name: 'Number' }))
+    expect(cells[14].className).toContain('kk-cell--placed')
 
-    await user.keyboard('{Control>}z{/Control}')
-    expect([valueOf(cells[0]), valueOf(cells[1]), valueOf(cells[5])]).toEqual([null, null, null])
-    expect(valueOf(cells[14])).toBe('2') // the earlier hint is still applied
+    await user.click(cells[0])
+    expect(cells[14].className).not.toContain('kk-cell--placed')
+    expect(valueOf(cells[14])).toBe('2')
   })
 
-  it('highlights the hint’s cells and dims the rest', async () => {
+  it('highlights the hint’s cells and dims the rest, and keeps them after the panel closes', async () => {
     const user = userEvent.setup()
     render(<TestGame />)
     const cells = screen.getAllByRole('gridcell')
 
     await user.click(hintButton())
+    await user.click(screen.getByRole('button', { name: 'Tip' }))
     expect(cells[14].className).toContain('kk-cell--hint-focus')
     expect(cells[14].className).toContain('kk-cell--hint-cage')
     expect(cells[14].getAttribute('aria-label')).toMatch(/, hint focus$/)
@@ -238,45 +271,51 @@ describe('Board + Keypad + useGame integration', () => {
     expect(cells[0].className).toContain('kk-cell--hint-dim')
     expect(cells[0].className).not.toContain('kk-cell--hint-focus')
 
-    // Applying clears the highlight along with the explanation.
-    await user.click(hintButton(true))
-    expect(cells[14].className).not.toContain('kk-cell--hint-focus')
-    expect(cells[0].className).not.toContain('kk-cell--hint-dim')
+    // Closing the panel leaves the board's half of the hint alone: reading the
+    // sentence and then studying the grid is one thought, not two.
+    await user.click(screen.getByRole('button', { name: 'Close Hint' }))
+    expect(cells[14].className).toContain('kk-cell--hint-focus')
   })
 
-  it('a pending hint is invalidated as soon as the player edits the grid', async () => {
+  it('a hint on the board is invalidated as soon as the player edits the grid', async () => {
     const user = userEvent.setup()
-    const { container } = render(<TestGame />)
+    render(<TestGame />)
     const cells = screen.getAllByRole('gridcell')
 
     await user.click(hintButton())
-    expect(hintButton(true)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Tip' }))
+    await user.click(screen.getByRole('button', { name: 'Close Hint' }))
 
     await user.click(cells[0])
     await user.keyboard('1')
 
-    expect(container.querySelector('.kk-hint__text')).not.toBeInTheDocument()
     expect(cells[14].className).not.toContain('kk-cell--hint-focus')
-    // Back to "Hint": the next press explains afresh rather than applying a
-    // hint that was computed against a grid that no longer exists.
-    expect(hintButton()).toBeInTheDocument()
+    expect(cells[0].className).not.toContain('kk-cell--hint-dim')
     expect(valueOf(cells[14])).toBeNull()
   })
 
-  it('the H shortcut drives both presses, and Escape dismisses', async () => {
+  it('H opens the panel, and Escape backs out of it a layer at a time', async () => {
     const user = userEvent.setup()
-    const { container } = render(<TestGame />)
+    render(<TestGame />)
     const cells = screen.getAllByRole('gridcell')
 
     await user.keyboard('h')
-    expect(container.querySelector('.kk-hint__text')).toBeInTheDocument()
+    expect(screen.getByRole('dialog')).toHaveAccessibleName('Hint')
 
     await user.keyboard('{Escape}')
-    expect(container.querySelector('.kk-hint__text')).not.toBeInTheDocument()
-    expect(valueOf(cells[14])).toBeNull()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(hintButton()).toHaveFocus()
 
-    await user.keyboard('hh')
-    expect(valueOf(cells[14])).toBe('2')
+    // Reopening starts back at the three choices, whatever the last one was.
+    await user.keyboard('h')
+    await user.click(screen.getByRole('button', { name: 'Tip' }))
+    await user.keyboard('{Escape}')
+    expect(cells[14].className).toContain('kk-cell--hint-focus')
+
+    // Only now, with no panel to close, does Escape reach the board.
+    await user.keyboard('{Escape}')
+    expect(cells[14].className).not.toContain('kk-cell--hint-focus')
+    expect(valueOf(cells[14])).toBeNull()
   })
 
   it('reports a wrong entry instead of a step, and points at the cell', async () => {
@@ -288,18 +327,104 @@ describe('Board + Keypad + useGame integration', () => {
     await user.click(cells[0])
     await user.keyboard('2')
     await user.click(hintButton())
+    await user.click(screen.getByRole('button', { name: 'Tip' }))
 
-    expect(container.querySelector('.kk-hint__text')).toHaveTextContent(
-      /row 1, column 1 doesn’t fit|row 1, column 1 doesn't fit/,
-    )
+    expect(hintText(container)).toHaveTextContent(/doesn’t fit|doesn't fit/)
     expect(cells[0].className).toContain('kk-cell--hint-focus')
-    // A message has nothing to apply, so the button never offers to.
-    expect(hintButton()).toBeInTheDocument()
-
-    // Pressing again re-runs rather than applying anything.
-    await user.click(hintButton())
-    expect(container.querySelector('.kk-hint__text')).toBeInTheDocument()
     expect(valueOf(cells[0])).toBe('2')
+  })
+
+  /* Nothing to place is still an answer, and the panel owes the player one. */
+  it('Number stays open and says why when there is no number to place', async () => {
+    const user = userEvent.setup()
+    const { container } = render(<TestGame />)
+    const cells = screen.getAllByRole('gridcell')
+
+    await user.click(cells[0])
+    await user.keyboard('2')
+    await user.click(hintButton())
+    await user.click(screen.getByRole('button', { name: 'Number' }))
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(hintText(container)).toHaveTextContent(/doesn’t fit|doesn't fit/)
+    expect(valueOf(cells[0])).toBe('2')
+  })
+
+  describe('the correctness check', () => {
+    /*
+     * Cell 0 right, cell 6 wrong, and neither breaks a rule: cage "5+" over
+     * cells 6 and 10 accepts 2 + 3 as readily as the solution's 4 + 1, so
+     * nothing without the answer key can tell the difference.
+     */
+    async function twoEntries(user: ReturnType<typeof userEvent.setup>) {
+      const cells = screen.getAllByRole('gridcell')
+      await user.click(cells[0])
+      await user.keyboard('1')
+      await user.click(cells[6])
+      await user.keyboard('2')
+      return cells
+    }
+
+    it('rings the right cells green and the wrong ones red', async () => {
+      const user = userEvent.setup()
+      render(<TestGame />)
+      const cells = await twoEntries(user)
+
+      await user.click(hintButton())
+      await user.click(screen.getByRole('button', { name: 'Correctness' }))
+
+      // It gets out of the way: its whole answer is on the board.
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(cells[0].className).toContain('kk-cell--correct')
+      expect(cells[6].className).toContain('kk-cell--error')
+      expect(cells[0].getAttribute('aria-label')).toMatch(/, correct$/)
+      expect(cells[6].getAttribute('aria-label')).toMatch(/, incorrect$/)
+      // An empty cell is neither.
+      expect(cells[5].className).not.toContain('kk-cell--correct')
+      expect(cells[5].className).not.toContain('kk-cell--error')
+    })
+
+    it('green goes on the next press, red stays until its own cell is edited', async () => {
+      const user = userEvent.setup()
+      render(<TestGame />)
+      const cells = await twoEntries(user)
+
+      await user.click(hintButton())
+      await user.click(screen.getByRole('button', { name: 'Correctness' }))
+      expect(cells[0].className).toContain('kk-cell--correct')
+
+      await user.click(cells[5])
+      expect(cells[0].className).not.toContain('kk-cell--correct')
+      expect(cells[6].className).toContain('kk-cell--error')
+
+      // Editing an unrelated cell still leaves the red where it was earned.
+      await user.keyboard('1')
+      expect(cells[6].className).toContain('kk-cell--error')
+
+      await user.click(cells[6])
+      await user.keyboard('{Backspace}')
+      expect(cells[6].className).not.toContain('kk-cell--error')
+    })
+
+    /*
+     * Live conflict detection never opens the answer key, so it says nothing
+     * about a wrong-but-legal entry. The check is the only thing that can.
+     */
+    it('is a different claim from a conflict, and outlives one', async () => {
+      const user = userEvent.setup()
+      const { container } = render(<TestGame />)
+      const cells = screen.getAllByRole('gridcell')
+
+      await user.click(cells[6])
+      await user.keyboard('2')
+      expect(cells[6].className).not.toContain('kk-cell--error')
+
+      await user.click(hintButton())
+      await user.click(screen.getByRole('button', { name: 'Correctness' }))
+      expect(cells[6].className).toContain('kk-cell--error')
+      // Still nothing for the board's conflict region to announce.
+      expect(container.querySelector('.kk-board__errors')).toBeEmptyDOMElement()
+    })
   })
 
   it('shows the solved dialog once the whole solution is entered, and lets it be dismissed', async () => {
@@ -441,7 +566,7 @@ describe('Board + Keypad + useGame integration', () => {
   describe('an open popover owns the keyboard', () => {
     it('digits, H and Backspace never reach the hidden board', async () => {
       const user = userEvent.setup()
-      const { container } = render(<TestGame />)
+      render(<TestGame />)
       const cells = screen.getAllByRole('gridcell')
 
       await user.click(cells[0])
@@ -455,8 +580,8 @@ describe('Board + Keypad + useGame integration', () => {
       expect(valueOf(cells[0])).toBe('1')
 
       await user.keyboard('h')
-      expect(container.querySelector('.kk-hint__text')).not.toBeInTheDocument()
-      expect(hintButton()).toBeInTheDocument()
+      expect(screen.getByRole('dialog')).toHaveAccessibleName(/Size/)
+      expect(hintButton()).toHaveAttribute('aria-expanded', 'false')
 
       await user.keyboard('{Backspace}')
       expect(valueOf(cells[0])).toBe('1')
@@ -491,6 +616,38 @@ describe('Board + Keypad + useGame integration', () => {
       expect(screen.queryByRole('button', { name: '4 by 4' })).not.toBeInTheDocument()
       // ...and the game's own Space shortcut never fired.
       expect(marksButton()).toHaveAttribute('aria-pressed', 'false')
+    })
+
+    it('the hint panel takes the keyboard like any other', async () => {
+      const user = userEvent.setup()
+      render(<TestGame />)
+      const cells = screen.getAllByRole('gridcell')
+
+      await user.click(cells[0])
+      await user.click(hintButton())
+
+      await user.keyboard('3')
+      expect(valueOf(cells[0])).toBeNull()
+      await user.keyboard('{ArrowRight}')
+      expect(cells[0].className).toContain('kk-cell--selected')
+      expect(marksButton()).toHaveAttribute('aria-pressed', 'false')
+    })
+
+    /* One slot, so there is never a moment with two panels on screen. */
+    it('opening the hint panel closes a header one, and the other way round', async () => {
+      const user = userEvent.setup()
+      render(<TestGame />)
+
+      await user.click(screen.getByRole('button', { name: 'Settings' }))
+      expect(screen.getByRole('dialog')).toHaveAccessibleName('Settings')
+
+      await user.click(hintButton())
+      expect(screen.getAllByRole('dialog')).toHaveLength(1)
+      expect(screen.getByRole('dialog')).toHaveAccessibleName('Hint')
+
+      await user.click(screen.getByRole('button', { name: 'New game' }))
+      expect(screen.getAllByRole('dialog')).toHaveLength(1)
+      expect(hintButton()).toHaveAttribute('aria-expanded', 'false')
     })
   })
 })

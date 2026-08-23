@@ -3,7 +3,8 @@ import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { Controls } from './Controls'
-import type { ControlsProps, OpenMenu } from './Controls'
+import type { ControlsProps } from './Controls'
+import type { OpenMenu } from './Popover'
 
 /**
  * `Controls` is controlled by the app (which needs to know when a popover has
@@ -259,10 +260,15 @@ describe('Controls', () => {
 
       const options = screen.getAllByRole('button', { name: /^\d by \d$/ })
       const first = options[0]
-      const last = options[options.length - 1]
+      // The panel's own close button is the last stop in the cycle, after
+      // everything the wizard put in it.
+      const last = screen.getByRole('button', { name: 'Close New game' })
+
+      options[options.length - 1].focus()
+      await user.tab()
+      expect(last).toHaveFocus()
 
       // Tab off the end wraps to the top of the panel, not out to the board.
-      last.focus()
       await user.tab()
       expect(first).toHaveFocus()
 
