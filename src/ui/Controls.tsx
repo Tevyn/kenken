@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import type { Difficulty } from '../engine/types'
 import type { Theme } from '../game/preferences'
+import { RestartIcon } from './icons'
 import { NewGameMenu } from './NewGameMenu'
 import { SettingsMenu } from './SettingsMenu'
 import './Controls.css'
@@ -15,6 +16,10 @@ export interface ControlsProps {
   difficulty: Difficulty
   /** Commit a new game. Both values arrive together, once the wizard finishes. */
   onStartGame: (size: number, difficulty: Difficulty) => void
+  /** Empty the board, keeping the puzzle. Undoable, so it asks nothing first. */
+  onRestart: () => void
+  /** False when the board is already empty and restarting would do nothing. */
+  canRestart: boolean
   /** Whether entering a value also strips it from the row/column peers' pencil marks. */
   autoClearMarks: boolean
   onAutoClearMarksChange: (enabled: boolean) => void
@@ -28,15 +33,25 @@ export interface ControlsProps {
    */
   openMenu: OpenMenu
   onOpenMenuChange: (menu: OpenMenu) => void
-  /** True while a puzzle is generating; disables the control that would start another. */
+  /** True while a puzzle is generating; disables the controls that touch the board. */
   disabled?: boolean
 }
 
-/** The header's controls: the new-game wizard and the settings popover. */
+/**
+ * The header's controls: the new-game wizard, restart, and the settings
+ * popover.
+ *
+ * All three are the same bare stacked control the keypad's actions use — glyph
+ * over grey label, no chrome (STYLE_GUIDE.md §4). Restart sits between the two
+ * popovers because it belongs with New game: both start a puzzle over, and the
+ * pair reads left to right from "this one again" to "a different one".
+ */
 export function Controls({
   size,
   difficulty,
   onStartGame,
+  onRestart,
+  canRestart,
   autoClearMarks,
   onAutoClearMarksChange,
   theme,
@@ -63,6 +78,8 @@ export function Controls({
     [onOpenMenuChange, onStartGame],
   )
 
+  const restartUnavailable = disabled || !canRestart
+
   return (
     <div className="kk-controls">
       <NewGameMenu
@@ -73,6 +90,26 @@ export function Controls({
         onOpenChange={handleNewGameOpenChange}
         disabled={disabled}
       />
+      {/*
+        `aria-disabled` rather than `disabled`, for the same reason the popover
+        triggers use it: pressing this is what empties the board, so the press
+        itself is what makes the button unavailable — a real `disabled` would
+        drop focus onto `<body>` in that same commit. The attribute takes the
+        pointer out (see `.kk-control[aria-disabled]`), so only the keyboard
+        can still reach the handler, which guards.
+      */}
+      <button
+        type="button"
+        className="kk-control kk-control--stack"
+        aria-disabled={restartUnavailable || undefined}
+        onClick={() => {
+          if (restartUnavailable) return
+          onRestart()
+        }}
+      >
+        <RestartIcon size={22} />
+        <span className="kk-control__label">Restart</span>
+      </button>
       <SettingsMenu
         autoClearMarks={autoClearMarks}
         onAutoClearMarksChange={onAutoClearMarksChange}

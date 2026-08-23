@@ -38,6 +38,8 @@ function TestGame() {
         size={game.state.puzzle.size}
         difficulty={game.state.puzzle.difficulty}
         onStartGame={() => {}}
+        onRestart={game.reset}
+        canRestart={game.state.values.some((value) => value != null)}
         autoClearMarks={game.state.autoClearMarks}
         onAutoClearMarksChange={game.setAutoClearMarks}
         theme={theme}
@@ -343,6 +345,22 @@ describe('Board + Keypad + useGame integration', () => {
     expect(screen.queryByRole('dialog', { name: 'Solved' })).not.toBeInTheDocument()
     expect(screen.getByRole('dialog', { name: 'Size' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '4 by 4' })).toHaveFocus()
+  })
+
+  it('restart empties the board, and undo brings it back', async () => {
+    const user = userEvent.setup()
+    render(<TestGame />)
+    const cells = screen.getAllByRole('gridcell')
+
+    await user.click(cells[0])
+    await user.keyboard('2')
+    expect(valueOf(cells[0])).toBe('2')
+
+    await user.click(screen.getByRole('button', { name: 'Restart' }))
+    expect(valueOf(cells[0])).toBeNull()
+
+    await user.click(screen.getByRole('button', { name: 'Undo' }))
+    expect(valueOf(cells[0])).toBe('2')
   })
 
   it('entering a value clears the matching pencil mark from row/column peers, leaving unrelated marks', async () => {

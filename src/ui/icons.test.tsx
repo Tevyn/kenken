@@ -7,6 +7,7 @@ import {
   MenuIcon,
   NewGameIcon,
   RedoIcon,
+  RestartIcon,
   UndoIcon,
 } from './icons'
 
@@ -18,6 +19,7 @@ const icons = [
   ['MarksIcon', MarksIcon],
   ['MenuIcon', MenuIcon],
   ['NewGameIcon', NewGameIcon],
+  ['RestartIcon', RestartIcon],
 ] as const
 
 /**
@@ -108,6 +110,14 @@ describe('icons', () => {
       ).toBeUndefined()
       seen.set(geometry, name)
     }
+  })
+
+  it('NewGameIcon and RestartIcon are mirror images, not copies of each other', () => {
+    const { container: newGameContainer } = render(<NewGameIcon />)
+    const { container: restartContainer } = render(<RestartIcon />)
+    expect(
+      serializeGeometry(newGameContainer.querySelector('svg') as SVGSVGElement),
+    ).not.toEqual(serializeGeometry(restartContainer.querySelector('svg') as SVGSVGElement))
   })
 
   it('UndoIcon and RedoIcon are mirror images, not copies of each other', () => {

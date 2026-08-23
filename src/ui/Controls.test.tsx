@@ -19,6 +19,8 @@ function baseProps() {
     size: 4,
     difficulty: 'easy' as const,
     onStartGame: vi.fn(),
+    onRestart: vi.fn(),
+    canRestart: true,
     autoClearMarks: true,
     onAutoClearMarksChange: vi.fn(),
     theme: 'system' as const,
@@ -28,13 +30,16 @@ function baseProps() {
 
 const newGameButton = () => screen.getByRole('button', { name: 'New game' })
 const settingsButton = () => screen.getByRole('button', { name: 'Settings' })
+const restartButton = () => screen.getByRole('button', { name: 'Restart' })
 
 describe('Controls', () => {
-  it('shows only the two triggers until one is opened', () => {
+  it('shows only the three controls until a popover is opened', () => {
     render(<ControlsHarness {...baseProps()} />)
     expect(newGameButton()).toHaveAttribute('aria-haspopup', 'dialog')
     expect(newGameButton()).toHaveAttribute('aria-expanded', 'false')
     expect(settingsButton()).toHaveAttribute('aria-expanded', 'false')
+    // Restart acts directly, so it opens nothing and says so.
+    expect(restartButton()).not.toHaveAttribute('aria-haspopup')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
@@ -42,13 +47,16 @@ describe('Controls', () => {
    * `aria-disabled`, not `disabled`: the trigger has to stay focusable so the
    * popover can hand focus back to it in the same commit that disables it.
    */
-  it('disabled prop marks the new-game trigger aria-disabled but not settings', async () => {
+  it('disabled prop marks the board controls aria-disabled but not settings', async () => {
     const user = userEvent.setup()
     const props = baseProps()
     render(<ControlsHarness {...props} disabled />)
 
     expect(newGameButton()).toHaveAttribute('aria-disabled', 'true')
     expect(newGameButton()).not.toBeDisabled()
+    expect(restartButton()).toHaveAttribute('aria-disabled', 'true')
+    expect(restartButton()).not.toBeDisabled()
+    // Settings changes preferences, not the board, so generating never blocks it.
     expect(settingsButton()).toBeEnabled()
     expect(settingsButton()).not.toHaveAttribute('aria-disabled')
 
@@ -129,6 +137,37 @@ describe('Controls', () => {
 
       expect(screen.getByRole('dialog', { name: 'Size' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: '5 by 5' })).toBeInTheDocument()
+    })
+  })
+
+  describe('restart', () => {
+    it('empties the board on a press', async () => {
+      const user = userEvent.setup()
+      const props = baseProps()
+      render(<ControlsHarness {...props} />)
+
+      await user.click(restartButton())
+      expect(props.onRestart).toHaveBeenCalledTimes(1)
+    })
+
+    /*
+     * The press is what empties the board, so the press is what makes the
+     * button unavailable. A real `disabled` in that commit would drop focus on
+     * `<body>`; `aria-disabled` keeps it, which is the whole point.
+     */
+    it('an empty board leaves it focusable but inert', async () => {
+      const user = userEvent.setup()
+      const props = baseProps()
+      render(<ControlsHarness {...props} canRestart={false} />)
+
+      expect(restartButton()).toHaveAttribute('aria-disabled', 'true')
+      expect(restartButton()).not.toBeDisabled()
+
+      restartButton().focus()
+      expect(restartButton()).toHaveFocus()
+
+      await user.keyboard('{Enter}')
+      expect(props.onRestart).not.toHaveBeenCalled()
     })
   })
 

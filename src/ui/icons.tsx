@@ -188,3 +188,26 @@ export function NewGameIcon(props: IconProps) {
     </IconBase>
   )
 }
+
+/**
+ * Restart: the same loop as `NewGameIcon`, mirrored to run anticlockwise.
+ *
+ * The two sit side by side in the header, which is normally a reason to pick
+ * unrelated glyphs — but they *are* related, and the pair is honest about it:
+ * one starts a fresh puzzle, the other winds this one back to the start. Every
+ * control in the app carries a visible label under its glyph (STYLE_GUIDE.md
+ * §4.2), so the word does the naming and the glyph only has to say which
+ * family the action belongs to.
+ *
+ * Anticlockwise is the direction that means "back" here, the same way
+ * `UndoIcon` leads left and `RedoIcon` leads right; the head is the same raked
+ * chevron on the same tangential flare, for the reasons in `NewGameIcon`.
+ */
+export function RestartIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M3 12a9 9 0 1 0 9-9c-2.52 0-4.93 1-6.74 2.74L3 8" />
+      <path d="M7.6 7.4 3 8l.6-4.6" />
+    </IconBase>
+  )
+}

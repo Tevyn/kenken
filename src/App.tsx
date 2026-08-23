@@ -90,6 +90,14 @@ function App() {
     setOpenMenu('new-game')
   }, [])
 
+  /* Restarting an untouched board would do nothing but add an undo entry. */
+  const canRestart = useMemo(
+    () =>
+      game.state.values.some((value) => value != null) ||
+      game.state.marks.some((marks) => marks.length > 0),
+    [game.state.values, game.state.marks],
+  )
+
   const handleAutoClearMarksChange = useCallback(
     (enabled: boolean) => {
       setAutoClearMarks(enabled)
@@ -173,6 +181,8 @@ function App() {
           size={game.state.puzzle.size}
           difficulty={game.state.puzzle.difficulty}
           onStartGame={handleStartGame}
+          onRestart={game.reset}
+          canRestart={canRestart}
           autoClearMarks={game.state.autoClearMarks}
           onAutoClearMarksChange={handleAutoClearMarksChange}
           theme={theme}

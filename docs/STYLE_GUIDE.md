@@ -277,9 +277,21 @@ Shared implementation: `.kk-control` in `src/index.css`, plus
 control that does not use them is a bug.
 
 **Every icon control wears the same stack**, wherever it sits: the five toolbar
-actions and the two header triggers are the same kind of thing, so New Game and
-Settings are glyph-over-label at 56px exactly like Undo and Redo. A header
-button styled as its own species is the bug this rule exists to prevent.
+actions and the three header controls are the same kind of thing, so New game,
+Restart and Settings are glyph-over-label at 56px exactly like Undo and Redo. A
+header button styled as its own species is the bug this rule exists to prevent.
+
+**Where an action goes** follows what it acts on. The keypad's row edits the
+grid you are solving — a cell, a digit, a step. The header's three act on the
+puzzle itself: start a different one, wind this one back to empty, or change how
+the app behaves. Restart is in the header for that reason, not in the action row
+beside Erase.
+
+**Unavailable is `aria-disabled` when the press is what disables it.** Restart
+and the New Game trigger both take focus into a commit that makes them
+unavailable; the real `disabled` attribute would drop focus on `<body>` in that
+same commit, so they stay focusable and the handler guards instead. Undo and
+Redo, which nothing focuses on the way in, use the real attribute.
 
 | | Treatment |
 |---|---|
