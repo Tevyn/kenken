@@ -5,9 +5,7 @@ Types live in `src/engine/types.ts` (already written — treat it as fixed).
 The engine's public surface is `src/engine/index.ts`.
 
 ```ts
-import type {
-  Puzzle, GenerateOptions, Grid, CellIndex, Difficulty, Op, Cage,
-} from './types'
+import type { Puzzle, GenerateOptions, Grid, CellIndex, Difficulty, Op, Cage } from './types';
 
 /**
  * Generate a puzzle with exactly one solution.
@@ -15,30 +13,30 @@ import type {
  * Must return within ~1s for size 9 / expert on a normal laptop.
  * Throws RangeError for size outside 3..9.
  */
-export function generatePuzzle(options: GenerateOptions): Puzzle
+export function generatePuzzle(options: GenerateOptions): Puzzle;
 
 /**
  * Find solutions to a puzzle's cage constraints (ignores `puzzle.solution`).
  * Stops once `limit` solutions are found. Each solution is a `number[]` of
  * length size*size.
  */
-export function solvePuzzle(puzzle: Puzzle, limit?: number): number[][]
+export function solvePuzzle(puzzle: Puzzle, limit?: number): number[][];
 
 /** Number of solutions, capped at `cap` (default 2). Used for uniqueness checks. */
-export function countSolutions(puzzle: Puzzle, cap?: number): number
+export function countSolutions(puzzle: Puzzle, cap?: number): number;
 
 /** True when `grid` is completely filled and satisfies every constraint. */
-export function isSolved(puzzle: Puzzle, grid: Grid): boolean
+export function isSolved(puzzle: Puzzle, grid: Grid): boolean;
 
 /**
  * Cells that currently violate a constraint: a duplicate digit in its row or
  * column, or membership in a fully-filled cage whose arithmetic is wrong.
  * Empty cells are never reported.
  */
-export function findConflicts(puzzle: Puzzle, grid: Grid): Set<CellIndex>
+export function findConflicts(puzzle: Puzzle, grid: Grid): Set<CellIndex>;
 
 // Re-export everything from ./types as well.
-export * from './types'
+export * from './types';
 ```
 
 ## Semantics of cage arithmetic

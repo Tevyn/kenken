@@ -1,27 +1,27 @@
-import type { CSSProperties } from 'react'
-import type { Mode } from '../game/state'
-import { HintMenu } from './HintMenu'
-import type { HintMenuProps } from './HintMenu'
-import { EraseIcon, MarksIcon, RedoIcon, UndoIcon } from './icons'
-import './Keypad.css'
+import type { CSSProperties } from 'react';
+import type { Mode } from '../game/state';
+import { HintMenu } from './HintMenu';
+import type { HintMenuProps } from './HintMenu';
+import { EraseIcon, MarksIcon, RedoIcon, UndoIcon } from './icons';
+import './Keypad.css';
 
 export interface KeypadProps {
-  size: number
-  mode: Mode
-  onDigit: (value: number) => void
-  onErase: () => void
-  onToggleMode: () => void
-  onUndo: () => void
-  onRedo: () => void
-  canUndo: boolean
-  canRedo: boolean
+  size: number;
+  mode: Mode;
+  onDigit: (value: number) => void;
+  onErase: () => void;
+  onToggleMode: () => void;
+  onUndo: () => void;
+  onRedo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
   /**
    * Everything the hint popover needs, passed through untouched. Grouped
    * because it is one control's worth of wiring and the keypad only hosts it:
    * the panel reads the grid and writes to it, which is the owner's business
    * rather than the digit pad's.
    */
-  hint: HintMenuProps
+  hint: HintMenuProps;
 }
 
 /**
@@ -53,7 +53,7 @@ export function Keypad({
   canRedo,
   hint,
 }: KeypadProps) {
-  const digits = Array.from({ length: size }, (_, i) => i + 1)
+  const digits = Array.from({ length: size }, (_, i) => i + 1);
 
   return (
     <div className="kk-keypad">
@@ -94,9 +94,7 @@ export function Keypad({
             <MarksIcon size={22} />
             <span
               className={
-                mode === 'mark'
-                  ? 'kk-keypad__badge kk-keypad__badge--on'
-                  : 'kk-keypad__badge'
+                mode === 'mark' ? 'kk-keypad__badge kk-keypad__badge--on' : 'kk-keypad__badge'
               }
               aria-hidden="true"
             >
@@ -152,5 +150,5 @@ export function Keypad({
         </button>
       </div>
     </div>
-  )
+  );
 }

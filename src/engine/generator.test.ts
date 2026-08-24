@@ -116,13 +116,17 @@ describe('generatePuzzle structure', () => {
 });
 
 describe('generatePuzzle determinism', () => {
-  it.each(SIZES)('the same seed reproduces an identical %ix%i puzzle', (size) => {
-    for (const difficulty of DIFFICULTIES) {
-      const a = generatePuzzle({ size, difficulty, seed: 'repeatable' });
-      const b = generatePuzzle({ size, difficulty, seed: 'repeatable' });
-      expect(a).toEqual(b);
-    }
-  }, 120_000);
+  it.each(SIZES)(
+    'the same seed reproduces an identical %ix%i puzzle',
+    (size) => {
+      for (const difficulty of DIFFICULTIES) {
+        const a = generatePuzzle({ size, difficulty, seed: 'repeatable' });
+        const b = generatePuzzle({ size, difficulty, seed: 'repeatable' });
+        expect(a).toEqual(b);
+      }
+    },
+    120_000,
+  );
 
   it('different seeds generally produce different puzzles', () => {
     const signatures = new Set<string>();
@@ -168,13 +172,21 @@ describe('generatePuzzle argument validation', () => {
 });
 
 describe('generatePuzzle performance', () => {
-  it.each(SIZES)('generates a %ix%i puzzle of every tier quickly', (size) => {
-    for (const difficulty of DIFFICULTIES) {
-      const started = performance.now();
-      const puzzle: Puzzle = generatePuzzle({ size, difficulty, seed: `perf-${size}-${difficulty}` });
-      const elapsed = performance.now() - started;
-      expect(puzzle.cages.length).toBeGreaterThan(0);
-      expect(elapsed).toBeLessThan(3000);
-    }
-  }, 120_000);
+  it.each(SIZES)(
+    'generates a %ix%i puzzle of every tier quickly',
+    (size) => {
+      for (const difficulty of DIFFICULTIES) {
+        const started = performance.now();
+        const puzzle: Puzzle = generatePuzzle({
+          size,
+          difficulty,
+          seed: `perf-${size}-${difficulty}`,
+        });
+        const elapsed = performance.now() - started;
+        expect(puzzle.cages.length).toBeGreaterThan(0);
+        expect(elapsed).toBeLessThan(3000);
+      }
+    },
+    120_000,
+  );
 });

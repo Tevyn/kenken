@@ -1,18 +1,18 @@
-import { useEffect, useRef, useState } from 'react'
-import { CorrectnessIcon, HintIcon, NumberIcon, TipIcon } from './icons'
-import { Popover } from './Popover'
-import './HintMenu.css'
+import { useEffect, useRef, useState } from 'react';
+import { CorrectnessIcon, HintIcon, NumberIcon, TipIcon } from './icons';
+import { Popover } from './Popover';
+import './HintMenu.css';
 
 /* The panel is named by its own heading, which both screens keep. */
-const HEADING_ID = 'kk-hint-menu-heading'
+const HEADING_ID = 'kk-hint-menu-heading';
 
 interface ChoicesProps {
-  text: string | null
-  canCheck: boolean
-  onCorrectness: () => number
-  onTip: () => void
-  onNumber: () => boolean
-  onClose: () => void
+  text: string | null;
+  canCheck: boolean;
+  onCorrectness: () => number;
+  onTip: () => void;
+  onNumber: () => boolean;
+  onClose: () => void;
 }
 
 /**
@@ -20,15 +20,15 @@ interface ChoicesProps {
  * only one of the three can ever have been pressed: `game` shows whatever the
  * ladder last worked out, `own` a sentence the panel wrote itself.
  */
-type Screen = { kind: 'choices' } | { kind: 'game' } | { kind: 'own'; text: string }
+type Screen = { kind: 'choices' } | { kind: 'game' } | { kind: 'own'; text: string };
 
-const CHOICES: Screen = { kind: 'choices' }
+const CHOICES: Screen = { kind: 'choices' };
 
 /** The check's whole answer in words. The board carries the rest of it. */
 function verdictText(wrong: number): string {
-  if (wrong === 0) return 'Everything is correct'
-  if (wrong === 1) return 'The marked cell is incorrect'
-  return `The ${wrong} marked cells are incorrect`
+  if (wrong === 0) return 'Everything is correct';
+  if (wrong === 1) return 'The marked cell is incorrect';
+  return `The ${wrong} marked cells are incorrect`;
 }
 
 /**
@@ -39,9 +39,9 @@ function verdictText(wrong: number): string {
  * starts back at the three choices with nothing to reset.
  */
 function HintChoices({ text, canCheck, onCorrectness, onTip, onNumber, onClose }: ChoicesProps) {
-  const [screen, setScreen] = useState<Screen>(CHOICES)
-  const textRef = useRef<HTMLParagraphElement>(null)
-  const explaining = screen.kind !== 'choices'
+  const [screen, setScreen] = useState<Screen>(CHOICES);
+  const textRef = useRef<HTMLParagraphElement>(null);
+  const explaining = screen.kind !== 'choices';
 
   /*
    * The button that was focused has just been replaced by prose, so focus has
@@ -51,8 +51,8 @@ function HintChoices({ text, canCheck, onCorrectness, onTip, onNumber, onClose }
    * with the dialog's own announcement.
    */
   useEffect(() => {
-    if (explaining) textRef.current?.focus()
-  }, [explaining])
+    if (explaining) textRef.current?.focus();
+  }, [explaining]);
 
   return (
     <>
@@ -91,8 +91,8 @@ function HintChoices({ text, canCheck, onCorrectness, onTip, onNumber, onClose }
             type="button"
             className="kk-control kk-control--stack kk-hint-menu__choice"
             onClick={() => {
-              onTip()
-              setScreen({ kind: 'game' })
+              onTip();
+              setScreen({ kind: 'game' });
             }}
           >
             <TipIcon size={22} />
@@ -107,8 +107,8 @@ function HintChoices({ text, canCheck, onCorrectness, onTip, onNumber, onClose }
             type="button"
             className="kk-control kk-control--stack kk-hint-menu__choice"
             onClick={() => {
-              if (onNumber()) onClose()
-              else setScreen({ kind: 'game' })
+              if (onNumber()) onClose();
+              else setScreen({ kind: 'game' });
             }}
           >
             <NumberIcon size={22} />
@@ -117,22 +117,22 @@ function HintChoices({ text, canCheck, onCorrectness, onTip, onNumber, onClose }
         </div>
       )}
     </>
-  )
+  );
 }
 
 export interface HintMenuProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   /** The sentence the game currently has to offer, or null when it has none. */
-  text: string | null
+  text: string | null;
   /** Whether the board has anything filled in for the check to judge. */
-  canCheck: boolean
+  canCheck: boolean;
   /** Judge every filled cell against the solution. Reports how many were wrong. */
-  onCorrectness: () => number
+  onCorrectness: () => number;
   /** Explain the easiest step available, in words and on the board. */
-  onTip: () => void
+  onTip: () => void;
   /** Write the next digit. Reports false when there was none to write. */
-  onNumber: () => boolean
+  onNumber: () => boolean;
 }
 
 /**
@@ -183,5 +183,5 @@ export function HintMenu({
         onClose={() => onOpenChange(false)}
       />
     </Popover>
-  )
+  );
 }

@@ -124,8 +124,7 @@ export const rowKey = (row: number): UnitKey => row;
 export const colKey = (col: number, size: number): UnitKey => size + col;
 export const isRowKey = (key: UnitKey, size: number): boolean => key < size;
 /** 0-based row or column number for a unit key. */
-export const unitLine = (key: UnitKey, size: number): number =>
-  key < size ? key : key - size;
+export const unitLine = (key: UnitKey, size: number): number => (key < size ? key : key - size);
 
 /** Every row then every column, as lists of flat cell indices. */
 export function buildUnits(size: number): number[][] {

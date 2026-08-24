@@ -48,12 +48,19 @@ describe('SAMPLE_PUZZLE', () => {
 
   it('has cage arithmetic consistent with the solution', () => {
     for (const cage of SAMPLE_PUZZLE.cages) {
-      expect(cageSatisfied(cage, cage.cells.map((c) => SAMPLE_PUZZLE.solution[c]))).toBe(true);
+      expect(
+        cageSatisfied(
+          cage,
+          cage.cells.map((c) => SAMPLE_PUZZLE.solution[c]),
+        ),
+      ).toBe(true);
     }
   });
 
   it('shows off every operator, which is why the UI uses it', () => {
-    expect(new Set(SAMPLE_PUZZLE.cages.map((c) => c.op))).toEqual(new Set(['+', '-', '*', '/', '=']));
+    expect(new Set(SAMPLE_PUZZLE.cages.map((c) => c.op))).toEqual(
+      new Set(['+', '-', '*', '/', '=']),
+    );
   });
 });
 
@@ -77,7 +84,12 @@ describe('DOC_PUZZLE', () => {
     DOC_PUZZLE.cages.forEach((cage, index) => {
       expect(cage.id).toBe(index);
       expect(isConnected(cage.cells, DOC_PUZZLE.size)).toBe(true);
-      expect(cageSatisfied(cage, cage.cells.map((c) => DOC_PUZZLE.solution[c]))).toBe(true);
+      expect(
+        cageSatisfied(
+          cage,
+          cage.cells.map((c) => DOC_PUZZLE.solution[c]),
+        ),
+      ).toBe(true);
       for (const cell of cage.cells) {
         expect(seen.has(cell)).toBe(false);
         seen.add(cell);

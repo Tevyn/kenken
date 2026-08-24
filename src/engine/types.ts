@@ -19,12 +19,7 @@ export const OPS: readonly Op[] = ['+', '-', '*', '/', '='] as const;
 
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'expert';
 
-export const DIFFICULTIES: readonly Difficulty[] = [
-  'easy',
-  'medium',
-  'hard',
-  'expert',
-] as const;
+export const DIFFICULTIES: readonly Difficulty[] = ['easy', 'medium', 'hard', 'expert'] as const;
 
 /** A flat cell index in `0 .. size*size - 1`. */
 export type CellIndex = number;

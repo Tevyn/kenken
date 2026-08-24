@@ -1,15 +1,15 @@
-import { PopoverPanel } from './Popover'
-import './WinDialog.css'
+import { PopoverPanel } from './Popover';
+import './WinDialog.css';
 
-const HEADING_ID = 'kk-win-heading'
+const HEADING_ID = 'kk-win-heading';
 
 export interface WinDialogProps {
   /** True once the grid matches the solution and the dialog has not been dismissed. */
-  visible: boolean
+  visible: boolean;
   /** Dismissal — Escape, or a press outside. The puzzle stays solved. */
-  onDismiss: () => void
+  onDismiss: () => void;
   /** Hands off to the new-game wizard, which owns the size and difficulty choice. */
-  onNewGame: () => void
+  onNewGame: () => void;
 }
 
 /**
@@ -45,5 +45,5 @@ export function WinDialog({ visible, onDismiss, onNewGame }: WinDialogProps) {
         </button>
       </div>
     </PopoverPanel>
-  )
+  );
 }

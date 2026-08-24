@@ -1,4 +1,4 @@
-import type { Puzzle } from '../engine/types'
+import type { Puzzle } from '../engine/types';
 
 /**
  * The worked 4x4 example from `docs/KENKEN.md` §1.6, and the fixture the hint
@@ -35,4 +35,4 @@ export const DOC_PUZZLE: Puzzle = {
     { id: 6, cells: [9, 13, 14], op: '*', target: 6 },
     { id: 7, cells: [15], op: '=', target: 1 },
   ],
-}
+};

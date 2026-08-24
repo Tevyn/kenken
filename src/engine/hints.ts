@@ -270,9 +270,7 @@ function makeHint(
   apply: HintApply,
 ): Hint {
   const digits =
-    apply.kind === 'place'
-      ? apply.cells.map((e) => e.value)
-      : apply.cells.flatMap((e) => e.digits);
+    apply.kind === 'place' ? apply.cells.map((e) => e.value) : apply.cells.flatMap((e) => e.digits);
   return {
     technique,
     rank: TECHNIQUE_RANK[technique],
@@ -303,13 +301,10 @@ const detectFreebieCage: Detector = (ctx) => {
     highlight.focus = [cell];
     highlight.cages = [info.cage.id];
     out.push(
-      makeHint(
-        'freebie-cage',
-        placedHere(digit),
-        'Given cell',
-        highlight,
-        { kind: 'place', cells: [{ cell, value: digit }] },
-      ),
+      makeHint('freebie-cage', placedHere(digit), 'Given cell', highlight, {
+        kind: 'place',
+        cells: [{ cell, value: digit }],
+      }),
     );
   }
   return out;
@@ -457,9 +452,7 @@ const detectNakedSingle: Detector = (ctx) => {
     if (digit === 0) continue;
 
     const peers = peersOf(cell, ctx.size);
-    const filledPeers = peers.filter(
-      (p) => ctx.values[p] !== null && ctx.values[p] !== undefined,
-    );
+    const filledPeers = peers.filter((p) => ctx.values[p] !== null && ctx.values[p] !== undefined);
     let peersAlone = ctx.state.full;
     for (const p of filledPeers) peersAlone &= ~bit(ctx.values[p] as number);
 
@@ -494,13 +487,10 @@ const detectNakedSingle: Detector = (ctx) => {
     highlight.cages = [info.cage.id];
 
     out.push(
-      makeHint(
-        'naked-single',
-        placedHere(digit),
-        'Naked single',
-        highlight,
-        { kind: 'place', cells: [{ cell, value: digit }] },
-      ),
+      makeHint('naked-single', placedHere(digit), 'Naked single', highlight, {
+        kind: 'place',
+        cells: [{ cell, value: digit }],
+      }),
     );
   }
   return out;
@@ -546,9 +536,7 @@ const detectUnitSumInnie: Detector = (ctx) => {
 
     const highlight = emptyHighlight();
     highlight.focus = [found.cell];
-    highlight.support = ascending(
-      found.insideCages.flatMap((ci) => ctx.state.cages[ci].cells),
-    );
+    highlight.support = ascending(found.insideCages.flatMap((ci) => ctx.state.cages[ci].cells));
     highlight.cages = found.insideCages.map((ci) => ctx.puzzle.cages[ci].id);
     Object.assign(highlight, unitBand(found.unitKey, ctx.size));
 
@@ -884,13 +872,10 @@ export function revealHint(
   const digit = puzzle.solution[best];
   const highlight = emptyHighlight();
   highlight.focus = [best];
-  return makeHint(
-    'reveal',
-    placedHere(digit),
-    'Revealed',
-    highlight,
-    { kind: 'place', cells: [{ cell: best, value: digit }] },
-  );
+  return makeHint('reveal', placedHere(digit), 'Revealed', highlight, {
+    kind: 'place',
+    cells: [{ cell: best, value: digit }],
+  });
 }
 
 /* ------------------------------------------------------------------ */

@@ -193,7 +193,11 @@ export function enumerateCageCombos(
   return out;
 }
 
-function buildContext(puzzle: Puzzle, maxCombos: number, nodeLimit: number): {
+function buildContext(
+  puzzle: Puzzle,
+  maxCombos: number,
+  nodeLimit: number,
+): {
   ctx: Context;
   state: State | null;
 } {

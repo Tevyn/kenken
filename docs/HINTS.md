@@ -1,7 +1,7 @@
 # Hint system — design specification
 
 A hint engine for the KenKen app: a pure function over engine types that finds
-the *easiest* deduction a player could make right now, explains it in plain
+the _easiest_ deduction a player could make right now, explains it in plain
 English, says which cells to highlight, and can apply itself.
 
 This document is written to be implemented from directly. It assumes
@@ -30,13 +30,13 @@ Contents:
 `src/engine/solver.ts` is a cage-combination CSP. Its `propagate()` runs five
 rules to a fixpoint, and four of them map directly onto named human techniques:
 
-| Solver rule | Location | Human technique |
-|---|---|---|
+| Solver rule                                        | Location    | Human technique                                                            |
+| -------------------------------------------------- | ----------- | -------------------------------------------------------------------------- |
 | (A) combination filtering + candidate intersection | `shallow()` | cage combination analysis; freebie cages; "only one way to fill this cage" |
-| (B) naked singles / peer elimination | `shallow()` | a placed digit blocks its row and column |
-| (C) hidden singles | `shallow()` | only one home for a digit in a row/column |
-| (D1) cage → unit locked candidates | `deep()` | cage confinement / cage-unit overlap |
-| (D2) unit → cage locked candidates | `deep()` | "this digit must live in that cage" |
+| (B) naked singles / peer elimination               | `shallow()` | a placed digit blocks its row and column                                   |
+| (C) hidden singles                                 | `shallow()` | only one home for a digit in a row/column                                  |
+| (D1) cage → unit locked candidates                 | `deep()`    | cage confinement / cage-unit overlap                                       |
+| (D2) unit → cage locked candidates                 | `deep()`    | "this digit must live in that cage"                                        |
 
 `enumerateCageCombos()` is the single most reusable piece. **A key finding of
 the research below: exhaustive per-cage combination enumeration already
@@ -45,7 +45,7 @@ prime-factor decomposition of `×` targets, divisibility checks for `÷`, min/ma
 bounds on `+` cages, and intra-cage parity are all just filters on a
 combination list that `enumerateCageCombos` already computes exactly. There is
 no reason to implement them as separate techniques; they only affect the
-*wording* of a cage-combination hint, never its conclusions.
+_wording_ of a cage-combination hint, never its conclusions.
 
 What is genuinely missing, in rough order of value:
 
@@ -59,7 +59,7 @@ What is genuinely missing, in rough order of value:
 
 ### 1.1 Refactor prerequisite
 
-The hint engine needs the solver's machinery in a form that *reports* what it
+The hint engine needs the solver's machinery in a form that _reports_ what it
 deduced rather than silently mutating. Recommended, in `src/engine/`:
 
 - Extract `buildContext` / `State` / the candidate representation into a new
@@ -85,7 +85,7 @@ distinction right is what makes the whole system behave sanely.
 **`book[cell]` — the bookkeeping fixpoint.** Seed `cands[i]` from the player's
 `values` (a filled cell is its single digit; an empty cell is all digits), then
 run rules **(A) + (B) only** to a fixpoint. This is the ground truth the engine
-reasons from. It is *sound*: it uses only the puzzle and the player's entries.
+reasons from. It is _sound_: it uses only the puzzle and the player's entries.
 
 **`visible[cell]` — what the player plausibly knows.**
 
@@ -97,15 +97,15 @@ visible[cell] = marks[cell].length > 0
 
 Rules (A) and (B) are treated as **bookkeeping, never as hints.** No player
 wants to be told "row 3 already has a 7, so this cell isn't 7." Every technique
-in the ladder below is a *conclusion* layered on top of the bookkeeping
+in the ladder below is a _conclusion_ layered on top of the bookkeeping
 fixpoint.
 
 Two invariants follow, and they resolve the two obvious failure modes:
 
-- **Soundness:** `marks` are *never* used to derive a conclusion. A player's
+- **Soundness:** `marks` are _never_ used to derive a conclusion. A player's
   pencil marks may be wrong, stale, or absent; deriving from them would produce
   false hints.
-- **Novelty:** `marks` *are* used to decide whether a conclusion is worth
+- **Novelty:** `marks` _are_ used to decide whether a conclusion is worth
   offering. An elimination hint is only offered if it removes at least one
   digit from `visible[cell]` for at least one target cell. A placement hint is
   only offered if `values[cell] == null`.
@@ -126,26 +126,26 @@ applicable hint; gaps of 10 leave room to insert.
 Techniques **overlap deliberately**. A cage with one surviving combination also
 produces naked singles; the last empty cell in a row is also a naked single and
 a hidden single. The ladder resolves this by always reporting the lowest-rank
-technique whose *explanation* applies. That is a feature: the friendliest
+technique whose _explanation_ applies. That is a feature: the friendliest
 phrasing wins.
 
-| rank | id | Display name | Preconditions | Concludes | In `solver.ts`? |
-|---|---|---|---|---|---|
-| 10 | `freebie-cage` | Given cell | Cage has 1 cell; `values[cell] == null` | **Place** `cage.target` | Yes — rule (A), `enumerateCageCombos` n=1 branch |
-| 20 | `last-cell-in-unit` | Last cell in a row or column | A row or column has exactly one empty cell | **Place** the missing digit | Yes — emergent from (B)/(C) |
-| 30 | `single-cage-combination` | Only one way to fill this cage | After bookkeeping, the cage's surviving combinations all use the same multiset of digits; and for ≥1 cage cell `book ⊊ visible` | **Place** every cell (if exactly one surviving arrangement), else **eliminate** every digit outside the multiset from the cage's cells | Yes — rule (A) |
-| 40 | `naked-single` | Only one digit left here | `popcount(book[cell]) === 1`, `values[cell] == null` | **Place** that digit | Yes — rules (A)+(B) |
-| 50 | `hidden-single` | Only one home for this digit | In some row or column, digit `d` appears in `book` of exactly one cell, and that cell is empty with `popcount(book) > 1` | **Place** `d` there | Yes — rule (C) |
-| 60 | `unit-sum-innie` | Row/column total, one cell over | Cages entirely inside a unit cover all but exactly one of its cells; each such cage has a single possible cell-sum under `book` | **Place** `N(N+1)/2 − Σ covered` in the leftover cell | **No — new code** |
-| 70 | `unit-sum-outie` | Row/column total, cage sticks out | Cages entirely inside a unit, plus exactly one straddling cage with exactly one cell outside, cover the unit; the fully-inside cages and the straddling cage's *total* each have a single possible sum | **Place** `cageSum − (T − Σ covered)` in the outside cell | **No — new code** |
-| 80 | `cage-locks-line` | A cage claims a digit for its row/column | Every surviving combination of cage `c` places digit `d` among the cage cells lying in unit `u` | **Eliminate** `d` from every cell of `u` outside `c` | Yes — rule (D1) |
-| 90 | `unit-sum-bound` | Row/column total forces a range | As `unit-sum-innie` but the covered cages have a *range* of possible sums; the resulting interval for the leftover cell excludes some of its candidates | **Eliminate** out-of-range digits | **No — new code** |
-| 100 | `line-locks-cage` | A row/column forces a digit into a cage | In unit `u`, every cell that can still hold `d` belongs to one cage `c`, and `c` has combinations that omit `d` from its `u`-cells | **Eliminate** (via combination pruning, which then narrows cells through rule A) | Yes — rule (D2) |
-| 110 | `naked-set` | These cells are used up | `k` cells of a unit have `book` sets whose union has exactly `k` digits, `2 ≤ k ≤ 3` | **Eliminate** those digits from the unit's other cells | **No — new code** |
-| 120 | `hidden-set` | These digits are cornered | `k` digits of a unit have `book` homes confined to exactly `k` cells, `2 ≤ k ≤ 3` | **Eliminate** all other digits from those `k` cells | **No — new code** |
-| 130 | `unit-parity` | Odd/even counting | In a unit, every cage's odd-digit count is pinned except one | **Eliminate** by parity | **No — new code** |
-| 140 | `x-wing` | X-Wing | Digit `d` has exactly two homes in each of two rows, in the same two columns (or transpose) | **Eliminate** `d` from those columns elsewhere | **No — new code** |
-| — | `reveal` | Reveal a cell | Escape hatch; never reached by logic (§8.3) | **Place** from `puzzle.solution` | n/a |
+| rank | id                        | Display name                             | Preconditions                                                                                                                                                                                          | Concludes                                                                                                                              | In `solver.ts`?                                  |
+| ---- | ------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| 10   | `freebie-cage`            | Given cell                               | Cage has 1 cell; `values[cell] == null`                                                                                                                                                                | **Place** `cage.target`                                                                                                                | Yes — rule (A), `enumerateCageCombos` n=1 branch |
+| 20   | `last-cell-in-unit`       | Last cell in a row or column             | A row or column has exactly one empty cell                                                                                                                                                             | **Place** the missing digit                                                                                                            | Yes — emergent from (B)/(C)                      |
+| 30   | `single-cage-combination` | Only one way to fill this cage           | After bookkeeping, the cage's surviving combinations all use the same multiset of digits; and for ≥1 cage cell `book ⊊ visible`                                                                        | **Place** every cell (if exactly one surviving arrangement), else **eliminate** every digit outside the multiset from the cage's cells | Yes — rule (A)                                   |
+| 40   | `naked-single`            | Only one digit left here                 | `popcount(book[cell]) === 1`, `values[cell] == null`                                                                                                                                                   | **Place** that digit                                                                                                                   | Yes — rules (A)+(B)                              |
+| 50   | `hidden-single`           | Only one home for this digit             | In some row or column, digit `d` appears in `book` of exactly one cell, and that cell is empty with `popcount(book) > 1`                                                                               | **Place** `d` there                                                                                                                    | Yes — rule (C)                                   |
+| 60   | `unit-sum-innie`          | Row/column total, one cell over          | Cages entirely inside a unit cover all but exactly one of its cells; each such cage has a single possible cell-sum under `book`                                                                        | **Place** `N(N+1)/2 − Σ covered` in the leftover cell                                                                                  | **No — new code**                                |
+| 70   | `unit-sum-outie`          | Row/column total, cage sticks out        | Cages entirely inside a unit, plus exactly one straddling cage with exactly one cell outside, cover the unit; the fully-inside cages and the straddling cage's _total_ each have a single possible sum | **Place** `cageSum − (T − Σ covered)` in the outside cell                                                                              | **No — new code**                                |
+| 80   | `cage-locks-line`         | A cage claims a digit for its row/column | Every surviving combination of cage `c` places digit `d` among the cage cells lying in unit `u`                                                                                                        | **Eliminate** `d` from every cell of `u` outside `c`                                                                                   | Yes — rule (D1)                                  |
+| 90   | `unit-sum-bound`          | Row/column total forces a range          | As `unit-sum-innie` but the covered cages have a _range_ of possible sums; the resulting interval for the leftover cell excludes some of its candidates                                                | **Eliminate** out-of-range digits                                                                                                      | **No — new code**                                |
+| 100  | `line-locks-cage`         | A row/column forces a digit into a cage  | In unit `u`, every cell that can still hold `d` belongs to one cage `c`, and `c` has combinations that omit `d` from its `u`-cells                                                                     | **Eliminate** (via combination pruning, which then narrows cells through rule A)                                                       | Yes — rule (D2)                                  |
+| 110  | `naked-set`               | These cells are used up                  | `k` cells of a unit have `book` sets whose union has exactly `k` digits, `2 ≤ k ≤ 3`                                                                                                                   | **Eliminate** those digits from the unit's other cells                                                                                 | **No — new code**                                |
+| 120  | `hidden-set`              | These digits are cornered                | `k` digits of a unit have `book` homes confined to exactly `k` cells, `2 ≤ k ≤ 3`                                                                                                                      | **Eliminate** all other digits from those `k` cells                                                                                    | **No — new code**                                |
+| 130  | `unit-parity`             | Odd/even counting                        | In a unit, every cage's odd-digit count is pinned except one                                                                                                                                           | **Eliminate** by parity                                                                                                                | **No — new code**                                |
+| 140  | `x-wing`                  | X-Wing                                   | Digit `d` has exactly two homes in each of two rows, in the same two columns (or transpose)                                                                                                            | **Eliminate** `d` from those columns elsewhere                                                                                         | **No — new code**                                |
+| —    | `reveal`                  | Reveal a cell                            | Escape hatch; never reached by logic (§8.3)                                                                                                                                                            | **Place** from `puzzle.solution`                                                                                                       | n/a                                              |
 
 ### 3.1 Notes on the arithmetic techniques (ranks 60/70/90)
 
@@ -162,7 +162,7 @@ cageSumSet(cageIndex, positions?) :=
   surviving combinations in the current bookkeeping state
 ```
 
-- For `'+'` and `'='` cages over *all* positions this is always a singleton
+- For `'+'` and `'='` cages over _all_ positions this is always a singleton
   equal to `target` — no enumeration needed, take the fast path.
 - Otherwise derive it from `st.combos[cageIndex]`. For a partial position set
   (the straddling cage in `unit-sum-outie`) always derive it.
@@ -188,7 +188,7 @@ Every hint carries two strings:
 
 - `text` — player-facing, and **one short clause**. No technique jargon, no
   "because" tail, no arithmetic shown, and no per-cell `row R, column C`
-  co-ordinates. The highlight (§5) is what says *where*; a sentence that repeats
+  co-ordinates. The highlight (§5) is what says _where_; a sentence that repeats
   it in words only competes with it. No terminal full stop — these are labels,
   not prose.
 - `secondary` — the technique's proper name, shown smaller/dimmer, so a player
@@ -197,15 +197,15 @@ Every hint carries two strings:
 
 Every technique uses one of these shapes:
 
-| shape | when |
-|---|---|
-| `This cell has to be 2` | a placement whose reason is not a whole line |
-| `This cage has to be 1, 2, and 1` | a placement covering a whole cage |
-| `Only 3 can go here in column 2` | a placement where the row or column *is* the reason |
-| `3 and 5 cannot go here` | an elimination striking exactly one cell |
-| `3 and 5 cannot go in this cage` | an elimination barring digits from a whole cage |
-| `3 and 5 cannot go anywhere else in row 1` | an elimination clearing digits from the rest of a unit |
-| `3 and 5 cannot go in these cells` | an elimination with no true widening (deferred techniques only) |
+| shape                                      | when                                                            |
+| ------------------------------------------ | --------------------------------------------------------------- |
+| `This cell has to be 2`                    | a placement whose reason is not a whole line                    |
+| `This cage has to be 1, 2, and 1`          | a placement covering a whole cage                               |
+| `Only 3 can go here in column 2`           | a placement where the row or column _is_ the reason             |
+| `3 and 5 cannot go here`                   | an elimination striking exactly one cell                        |
+| `3 and 5 cannot go in this cage`           | an elimination barring digits from a whole cage                 |
+| `3 and 5 cannot go anywhere else in row 1` | an elimination clearing digits from the rest of a unit          |
+| `3 and 5 cannot go in these cells`         | an elimination with no true widening (deferred techniques only) |
 
 A row or column number therefore appears in `text` only when the line is the
 reason, never as an address. The cage-placement list is read in **board order**
@@ -248,6 +248,7 @@ secondary: "Given cell"
 ```
 
 **Example** — cage H is the single cell 15 with target 1.
+
 > This cell has to be 1
 
 ---
@@ -263,6 +264,7 @@ The unit is named because it is the whole reason — everything else in it is
 already spoken for.
 
 **Example** — the player has filled row 4 (cells 12,13,14) with 4, 3, 2.
+
 > Only 1 can go here in row 4
 
 ---
@@ -291,6 +293,7 @@ sorted nor de-duplicated.
 
 **Example (narrowed)** — cage E is `3÷` over cells 0 and 4 in a 4×4. Pairs with
 `max/min = 3`: only `{1,3}`.
+
 > 2 and 4 cannot go in this cage
 
 Eliminates 2 and 4 from cells 0 and 4. Novelty test passes at game start
@@ -298,6 +301,7 @@ because `visible` for both cells is `{1,2,3,4}`.
 
 **Example (placed)** — `SAMPLE_PUZZLE`'s `2×` cage covers cells 0, 1 and 5, and
 its only surviving arrangement is `(1, 2, 1)`.
+
 > This cage has to be 1, 2, and 1
 
 ---
@@ -312,11 +316,12 @@ secondary: "Naked single"
 The `reason` discriminator — `'cage'` when the cage's combination list alone
 pins the cell, `'peers'` when row/column elimination alone does, `'mixed'`
 otherwise — no longer changes the text. It still decides the **highlight**
-(§5), which is now the only thing that says *why*, so the detector must keep
+(§5), which is now the only thing that says _why_, so the detector must keep
 computing it.
 
 **Example** — the player has written 3 in cell 4. Cage E allows only `{1,3}`
 for cell 0; the 3 in cell 4 is a column peer.
+
 > This cell has to be 1
 
 ---
@@ -334,6 +339,7 @@ the highlighted cell is the answer.
 **Example** — verified on the fixture with an empty grid. After bookkeeping,
 row 1's cells are: cell 0 ∈ {1,3} (cage E), cell 1 ∈ {2,4} (cage A), cells 2
 and 3 ∈ {3,4} (cage D, `7+`). Digit 1 has exactly one home.
+
 > Only 1 can go here in row 1
 
 Correct: cell 0 = 1.
@@ -348,12 +354,13 @@ secondary: "{Row|Column} total (innie)"
 ```
 
 The arithmetic is deliberately not shown. It is the one place this hurts — the
-sum *is* the teaching — but a player who wants the name of the trick has
+sum _is_ the teaching — but a player who wants the name of the trick has
 `secondary`, and the highlight bands the unit and outlines the covering cages,
 which is the whole picture minus the addition.
 
 **Example (schematic, 5×5, `T = 15`)** — column 3 is covered by a 2-cell `4+`
 cage and a 3-cell `8+` cage that both sit entirely inside it, leaving one cell.
+
 > This cell has to be 3
 
 ---
@@ -394,6 +401,7 @@ secondary:            "Cage confinement"
 
 **Example (verified, empty grid)** — cage D is `7+` over cells 2 and 3, both in
 row 1. The only pair from 1..4 summing to 7 is `{3,4}`.
+
 > 3 and 4 cannot go anywhere else in row 1
 
 Eliminates 3 and 4 from cells 0 and 1. Correct: cell 0 = 1, cell 1 = 2.
@@ -435,11 +443,12 @@ secondary:            "Locked candidate (row into cage)"
 ```
 
 Not `"in this cage"`: the struck digits remain perfectly legal in the cage's
-*other* cells, which is exactly what the deduction says.
+_other_ cells, which is exactly what the deduction says.
 
 **Example (verified, empty grid)** — in row 1, only cell 0 can hold a 1, and
 cell 0 belongs to cage E (`3÷`). Cage E's combinations are `(1,3)` and `(3,1)`;
 pruning to those placing 1 at cell 0 leaves `(1,3)`.
+
 > 3 cannot go here
 
 ---
@@ -454,6 +463,7 @@ secondary:            "Naked {pair|triple}"
 
 **Example (verified, empty grid)** — cells 2 and 3 (cage D, `7+`) both have
 `book = {3,4}`.
+
 > 3 and 4 cannot go anywhere else in row 1
 
 Note this reaches the same conclusion as the `cage-locks-line` example above,
@@ -524,19 +534,19 @@ One shape, four channels, so `Board`/`Cell` need exactly one new prop each.
 ```ts
 export interface HintHighlight {
   /** Cells carrying the conclusion. Strongest emphasis. */
-  focus: CellIndex[]
+  focus: CellIndex[];
   /** Cells supplying the reason. Secondary emphasis. */
-  support: CellIndex[]
+  support: CellIndex[];
   /** 0-based rows to tint as a band. */
-  rows: number[]
+  rows: number[];
   /** 0-based columns to tint as a band. */
-  cols: number[]
+  cols: number[];
   /** `Cage.id`s to outline in the accent colour. */
-  cages: number[]
+  cages: number[];
   /** Dim every cell not named by focus/support/rows/cols/cages. */
-  dimRest: boolean
+  dimRest: boolean;
   /** Per-cell pencil digits to render struck through. */
-  strike: Array<{ cell: CellIndex; digits: number[] }>
+  strike: Array<{ cell: CellIndex; digits: number[] }>;
 }
 ```
 
@@ -545,24 +555,24 @@ row/col/cage band > dimmed. `strike` is drawn inside the cell's pencil-mark
 grid and only for digits actually in `marks[cell]` (or in the auto-filled set,
 see §7.2).
 
-| technique | `focus` | `support` | `rows` / `cols` | `cages` | `dimRest` | `strike` |
-|---|---|---|---|---|---|---|
-| `freebie-cage` | the one cell | — | — | that cage | true | — |
-| `last-cell-in-unit` | the empty cell | the unit's filled cells | the unit | — | true | — |
-| `single-cage-combination` (placed) | all cage cells | — | — | that cage | true | — |
-| `single-cage-combination` (narrowed) | cage cells that lose candidates | other cage cells | — | that cage | true | removed digits per cell |
-| `naked-single` | the cell | reason `'peers'`: the filled peers in its row+col. reason `'cage'`: the other cage cells. `'mixed'`: both | reason ≠ `'cage'`: its row and col | its cage | true | — |
-| `hidden-single` | the cell | every other cell of the unit | the unit | — | true | — |
-| `unit-sum-innie` | the leftover cell | all cells of the fully-inside cages | the unit | those cages | true | — |
-| `unit-sum-outie` | the outside cell | cells of the fully-inside cages **and** the straddling cage's in-unit cells | the unit | inside cages + straddling cage | true | — |
-| `cage-locks-line` | cells losing the digit | the cage's cells in that unit | the unit | that cage | true | the locked digits |
-| `unit-sum-bound` | the bounded cell | all other cells of the unit | the unit | cages fully inside the unit | true | removed digits |
-| `line-locks-cage` | the cage cells that lose candidates | the unit's cells that can hold the digit | the unit | that cage | true | removed digits |
-| `naked-set` | the unit's other cells that lose candidates | the `k` set cells | the unit | — | true | the set's digits |
-| `hidden-set` | the `k` cells | the unit's other cells | the unit | — | true | removed digits |
-| `unit-parity` | cells losing candidates | the unit | the unit | cages with known parity | true | removed digits |
-| `x-wing` | cells losing the digit | the four corner cells | both rows and both cols | — | true | the digit |
-| `reveal` | the cell | — | — | — | true | — |
+| technique                            | `focus`                                     | `support`                                                                                                 | `rows` / `cols`                    | `cages`                        | `dimRest` | `strike`                |
+| ------------------------------------ | ------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------- | ------------------------------ | --------- | ----------------------- |
+| `freebie-cage`                       | the one cell                                | —                                                                                                         | —                                  | that cage                      | true      | —                       |
+| `last-cell-in-unit`                  | the empty cell                              | the unit's filled cells                                                                                   | the unit                           | —                              | true      | —                       |
+| `single-cage-combination` (placed)   | all cage cells                              | —                                                                                                         | —                                  | that cage                      | true      | —                       |
+| `single-cage-combination` (narrowed) | cage cells that lose candidates             | other cage cells                                                                                          | —                                  | that cage                      | true      | removed digits per cell |
+| `naked-single`                       | the cell                                    | reason `'peers'`: the filled peers in its row+col. reason `'cage'`: the other cage cells. `'mixed'`: both | reason ≠ `'cage'`: its row and col | its cage                       | true      | —                       |
+| `hidden-single`                      | the cell                                    | every other cell of the unit                                                                              | the unit                           | —                              | true      | —                       |
+| `unit-sum-innie`                     | the leftover cell                           | all cells of the fully-inside cages                                                                       | the unit                           | those cages                    | true      | —                       |
+| `unit-sum-outie`                     | the outside cell                            | cells of the fully-inside cages **and** the straddling cage's in-unit cells                               | the unit                           | inside cages + straddling cage | true      | —                       |
+| `cage-locks-line`                    | cells losing the digit                      | the cage's cells in that unit                                                                             | the unit                           | that cage                      | true      | the locked digits       |
+| `unit-sum-bound`                     | the bounded cell                            | all other cells of the unit                                                                               | the unit                           | cages fully inside the unit    | true      | removed digits          |
+| `line-locks-cage`                    | the cage cells that lose candidates         | the unit's cells that can hold the digit                                                                  | the unit                           | that cage                      | true      | removed digits          |
+| `naked-set`                          | the unit's other cells that lose candidates | the `k` set cells                                                                                         | the unit                           | —                              | true      | the set's digits        |
+| `hidden-set`                         | the `k` cells                               | the unit's other cells                                                                                    | the unit                           | —                              | true      | removed digits          |
+| `unit-parity`                        | cells losing candidates                     | the unit                                                                                                  | the unit                           | cages with known parity        | true      | removed digits          |
+| `x-wing`                             | cells losing the digit                      | the four corner cells                                                                                     | both rows and both cols            | —                              | true      | the digit               |
+| `reveal`                             | the cell                                    | —                                                                                                         | —                                  | —                              | true      | —                       |
 
 Accessibility: put `text` in an `aria-live="polite"` region. Append a
 disambiguator to the aria-label of highlighted cells — `", hint focus"` /
@@ -686,24 +696,22 @@ Hint state is ephemeral UI state, like `selected`. It lives in `GameState` but
 
 ```ts
 type HintPhase =
-  | { kind: 'idle' }
-  | { kind: 'shown'; hint: Hint }
-  | { kind: 'message'; message: HintMessage }   // solved / mistake / stuck
+  { kind: 'idle' } | { kind: 'shown'; hint: Hint } | { kind: 'message'; message: HintMessage }; // solved / mistake / stuck
 ```
 
 No arm means "armed": `shown` says only that a sentence is on screen and a
 highlight is on the board, so dropping the phase can never lose the player
 anything.
 
-| Event | From | To | Effect |
-|---|---|---|---|
-| choose Tip | any | `shown` or `message` | run `findHint` |
-| choose Number | any | `idle`, or `message` | run `findNextNumber`; on a hit `APPLY_HINT` writes the one cell, on a miss show what `findHint` says instead |
-| choose Correctness | any | `idle` | the check speaks about the whole board, so it takes it over; the panel writes its own sentence and does not consult `HintPhase` |
-| `SELECT` / `MOVE` | `shown` | `shown` | unchanged — moving the cursor to look at the highlight must not destroy it |
-| `DIGIT` / `ERASE` / `UNDO` / `REDO` | any | `idle` | the board changed; the hint is stale |
-| `NEW_PUZZLE` / `RESET` | any | `idle` | also clear `recent` |
-| Escape with no panel open | `shown` / `message` | `idle` | — |
+| Event                               | From                | To                   | Effect                                                                                                                          |
+| ----------------------------------- | ------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| choose Tip                          | any                 | `shown` or `message` | run `findHint`                                                                                                                  |
+| choose Number                       | any                 | `idle`, or `message` | run `findNextNumber`; on a hit `APPLY_HINT` writes the one cell, on a miss show what `findHint` says instead                    |
+| choose Correctness                  | any                 | `idle`               | the check speaks about the whole board, so it takes it over; the panel writes its own sentence and does not consult `HintPhase` |
+| `SELECT` / `MOVE`                   | `shown`             | `shown`              | unchanged — moving the cursor to look at the highlight must not destroy it                                                      |
+| `DIGIT` / `ERASE` / `UNDO` / `REDO` | any                 | `idle`               | the board changed; the hint is stale                                                                                            |
+| `NEW_PUZZLE` / `RESET`              | any                 | `idle`               | also clear `recent`                                                                                                             |
+| Escape with no panel open           | `shown` / `message` | `idle`               | —                                                                                                                               |
 
 Closing the panel deliberately leaves the phase alone. Reading the sentence and
 then studying the highlight is one thought, not two, and the panel sits over the
@@ -714,7 +722,7 @@ action row rather than the board precisely so both are on screen at once.
 ```ts
 type HintApply =
   | { kind: 'place'; cells: Array<{ cell: CellIndex; value: number }> }
-  | { kind: 'eliminate'; cells: Array<{ cell: CellIndex; digits: number[] }> }
+  | { kind: 'eliminate'; cells: Array<{ cell: CellIndex; digits: number[] }> };
 ```
 
 **`place`** — for each entry: set `values[cell] = value`, clear
@@ -753,13 +761,13 @@ nothing, which is worse than an admitted gap.
 
 - `HistorySnapshot` is unchanged (`values`, `marks`, `status`). Hint phase and
   `recent` are not restored by undo.
-- On `UNDO`, if the snapshot being reverted was produced by a *signed*
+- On `UNDO`, if the snapshot being reverted was produced by a _signed_
   `APPLY_HINT`, pop that signature off `recent`. Track this with a parallel
   `pastWasHint: boolean[]`, or by widening `HistorySnapshot` with an optional
   `hintSignature?: string`. The latter is cleaner and costs one field, and it
   falls out correctly for an unsigned apply: nothing went on, nothing comes off.
 - `REDO` of a hint application pushes the signature back.
-- Undoing *into* a hint's `shown` phase is not a thing — any `UNDO` sends the
+- Undoing _into_ a hint's `shown` phase is not a thing — any `UNDO` sends the
   phase to `idle`.
 
 ### 7.4 Counting and limiting
@@ -768,7 +776,7 @@ nothing, which is worse than an admitted gap.
 scoring, no leaderboard, and no monetisation hook that a hint budget would
 serve; a cap would only punish the learning use case the panel exists for. Mature coaching-oriented apps trend the same way — SudoSketch's
 Coach frames itself as "a companion, not a shortcut" with unlimited graduated
-help, while hint *budgets* cluster in ad-supported casual apps where the limit
+help, while hint _budgets_ cluster in ad-supported casual apps where the limit
 exists to sell refills.
 
 If a "hints used" figure is ever wanted for a post-game summary, count the
@@ -797,7 +805,7 @@ worked example in §4).
 ### 8.2 The grid contains an error
 
 Fires whenever `values[i] !== solution[i]` for a filled cell — including errors
-that are *not* yet a visible conflict, which `findConflicts()` cannot see.
+that are _not_ yet a visible conflict, which `findConflicts()` cannot see.
 
 Default wording. `cells` carries every wrong cell and the highlight puts a
 `focus` on all of them, so the text counts rather than addresses:
@@ -839,8 +847,8 @@ solution-fed placement without the ladder, but nothing in the UI calls it — th
 banner button that used to is gone with the banner.
 
 **Honesty note for the implementer:** because the generator guarantees a unique
-solution, `kind: 'stuck'` does *not* prove the puzzle needs guessing — it
-proves *our implemented ladder ran out*. With only the Tier 1 set (§10) this
+solution, `kind: 'stuck'` does _not_ prove the puzzle needs guessing — it
+proves _our implemented ladder ran out_. With only the Tier 1 set (§10) this
 will happen on some `hard`/`expert` puzzles. The wording above keeps "I can't
 find" rather than "there is no" for exactly that reason — it is the one piece of
 the old sentence worth the words — and Number means the player is never actually
@@ -867,10 +875,10 @@ string is what Tip and Number say once there is nothing left to work out.
 the fixture in `src/fixtures/samplePuzzle.ts`.
 
 ```ts
-import type { CellIndex, Grid, Puzzle } from './types'
+import type { CellIndex, Grid, Puzzle } from './types';
 
 /** Pencil marks per cell, same shape as `game/state.ts`'s `Marks`. */
-export type MarkSets = readonly (readonly number[])[]
+export type MarkSets = readonly (readonly number[])[];
 
 export type TechniqueId =
   | 'freebie-cage'
@@ -887,56 +895,56 @@ export type TechniqueId =
   | 'hidden-set'
   | 'unit-parity'
   | 'x-wing'
-  | 'reveal'
+  | 'reveal';
 
 /** Rank of each technique, ascending = easier. See docs/HINTS.md §3. */
-export const TECHNIQUE_RANK: Record<TechniqueId, number>
+export const TECHNIQUE_RANK: Record<TechniqueId, number>;
 
 /** Techniques this build actually implements, ascending by rank. */
-export const ENABLED_TECHNIQUES: readonly TechniqueId[]
+export const ENABLED_TECHNIQUES: readonly TechniqueId[];
 
 export interface HintHighlight {
-  focus: CellIndex[]
-  support: CellIndex[]
-  rows: number[]
-  cols: number[]
-  cages: number[]
-  dimRest: boolean
-  strike: Array<{ cell: CellIndex; digits: number[] }>
+  focus: CellIndex[];
+  support: CellIndex[];
+  rows: number[];
+  cols: number[];
+  cages: number[];
+  dimRest: boolean;
+  strike: Array<{ cell: CellIndex; digits: number[] }>;
 }
 
 export type HintApply =
   | { kind: 'place'; cells: Array<{ cell: CellIndex; value: number }> }
-  | { kind: 'eliminate'; cells: Array<{ cell: CellIndex; digits: number[] }> }
+  | { kind: 'eliminate'; cells: Array<{ cell: CellIndex; digits: number[] }> };
 
 export interface Hint {
-  technique: TechniqueId
-  rank: number
+  technique: TechniqueId;
+  rank: number;
   /** Player-facing, jargon-free, one short clause. No full stop. See §4. */
-  text: string
+  text: string;
   /** The technique's proper name, e.g. "Hidden single". */
-  secondary: string
-  highlight: HintHighlight
-  apply: HintApply
+  secondary: string;
+  highlight: HintHighlight;
+  apply: HintApply;
   /** Stable identity for the `recent` ring buffer. See §6.3. */
-  signature: string
+  signature: string;
 }
 
 export type HintResult =
   | { kind: 'hint'; hint: Hint }
   | { kind: 'mistake'; cells: CellIndex[]; text: string; secondary: string }
   | { kind: 'stuck'; text: string; secondary: string }
-  | { kind: 'solved'; text: string; secondary: string }
+  | { kind: 'solved'; text: string; secondary: string };
 
 export interface HintOptions {
   /** Bias selection toward this cell; normally `state.selected`. */
-  near?: CellIndex | null
+  near?: CellIndex | null;
   /** Signatures to skip. Ring buffer of the last 3 applied hints. */
-  recent?: readonly string[]
+  recent?: readonly string[];
   /** Never offer a technique ranked above this. Default: no cap. */
-  maxRank?: number
+  maxRank?: number;
   /** Name the offending cell on a mistake. Default true. */
-  revealMistakeCell?: boolean
+  revealMistakeCell?: boolean;
 }
 
 /**
@@ -952,23 +960,19 @@ export function findHint(
   values: Grid,
   marks: MarkSets,
   opts?: HintOptions,
-): HintResult
+): HintResult;
 
 /**
  * Last-resort reveal for a player who would rather be told. Sources its digit
  * from `puzzle.solution` — one of three non-deductive reads of it in this file,
  * the others being mistake detection and `checkCorrectness`.
  */
-export function revealHint(
-  puzzle: Puzzle,
-  values: Grid,
-  opts?: Pick<HintOptions, 'near'>,
-): Hint
+export function revealHint(puzzle: Puzzle, values: Grid, opts?: Pick<HintOptions, 'near'>): Hint;
 
 /** One placement, found by running hints forward past elimination-only steps. */
 export interface NextNumber {
-  cell: CellIndex
-  value: number
+  cell: CellIndex;
+  value: number;
 }
 
 /**
@@ -982,33 +986,29 @@ export function findNextNumber(
   values: Grid,
   marks: MarkSets,
   opts?: HintOptions,
-): NextNumber | null
+): NextNumber | null;
 
 /** Filled cells split by agreement with `puzzle.solution`. Empty cells appear in neither. */
 export interface CorrectnessReport {
-  correct: CellIndex[]
-  incorrect: CellIndex[]
+  correct: CellIndex[];
+  incorrect: CellIndex[];
 }
 
 /**
  * Which of the player's entries are right. Solution-aware, which is why it
  * lives here rather than in `errors.ts` — see §9.3.
  */
-export function checkCorrectness(puzzle: Puzzle, values: Grid): CorrectnessReport
+export function checkCorrectness(puzzle: Puzzle, values: Grid): CorrectnessReport;
 
 /**
  * Candidate digits per cell after rules (A)+(B) to a fixpoint, seeded from
  * `values`. Exported because `APPLY_HINT` needs `visible` (§7.2) and because
  * a future "fill pencil marks" button is one call away.
  */
-export function candidateSets(puzzle: Puzzle, values: Grid): number[][]
+export function candidateSets(puzzle: Puzzle, values: Grid): number[][];
 
 /** What the player can currently see, per §2. */
-export function visibleSets(
-  puzzle: Puzzle,
-  values: Grid,
-  marks: MarkSets,
-): number[][]
+export function visibleSets(puzzle: Puzzle, values: Grid, marks: MarkSets): number[][];
 ```
 
 Public types use `number[]` digit lists, not bitmasks — bitmasks stay internal
@@ -1023,22 +1023,22 @@ loop over a table:
 
 ```ts
 interface DetectContext {
-  puzzle: Puzzle
-  size: number
-  values: Grid
+  puzzle: Puzzle;
+  size: number;
+  values: Grid;
   /** Bitmask per cell, rules (A)+(B) fixpoint. */
-  book: Int32Array
+  book: Int32Array;
   /** Bitmask per cell, per §2. */
-  visible: Int32Array
+  visible: Int32Array;
   /** Surviving combinations per cage, post-fixpoint. */
-  combos: number[][][]
+  combos: number[][][];
   /** cell -> index into puzzle.cages */
-  cageOfCell: Int32Array
+  cageOfCell: Int32Array;
   /** unit key -> member cells; rows are 0..size-1, cols are size..2*size-1. */
-  units: number[][]
+  units: number[][];
 }
 
-type Detector = (ctx: DetectContext) => Hint[]
+type Detector = (ctx: DetectContext) => Hint[];
 ```
 
 Detectors return **only novel** hints (§2) and must not mutate `ctx`. Test each
@@ -1070,7 +1070,7 @@ exact `text`.
 Two entry points that serve a player who wants an answer rather than a step.
 
 **`findNextNumber`** exists because the ladder frequently opens with an
-elimination, and a player who asked for *a number* is owed a number. It calls
+elimination, and a player who asked for _a number_ is owed a number. It calls
 `findHint` in a loop; a `place` result answers immediately, an `eliminate`
 result is written to a **private copy** of `marks` — mirroring `APPLY_HINT`
 (§7.2), bare cells seeded from `visible` first — and the loop goes round again.
@@ -1079,7 +1079,7 @@ nothing. A `mistake`, `stuck` or `solved` result ends the search with null.
 
 The loop terminates because each elimination strictly narrows what some cell can
 still show, so the novelty test (§2) retires it. Note the consequence: `book`
-depends only on `values`, so simulated eliminations never *create* a placement —
+depends only on `values`, so simulated eliminations never _create_ a placement —
 they retire the lower-ranked elimination hints that were shadowing one. A grid
 with no placement in `book` at all yields null after exhausting them. Keep an
 iteration cap anyway, as a backstop rather than as the mechanism.
@@ -1097,14 +1097,14 @@ Only `report.incorrect` is stored. The confirmed cells are dropped on the floor:
 they were the player's own work and the board says nothing about them, so the
 whole `correct` half exists to be counted and discarded. What is kept is stored
 rather than derived because its expiry is not a function of the grid — a
-rejected cell holds its mark until *that cell* is edited, since a player told
+rejected cell holds its mark until _that cell_ is edited, since a player told
 they are wrong has to still be told it while they fix it.
 
 `placed` (the cell the Number choice filled) is on a different clock: one move,
 whatever the move is. It is cleared by a window-level `mousedown`/`keydown`
 listener rather than by a reducer case, because "the next interaction" includes
 presses the reducer never sees. The listener can safely be installed by the very
-click that created the state: a click is the *end* of an interaction that began
+click that created the state: a click is the _end_ of an interaction that began
 with a mousedown, so the press being answered is already spent.
 
 ---
@@ -1113,17 +1113,17 @@ with a mousedown, so the press being answered is already spent.
 
 ### Tier 1 — implement now
 
-| rank | id | Why |
-|---|---|---|
-| 10 | `freebie-cage` | Free. The natural opening hint on most puzzles. |
-| 20 | `last-cell-in-unit` | Free. The friendliest sentence in the whole system. |
-| 30 | `single-cage-combination` | Free — rule (A) already computes it. Teaches the one skill that distinguishes KenKen from Sudoku. |
-| 40 | `naked-single` | Free. The workhorse. |
-| 50 | `hidden-single` | Free — rule (C). The workhorse for anything above `easy`. |
-| 60 | `unit-sum-innie` | **New code, ~60 lines.** The signature KenKen deduction. |
-| 70 | `unit-sum-outie` | **New code, shares ~90% with innie.** Highest teaching value per line in the entire document. |
-| 80 | `cage-locks-line` | Free — rule (D1) already exists, and its conclusion is one a line can carry ("3 and 4 cannot go anywhere else in row 1"). |
-| — | `reveal` | ~15 lines. Required so §8.3 is never a dead end. |
+| rank | id                        | Why                                                                                                                       |
+| ---- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| 10   | `freebie-cage`            | Free. The natural opening hint on most puzzles.                                                                           |
+| 20   | `last-cell-in-unit`       | Free. The friendliest sentence in the whole system.                                                                       |
+| 30   | `single-cage-combination` | Free — rule (A) already computes it. Teaches the one skill that distinguishes KenKen from Sudoku.                         |
+| 40   | `naked-single`            | Free. The workhorse.                                                                                                      |
+| 50   | `hidden-single`           | Free — rule (C). The workhorse for anything above `easy`.                                                                 |
+| 60   | `unit-sum-innie`          | **New code, ~60 lines.** The signature KenKen deduction.                                                                  |
+| 70   | `unit-sum-outie`          | **New code, shares ~90% with innie.** Highest teaching value per line in the entire document.                             |
+| 80   | `cage-locks-line`         | Free — rule (D1) already exists, and its conclusion is one a line can carry ("3 and 4 cannot go anywhere else in row 1"). |
+| —    | `reveal`                  | ~15 lines. Required so §8.3 is never a dead end.                                                                          |
 
 Six of the nine are already computed by `solver.ts`; the marginal cost is the
 detector wrappers and the sentence templates. The genuinely new work is one
@@ -1136,16 +1136,16 @@ one sentence — which is the actual product requirement.
 
 ### Tier 2 — defer
 
-| id | Why deferred |
-|---|---|
-| `line-locks-cage` (D2) | **Already implemented in the solver**, so detection is nearly free — but its conclusion is a *combination* pruning whose player-visible effect is indirect ("the cage's options shrank, and therefore three cells lost a digit"). Two hops of reasoning is one too many. Cheap to promote later if the stuck rate demands it; write the detector, leave it out of `ENABLED_TECHNIQUES`. |
-| `unit-sum-bound` | New code, and it shares the innie/outie plumbing, so it is the cheapest Tier 2 item. Deferred only because bound reasoning ("has to be between 2 and 6") is a noticeably harder sentence than "must be 3". Add it the moment `kind: 'stuck'` shows up in real play. |
-| `naked-set` | New code. Almost always duplicates a conclusion that `cage-locks-line` or `single-cage-combination` already reaches with better wording (see the §4 example where both fire on the same cells). Low marginal deduction, real implementation cost. |
-| `hidden-set` | New code. Fires rarely on 4×4–6×6, which is where most play happens. Explains poorly. |
-| `unit-parity` | New code. The published parity strategies are, for a single cage, already subsumed by combination enumeration (§1); the cross-cage form fires rarely and its sentence is arithmetic-heavy. Weakest value/effort ratio of anything here. |
-| `x-wing` | **Recommend against implementing at all.** X-Wing pays off in Sudoku because the box constraint creates the two-home structure it needs. KenKen has no boxes, cages are small and irregular, and cage-combination pruning kills most two-home patterns before an X-Wing could see them. On a 4×4–6×6 grid it is close to unreachable. If a puzzle is hard enough to need it, `reveal` is the better answer. |
-| Multi-unit cage splitting (2-row/3-row blocks, `2T`/`3T`) | The general form of innies/outies. Combinatorially much larger to search, and the explanation ("these two rows together add to 20…") is a real step up in difficulty. Single-unit innies/outies capture most of the value. |
-| Rule of `N!` (multiplicative unit total) | The multiplicative analogue of the row-sum rule. Mathematically valid, essentially never fires on generated puzzles because `÷` and `−` cages break the product chain. Skip. |
+| id                                                        | Why deferred                                                                                                                                                                                                                                                                                                                                                                                                |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `line-locks-cage` (D2)                                    | **Already implemented in the solver**, so detection is nearly free — but its conclusion is a _combination_ pruning whose player-visible effect is indirect ("the cage's options shrank, and therefore three cells lost a digit"). Two hops of reasoning is one too many. Cheap to promote later if the stuck rate demands it; write the detector, leave it out of `ENABLED_TECHNIQUES`.                     |
+| `unit-sum-bound`                                          | New code, and it shares the innie/outie plumbing, so it is the cheapest Tier 2 item. Deferred only because bound reasoning ("has to be between 2 and 6") is a noticeably harder sentence than "must be 3". Add it the moment `kind: 'stuck'` shows up in real play.                                                                                                                                         |
+| `naked-set`                                               | New code. Almost always duplicates a conclusion that `cage-locks-line` or `single-cage-combination` already reaches with better wording (see the §4 example where both fire on the same cells). Low marginal deduction, real implementation cost.                                                                                                                                                           |
+| `hidden-set`                                              | New code. Fires rarely on 4×4–6×6, which is where most play happens. Explains poorly.                                                                                                                                                                                                                                                                                                                       |
+| `unit-parity`                                             | New code. The published parity strategies are, for a single cage, already subsumed by combination enumeration (§1); the cross-cage form fires rarely and its sentence is arithmetic-heavy. Weakest value/effort ratio of anything here.                                                                                                                                                                     |
+| `x-wing`                                                  | **Recommend against implementing at all.** X-Wing pays off in Sudoku because the box constraint creates the two-home structure it needs. KenKen has no boxes, cages are small and irregular, and cage-combination pruning kills most two-home patterns before an X-Wing could see them. On a 4×4–6×6 grid it is close to unreachable. If a puzzle is hard enough to need it, `reveal` is the better answer. |
+| Multi-unit cage splitting (2-row/3-row blocks, `2T`/`3T`) | The general form of innies/outies. Combinatorially much larger to search, and the explanation ("these two rows together add to 20…") is a real step up in difficulty. Single-unit innies/outies capture most of the value.                                                                                                                                                                                  |
+| Rule of `N!` (multiplicative unit total)                  | The multiplicative analogue of the row-sum rule. Mathematically valid, essentially never fires on generated puzzles because `÷` and `−` cages break the product chain. Skip.                                                                                                                                                                                                                                |
 
 ### Guidance if the ladder proves too short
 
@@ -1203,7 +1203,7 @@ Techniques:
 - [bit-player — KenKen-friendly numbers](http://bit-player.org/2010/kenken-friendly-numbers/) —
   prime-factor reasoning for `×` cages, including why `1` as a factor drives so
   much of the combinatorial variety. Supports §1's claim that factor reasoning
-  is a *wording* concern, not a separate deduction.
+  is a _wording_ concern, not a separate deduction.
 
 Hint UX:
 
@@ -1212,7 +1212,7 @@ Hint UX:
   explicit `Nudge` → `Look` → `Show me` escalation. Closest published analogue
   to the panel's three choices; source for §7.4's no-limit recommendation.
 - [sudoku.coach](https://sudokucoach.app/) — the convention of pairing a
-  *named* technique with a plain-English restatement and highlighted cells
+  _named_ technique with a plain-English restatement and highlighted cells
   rather than a bare answer. The pattern behind this document's `text` /
   `secondary` split.
 - [Hintoku](https://apps.apple.com/us/app/hintoku-your-sudoku-coach/id6744828400) —
@@ -1230,7 +1230,7 @@ Flagged as unverified:
   and leave exactly one cell. The `unit-sum-outie` and `unit-sum-bound`
   examples **are** computed against that fixture's verified unique solution and
   can be turned into tests as written.
-- The technique *ranks* are this document's own proposal. No source publishes a
+- The technique _ranks_ are this document's own proposal. No source publishes a
   difficulty ordering for KenKen techniques specifically; the ordering is
   reasoned from explanation complexity (how many facts a sentence has to carry)
   and cross-checked loosely against kenkenpuzzle.online's list. Expect to tune

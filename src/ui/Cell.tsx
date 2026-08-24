@@ -1,49 +1,49 @@
-import type { CellIndex } from '../engine/types'
-import './Cell.css'
+import type { CellIndex } from '../engine/types';
+import './Cell.css';
 
 /**
  * This cell's part in the hint currently on screen, strongest first
  * (docs/HINTS.md §5): it carries the conclusion, supplies the reason, sits in a
  * highlighted row/column/cage, or is dimmed out of the way.
  */
-export type HintRole = 'focus' | 'support' | 'band' | 'dim'
+export type HintRole = 'focus' | 'support' | 'band' | 'dim';
 
-const NO_STRIKE: readonly number[] = []
+const NO_STRIKE: readonly number[] = [];
 
 export interface CellProps {
-  index: CellIndex
-  row: number
-  col: number
-  size: number
-  value: number | null
-  marks: readonly number[]
-  isSelected: boolean
-  isInSelectedLine: boolean
-  isInSelectedCage: boolean
+  index: CellIndex;
+  row: number;
+  col: number;
+  size: number;
+  value: number | null;
+  marks: readonly number[];
+  isSelected: boolean;
+  isInSelectedLine: boolean;
+  isInSelectedCage: boolean;
   /** This entry is provably wrong — see `createErrorChecker` in the engine. */
-  isError: boolean
+  isError: boolean;
   /**
    * The last correctness check rejected this entry. A weaker claim than
    * `isError`: a conflict is impossible under any solution, while this is only
    * not *the* answer — so it wears a mark of its own rather than the conflict's,
    * and holds until the cell is edited.
    */
-  isIncorrect?: boolean
+  isIncorrect?: boolean;
   /** The panel's Number choice wrote this entry. Transient: cleared on the next move. */
-  isPlaced?: boolean
+  isPlaced?: boolean;
   /** Derived in `Board` from the hint's `HintHighlight`; absent when no hint is shown. */
-  hintRole?: HintRole
+  hintRole?: HintRole;
   /** Pencil digits this hint rules out, drawn struck through. */
-  strikeDigits?: readonly number[]
+  strikeDigits?: readonly number[];
   /** Accent-outline classes for a highlighted cage's outer edges, from `Board`. */
-  hintCageEdges?: string
+  hintCageEdges?: string;
   /** Cage label text, e.g. "12+" — always used for the accessible name. */
-  cageLabelText: string
+  cageLabelText: string;
   /** Only the cage's anchor cell renders the label visually. */
-  showCageLabel: boolean
+  showCageLabel: boolean;
   /** Space-separated edge classes from `edgeClassNames` (see `cageBorders.ts`). */
-  edgeClassName: string
-  onSelect: (index: CellIndex) => void
+  edgeClassName: string;
+  onSelect: (index: CellIndex) => void;
 }
 
 /** One cell of the KenKen board: a large centred value, or a grid of pencil marks. */
@@ -68,37 +68,37 @@ export function Cell({
   edgeClassName,
   onSelect,
 }: CellProps) {
-  const classNames = ['kk-cell']
-  if (edgeClassName) classNames.push(edgeClassName)
-  if (isSelected) classNames.push('kk-cell--selected')
-  else if (isInSelectedCage) classNames.push('kk-cell--cage-highlight')
-  else if (isInSelectedLine) classNames.push('kk-cell--line-highlight')
+  const classNames = ['kk-cell'];
+  if (edgeClassName) classNames.push(edgeClassName);
+  if (isSelected) classNames.push('kk-cell--selected');
+  else if (isInSelectedCage) classNames.push('kk-cell--cage-highlight');
+  else if (isInSelectedLine) classNames.push('kk-cell--line-highlight');
   // Hint roles and errors are additive rather than exclusive: a selected cell
   // that is also wrong, or a focused cell the player has selected, has to read
   // as both, so the classes coexist and the stylesheet decides what wins.
-  if (hintRole) classNames.push(`kk-cell--hint-${hintRole}`)
-  if (hintCageEdges) classNames.push(hintCageEdges)
-  if (isPlaced) classNames.push('kk-cell--placed')
-  if (isIncorrect) classNames.push('kk-cell--incorrect')
-  if (isError) classNames.push('kk-cell--error')
+  if (hintRole) classNames.push(`kk-cell--hint-${hintRole}`);
+  if (hintCageEdges) classNames.push(hintCageEdges);
+  if (isPlaced) classNames.push('kk-cell--placed');
+  if (isIncorrect) classNames.push('kk-cell--incorrect');
+  if (isError) classNames.push('kk-cell--error');
 
-  const status = value != null ? `value ${value}` : 'empty'
+  const status = value != null ? `value ${value}` : 'empty';
   // Colour alone must not carry the highlight, so the role is named in the
   // accessible name too (§5).
   const hintNote =
-    hintRole === 'focus' ? ', hint focus' : hintRole === 'support' ? ', hint context' : ''
+    hintRole === 'focus' ? ', hint focus' : hintRole === 'support' ? ', hint context' : '';
   /*
    * Both marks are red, and one cell can carry both, so the words are what
    * separate them for a reader who cannot see the shapes (§9). `conflict` is
    * the stronger claim — it holds against every solution — and is the one worth
    * saying when a cell is both.
    */
-  const checkNote = isError ? ', conflict' : isIncorrect ? ', incorrect' : ''
+  const checkNote = isError ? ', conflict' : isIncorrect ? ', incorrect' : '';
   const ariaLabel =
     `Row ${row + 1}, column ${col + 1}, cage ${cageLabelText}, ${status}` +
     checkNote +
     (isPlaced ? ', filled in for you' : '') +
-    hintNote
+    hintNote;
 
   return (
     <button
@@ -117,9 +117,9 @@ export function Cell({
       ) : (
         <span className="kk-cell__marks" aria-hidden="true">
           {Array.from({ length: size }, (_, i) => i + 1).map((digit) => {
-            const written = marks.includes(digit)
+            const written = marks.includes(digit);
             // Only a digit the player can actually see can be struck through.
-            const struck = written && strikeDigits.includes(digit)
+            const struck = written && strikeDigits.includes(digit);
             return (
               <span
                 key={digit}
@@ -127,10 +127,10 @@ export function Cell({
               >
                 {written ? digit : ''}
               </span>
-            )
+            );
           })}
         </span>
       )}
     </button>
-  )
+  );
 }

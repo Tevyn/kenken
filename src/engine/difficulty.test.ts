@@ -69,7 +69,8 @@ describe('paramsFor', () => {
   it('weights tight operators down as the tier rises', () => {
     // docs/KENKEN.md §4.1: '-' and '/' shrink a cage's candidate set, so more of
     // them makes a puzzle easier, not harder.
-    const tight = (d: Difficulty) => paramsFor(6, d).opWeights['-'] + paramsFor(6, d).opWeights['/'];
+    const tight = (d: Difficulty) =>
+      paramsFor(6, d).opWeights['-'] + paramsFor(6, d).opWeights['/'];
     expect(tight('easy')).toBeGreaterThan(tight('medium'));
     expect(tight('medium')).toBeGreaterThan(tight('hard'));
     expect(tight('hard')).toBeGreaterThan(tight('expert'));
@@ -217,49 +218,65 @@ describe('difficulty is monotonic across generated puzzles', () => {
     return value;
   };
 
-  it.each(SIZES)('freebies strictly decrease from easy to expert at size %i', (size) => {
-    for (const seed of SEEDS) {
-      const counts = DIFFICULTIES.map((d) => get(size, d, seed).metrics.freebies);
-      const [easy, medium, hard, expert] = counts;
-      expect(easy).toBeGreaterThan(medium);
-      expect(medium).toBeGreaterThanOrEqual(hard);
-      expect(hard).toBe(0);
-      expect(expert).toBe(0);
-    }
-  }, 180_000);
-
-  it.each(SIZES)('every generated puzzle lands in its own tier band at size %i', (size) => {
-    for (const difficulty of DIFFICULTIES) {
+  it.each(SIZES)(
+    'freebies strictly decrease from easy to expert at size %i',
+    (size) => {
       for (const seed of SEEDS) {
-        const { metrics, inBand } = get(size, difficulty, seed);
-        expect(inBand).toBe(true);
-        expect(tierFromScore(metrics.score, size)).toBe(difficulty);
+        const counts = DIFFICULTIES.map((d) => get(size, d, seed).metrics.freebies);
+        const [easy, medium, hard, expert] = counts;
+        expect(easy).toBeGreaterThan(medium);
+        expect(medium).toBeGreaterThanOrEqual(hard);
+        expect(hard).toBe(0);
+        expect(expert).toBe(0);
       }
-    }
-  }, 180_000);
+    },
+    180_000,
+  );
 
-  it.each(SIZES)('median score rises with each tier at size %i', (size) => {
-    const median = (difficulty: Difficulty): number => {
-      const scores = SEEDS.map((seed) => get(size, difficulty, seed).metrics.score).sort(
-        (a, b) => a - b,
-      );
-      return scores[Math.floor(scores.length / 2)];
-    };
-    expect(median('easy')).toBeLessThan(median('medium'));
-    expect(median('medium')).toBeLessThan(median('hard'));
-    expect(median('hard')).toBeLessThan(median('expert'));
-  }, 180_000);
+  it.each(SIZES)(
+    'every generated puzzle lands in its own tier band at size %i',
+    (size) => {
+      for (const difficulty of DIFFICULTIES) {
+        for (const seed of SEEDS) {
+          const { metrics, inBand } = get(size, difficulty, seed);
+          expect(inBand).toBe(true);
+          expect(tierFromScore(metrics.score, size)).toBe(difficulty);
+        }
+      }
+    },
+    180_000,
+  );
 
-  it.each(SIZES)('average cage size never falls as the tier rises at size %i', (size) => {
-    const meanCage = (difficulty: Difficulty): number => {
-      const values = SEEDS.map((seed) => get(size, difficulty, seed).metrics.avgCageSize);
-      return values.reduce((a, b) => a + b, 0) / values.length;
-    };
-    // Only non-decreasing in general: at 3x3, medium/hard/expert share the same
-    // 3-cell cap, so their realised averages can tie.
-    expect(meanCage('easy')).toBeLessThanOrEqual(meanCage('medium'));
-    expect(meanCage('medium')).toBeLessThanOrEqual(meanCage('hard'));
-    expect(meanCage('hard')).toBeLessThanOrEqual(meanCage('expert'));
-    expect(meanCage('easy')).toBeLessThan(meanCage('expert'));
-  }, 180_000);
+  it.each(SIZES)(
+    'median score rises with each tier at size %i',
+    (size) => {
+      const median = (difficulty: Difficulty): number => {
+        const scores = SEEDS.map((seed) => get(size, difficulty, seed).metrics.score).sort(
+          (a, b) => a - b,
+        );
+        return scores[Math.floor(scores.length / 2)];
+      };
+      expect(median('easy')).toBeLessThan(median('medium'));
+      expect(median('medium')).toBeLessThan(median('hard'));
+      expect(median('hard')).toBeLessThan(median('expert'));
+    },
+    180_000,
+  );
+
+  it.each(SIZES)(
+    'average cage size never falls as the tier rises at size %i',
+    (size) => {
+      const meanCage = (difficulty: Difficulty): number => {
+        const values = SEEDS.map((seed) => get(size, difficulty, seed).metrics.avgCageSize);
+        return values.reduce((a, b) => a + b, 0) / values.length;
+      };
+      // Only non-decreasing in general: at 3x3, medium/hard/expert share the same
+      // 3-cell cap, so their realised averages can tie.
+      expect(meanCage('easy')).toBeLessThanOrEqual(meanCage('medium'));
+      expect(meanCage('medium')).toBeLessThanOrEqual(meanCage('hard'));
+      expect(meanCage('hard')).toBeLessThanOrEqual(meanCage('expert'));
+      expect(meanCage('easy')).toBeLessThan(meanCage('expert'));
+    },
+    180_000,
+  );
 });

@@ -1,4 +1,4 @@
-import type { Puzzle } from '../engine/types'
+import type { Puzzle } from '../engine/types';
 
 /**
  * A hand-written 4x4 puzzle used for UI development and rendering tests, so the
@@ -28,4 +28,4 @@ export const SAMPLE_PUZZLE: Puzzle = {
     { id: 5, cells: [11, 15], op: '/', target: 2 },
     { id: 6, cells: [14], op: '=', target: 2 },
   ],
-}
+};

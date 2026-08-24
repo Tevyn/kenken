@@ -1,40 +1,40 @@
-import type { ChangeEvent, ComponentType } from 'react'
-import type { Theme } from '../game/preferences'
-import { THEMES } from '../game/preferences'
-import type { IconProps } from './icons'
-import { MenuIcon, ThemeDarkIcon, ThemeLightIcon, ThemeSystemIcon } from './icons'
-import { Popover } from './Popover'
-import './SettingsMenu.css'
+import type { ChangeEvent, ComponentType } from 'react';
+import type { Theme } from '../game/preferences';
+import { THEMES } from '../game/preferences';
+import type { IconProps } from './icons';
+import { MenuIcon, ThemeDarkIcon, ThemeLightIcon, ThemeSystemIcon } from './icons';
+import { Popover } from './Popover';
+import './SettingsMenu.css';
 
 export interface SettingsMenuProps {
   /** Whether entering a value also strips it from the row/column peers' notes. */
-  autoClearMarks: boolean
-  onAutoClearMarksChange: (enabled: boolean) => void
+  autoClearMarks: boolean;
+  onAutoClearMarksChange: (enabled: boolean) => void;
   /** Which palette to paint, or `system` to follow the OS. */
-  theme: Theme
-  onThemeChange: (theme: Theme) => void
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  theme: Theme;
+  onThemeChange: (theme: Theme) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
 const THEME_LABELS: Record<Theme, string> = {
   light: 'Light',
   dark: 'Dark',
   system: 'System',
-}
+};
 
 const THEME_ICONS: Record<Theme, ComponentType<IconProps>> = {
   light: ThemeLightIcon,
   dark: ThemeDarkIcon,
   system: ThemeSystemIcon,
-}
+};
 
 /**
  * A shade under the wizard's 32px tiles. These glyphs name a choice rather
  * than depict one — there is nothing in a sun to count — and three of them
  * across a panel that also holds a switch should not out-mass it.
  */
-const THEME_ICON = 26
+const THEME_ICON = 26;
 
 /** The gear button and the preferences it opens. */
 export function SettingsMenu({
@@ -46,11 +46,11 @@ export function SettingsMenu({
   onOpenChange,
 }: SettingsMenuProps) {
   function handleAutoClearMarksChange(event: ChangeEvent<HTMLInputElement>) {
-    onAutoClearMarksChange(event.target.checked)
+    onAutoClearMarksChange(event.target.checked);
   }
 
   function handleThemeChange(event: ChangeEvent<HTMLInputElement>) {
-    onThemeChange(event.target.value as Theme)
+    onThemeChange(event.target.value as Theme);
   }
 
   return (
@@ -85,7 +85,7 @@ export function SettingsMenu({
         <legend className="kk-popover__heading kk-theme__legend">Theme</legend>
         <div className="kk-theme__options">
           {THEMES.map((option) => {
-            const Icon = THEME_ICONS[option]
+            const Icon = THEME_ICONS[option];
             return (
               <label className="kk-control kk-control--stack kk-theme__option" key={option}>
                 {/*
@@ -103,11 +103,9 @@ export function SettingsMenu({
                   onChange={handleThemeChange}
                 />
                 <Icon size={THEME_ICON} />
-                <span className="kk-control__label kk-theme__text">
-                  {THEME_LABELS[option]}
-                </span>
+                <span className="kk-control__label kk-theme__text">{THEME_LABELS[option]}</span>
               </label>
-            )
+            );
           })}
         </div>
       </fieldset>
@@ -134,5 +132,5 @@ export function SettingsMenu({
         </label>
       </div>
     </Popover>
-  )
+  );
 }

@@ -1,14 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
-import type { Difficulty } from '../engine/types'
-import { DIFFICULTIES, MAX_SIZE, MIN_SIZE } from '../engine/types'
-import { DifficultyIcon, GridIcon, NewGameIcon } from './icons'
-import { Popover } from './Popover'
-import './NewGameMenu.css'
+import { useEffect, useRef, useState } from 'react';
+import type { Difficulty } from '../engine/types';
+import { DIFFICULTIES, MAX_SIZE, MIN_SIZE } from '../engine/types';
+import { DifficultyIcon, GridIcon, NewGameIcon } from './icons';
+import { Popover } from './Popover';
+import './NewGameMenu.css';
 
 /* The panel is named by whichever step heading is on screen. */
-const HEADING_ID = 'kk-newgame-heading'
+const HEADING_ID = 'kk-newgame-heading';
 
-const SIZES = Array.from({ length: MAX_SIZE - MIN_SIZE + 1 }, (_, i) => MIN_SIZE + i)
+const SIZES = Array.from({ length: MAX_SIZE - MIN_SIZE + 1 }, (_, i) => MIN_SIZE + i);
 
 /**
  * Wizard glyphs are deliberately larger than the 22px toolbar ones: these
@@ -17,14 +17,14 @@ const SIZES = Array.from({ length: MAX_SIZE - MIN_SIZE + 1 }, (_, i) => MIN_SIZE
  * on its own pixel at a 375px viewport; 28 starts to close up, 36 pushes the
  * seven size tiles past two comfortable rows in the panel.
  */
-const TILE_ICON = 32
+const TILE_ICON = 32;
 
-type Step = 'size' | 'difficulty'
+type Step = 'size' | 'difficulty';
 
 interface WizardProps {
-  size: number
-  difficulty: Difficulty
-  onStartGame: (size: number, difficulty: Difficulty) => void
+  size: number;
+  difficulty: Difficulty;
+  onStartGame: (size: number, difficulty: Difficulty) => void;
 }
 
 /**
@@ -35,19 +35,19 @@ interface WizardProps {
  * restarts at step one" rule, with nothing left to reset.
  */
 function NewGameWizard({ size, difficulty, onStartGame }: WizardProps) {
-  const [step, setStep] = useState<Step>('size')
-  const [pendingSize, setPendingSize] = useState(size)
-  const difficultyRef = useRef<HTMLDivElement>(null)
+  const [step, setStep] = useState<Step>('size');
+  const [pendingSize, setPendingSize] = useState(size);
+  const difficultyRef = useRef<HTMLDivElement>(null);
 
   // Step two replaces the button that had focus, so focus has to be placed
   // again or it falls back to the body and the panel loses its keyboard flow.
   // Same rule as the popover's own entry focus: start on the current choice.
   useEffect(() => {
-    if (step !== 'difficulty') return
-    const options = difficultyRef.current
-    const current = options?.querySelector<HTMLElement>('button[aria-current="true"]')
-    ;(current ?? options?.querySelector<HTMLElement>('button'))?.focus()
-  }, [step])
+    if (step !== 'difficulty') return;
+    const options = difficultyRef.current;
+    const current = options?.querySelector<HTMLElement>('button[aria-current="true"]');
+    (current ?? options?.querySelector<HTMLElement>('button'))?.focus();
+  }, [step]);
 
   if (step === 'size') {
     return (
@@ -63,8 +63,8 @@ function NewGameWizard({ size, difficulty, onStartGame }: WizardProps) {
               className="kk-control kk-control--stack kk-newgame__option"
               aria-current={option === size ? 'true' : undefined}
               onClick={() => {
-                setPendingSize(option)
-                setStep('difficulty')
+                setPendingSize(option);
+                setStep('difficulty');
               }}
             >
               <GridIcon n={option} size={TILE_ICON} />
@@ -83,7 +83,7 @@ function NewGameWizard({ size, difficulty, onStartGame }: WizardProps) {
           ))}
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -96,8 +96,7 @@ function NewGameWizard({ size, difficulty, onStartGame }: WizardProps) {
         <span aria-hidden="true">
           {pendingSize}×{pendingSize}
         </span>
-        <span className="kk-sr-only">{`${pendingSize} by ${pendingSize}`}</span>{' '}
-        Difficulty
+        <span className="kk-sr-only">{`${pendingSize} by ${pendingSize}`}</span> Difficulty
       </h2>
       <div className="kk-newgame__options kk-newgame__options--difficulty" ref={difficultyRef}>
         {DIFFICULTIES.map((option) => (
@@ -116,27 +115,25 @@ function NewGameWizard({ size, difficulty, onStartGame }: WizardProps) {
               step, which is why it is tested rather than merely written.
             */}
             <DifficultyIcon difficulty={option} size={TILE_ICON} />
-            <span className="kk-control__label">
-              {option[0].toUpperCase() + option.slice(1)}
-            </span>
+            <span className="kk-control__label">{option[0].toUpperCase() + option.slice(1)}</span>
           </button>
         ))}
       </div>
     </div>
-  )
+  );
 }
 
 export interface NewGameMenuProps {
   /** The size currently being played, marked as the current choice. */
-  size: number
+  size: number;
   /** The difficulty currently being played, marked as the current choice. */
-  difficulty: Difficulty
+  difficulty: Difficulty;
   /** Commit both choices at once. Only fires when a difficulty is picked. */
-  onStartGame: (size: number, difficulty: Difficulty) => void
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  onStartGame: (size: number, difficulty: Difficulty) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   /** True while a puzzle is generating; the trigger can't start another. */
-  disabled?: boolean
+  disabled?: boolean;
 }
 
 /**
@@ -172,5 +169,5 @@ export function NewGameMenu({
     >
       <NewGameWizard size={size} difficulty={difficulty} onStartGame={onStartGame} />
     </Popover>
-  )
+  );
 }

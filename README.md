@@ -13,13 +13,13 @@ Fill an N×N grid with the digits 1..N so that:
 
 Cage arithmetic:
 
-| Clue | Meaning |
-|---|---|
-| `12+` | The cage's cells sum to 12. |
-| `48×` | The cage's cells multiply to 48. |
-| `3−`  | Two cells whose difference is 3 (in either order). |
+| Clue  | Meaning                                                    |
+| ----- | ---------------------------------------------------------- |
+| `12+` | The cage's cells sum to 12.                                |
+| `48×` | The cage's cells multiply to 48.                           |
+| `3−`  | Two cells whose difference is 3 (in either order).         |
 | `2÷`  | Two cells where one divides the other exactly, quotient 2. |
-| `5`   | A single-cell "freebie" — the cell is 5. |
+| `5`   | A single-cell "freebie" — the cell is 5.                   |
 
 A digit **may** repeat within a cage, as long as it does not repeat within a
 row or column.
@@ -36,16 +36,18 @@ npm run dev
 
 Then open the printed URL.
 
-| Command | What it does |
-|---|---|
-| `npm run dev` | Start the dev server. |
-| `npm run build` | Typecheck and produce a production build in `dist/`. |
-| `npm run preview` | Serve the production build locally. |
-| `npm test` | Run the test suite in watch mode. |
-| `npm run test:run` | Run the test suite once. |
+| Command                 | What it does                                           |
+| ----------------------- | ------------------------------------------------------ |
+| `npm run dev`           | Start the dev server.                                  |
+| `npm run build`         | Typecheck and produce a production build in `dist/`.   |
+| `npm run preview`       | Serve the production build locally.                    |
+| `npm test`              | Run the test suite in watch mode.                      |
+| `npm run test:run`      | Run the test suite once.                               |
 | `npm run test:coverage` | Run tests with coverage for the engine and game logic. |
-| `npm run typecheck` | Typecheck without emitting. |
-| `npm run lint` | Lint with oxlint. |
+| `npm run typecheck`     | Typecheck without emitting.                            |
+| `npm run lint`          | Lint with oxlint.                                      |
+| `npm run format`        | Format the tree with Prettier.                         |
+| `npm run format:check`  | Check formatting without writing.                      |
 
 ## How to play
 

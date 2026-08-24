@@ -123,7 +123,7 @@ describe('solve', () => {
       size: 6,
       difficulty: 'expert',
       seed: 'wide-open',
-      solution: Array.from({ length: 36 }, (_unused, i) => ((i % 6) + Math.floor(i / 6)) % 6 + 1),
+      solution: Array.from({ length: 36 }, (_unused, i) => (((i % 6) + Math.floor(i / 6)) % 6) + 1),
       cages: Array.from({ length: 6 }, (_unused, r) => ({
         id: r,
         cells: [0, 1, 2, 3, 4, 5].map((c) => r * 6 + c),

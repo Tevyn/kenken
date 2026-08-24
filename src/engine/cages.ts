@@ -76,11 +76,7 @@ export function partitionCages(
   );
 }
 
-function attemptPartition(
-  size: number,
-  rng: Rng,
-  params: DifficultyParams,
-): CellIndex[][] | null {
+function attemptPartition(size: number, rng: Rng, params: DifficultyParams): CellIndex[][] | null {
   const cellCount = size * size;
   const owner = new Int32Array(cellCount).fill(-1);
   const cages: CellIndex[][] = [];

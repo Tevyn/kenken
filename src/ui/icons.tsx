@@ -1,13 +1,13 @@
-import type { ReactNode, SVGProps } from 'react'
-import type { Difficulty } from '../engine/types'
-import { MAX_SIZE, MIN_SIZE } from '../engine/types'
+import type { ReactNode, SVGProps } from 'react';
+import type { Difficulty } from '../engine/types';
+import { MAX_SIZE, MIN_SIZE } from '../engine/types';
 
 /**
  * Shared props for every icon: an optional pixel `size` (default 20) plus
  * anything else `<svg>` accepts (className, style, onClick, ...).
  */
 export interface IconProps extends SVGProps<SVGSVGElement> {
-  size?: number
+  size?: number;
 }
 
 /**
@@ -33,7 +33,7 @@ function IconBase({ size = 20, children, ...rest }: IconProps & { children: Reac
     >
       {children}
     </svg>
-  )
+  );
 }
 
 /**
@@ -67,7 +67,7 @@ export function HintIcon(props: IconProps) {
       <path d="M9 18h6" />
       <path d="M10 22h4" />
     </IconBase>
-  )
+  );
 }
 
 /**
@@ -88,7 +88,7 @@ export function EraseIcon(props: IconProps) {
       </g>
       <line x1="4" y1="18" x2="20" y2="18" />
     </IconBase>
-  )
+  );
 }
 
 /**
@@ -104,7 +104,7 @@ export function UndoIcon(props: IconProps) {
       <path d="M11 4 5 10l6 6" />
       <path d="M5 10h8a6 6 0 0 1 6 6v5" />
     </IconBase>
-  )
+  );
 }
 
 /** Redo: `UndoIcon` mirrored left-to-right, same corner-hook language. */
@@ -114,7 +114,7 @@ export function RedoIcon(props: IconProps) {
       <path d="M13 4 19 10l-6 6" />
       <path d="M19 10h-8a6 6 0 0 0-6 6v5" />
     </IconBase>
-  )
+  );
 }
 
 /**
@@ -134,7 +134,7 @@ export function MarksIcon(props: IconProps) {
         <path d="M9.3 16.5 12 21 14.7 16.5" />
       </g>
     </IconBase>
-  )
+  );
 }
 
 /**
@@ -160,7 +160,7 @@ export function MenuIcon(props: IconProps) {
       <line x1="8" y1="10" x2="8" y2="14" />
       <line x1="16" y1="18" x2="16" y2="22" />
     </IconBase>
-  )
+  );
 }
 
 /**
@@ -188,7 +188,7 @@ export function NewGameIcon(props: IconProps) {
       <path d="M21 12A9 9 0 1 1 12 3c2.52 0 4.93 1 6.74 2.74L21 8" />
       <path d="M16.4 7.4 21 8 20.4 3.4" />
     </IconBase>
-  )
+  );
 }
 
 /**
@@ -211,7 +211,7 @@ export function RestartIcon(props: IconProps) {
       <path d="M3 12a9 9 0 1 0 9-9c-2.52 0-4.93 1-6.74 2.74L3 8" />
       <path d="M7.6 7.4 3 8l.6-4.6" />
     </IconBase>
-  )
+  );
 }
 
 /**
@@ -238,7 +238,7 @@ export function CorrectnessIcon(props: IconProps) {
       <path d="m14 9 7 7" />
       <path d="m21 9-7 7" />
     </IconBase>
-  )
+  );
 }
 
 /**
@@ -263,7 +263,7 @@ export function TipIcon(props: IconProps) {
     <IconBase {...props}>
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
     </IconBase>
-  )
+  );
 }
 
 /**
@@ -295,7 +295,7 @@ export function NumberIcon(props: IconProps) {
       <line x1="3" y1="15" x2="21" y2="15" />
       <rect x="10" y="10" width="4" height="4" fill="currentColor" stroke="none" />
     </IconBase>
-  )
+  );
 }
 
 /*
@@ -369,11 +369,11 @@ export function NumberIcon(props: IconProps) {
  * instead of 14 — at n=9 that is the difference between a 1.83px cell and a
  * 1.43px cell at a 22px render, and 1.43px is where the thing dies.
  */
-const GRID_MIN = 3
-const GRID_MAX = 21
-const GRID_SPAN = GRID_MAX - GRID_MIN
+const GRID_MIN = 3;
+const GRID_MAX = 21;
+const GRID_SPAN = GRID_MAX - GRID_MIN;
 /** Matches `IconBase`'s svg-level width, so the frame needs no override. */
-const OUTER_STROKE = 2
+const OUTER_STROKE = 2;
 
 /**
  * Cell dividers: a hairline, in the literal sense.
@@ -405,8 +405,8 @@ const OUTER_STROKE = 2
  * so was crisp snapping at proportional widths, which still washed out at n=9
  * because the *width*, not the phase, was the problem.
  */
-const DIVIDER_STROKE = 1
-const DIVIDER_OPACITY = 0.55
+const DIVIDER_STROKE = 1;
+const DIVIDER_OPACITY = 0.55;
 
 /**
  * The hairline treatment itself, hoisted because two callers wear it now: the
@@ -417,7 +417,7 @@ const HAIRLINE = {
   strokeOpacity: DIVIDER_OPACITY,
   vectorEffect: 'non-scaling-stroke',
   shapeRendering: 'crispEdges',
-} as const
+} as const;
 
 /**
  * Cage borders: proportional to the cell pitch, floored, capped at the frame.
@@ -440,21 +440,21 @@ const HAIRLINE = {
  * 1.3 units is 1.19px: still under the frame, still visibly over the hairline,
  * and the width difference is reinforced by the hairline's 0.55 alpha.
  */
-const CAGE_DUTY = 0.45
-const CAGE_MIN = 1.3
+const CAGE_DUTY = 0.45;
+const CAGE_MIN = 1.3;
 
 /** Trim float noise so `18/7` does not serialise 15 digits into the DOM. */
-const round = (value: number) => Math.round(value * 1000) / 1000
+const round = (value: number) => Math.round(value * 1000) / 1000;
 
-const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 interface GridMetrics {
   /** `n`, clamped to the sizes the engine actually supports. */
-  size: number
+  size: number;
   /** Centre-line coordinate of grid line `k`, `k` in `0..size`. */
-  at: (k: number) => number
+  at: (k: number) => number;
   /** Stroke width, in viewBox units, for a cage boundary at this size. */
-  cage: number
+  cage: number;
 }
 
 /**
@@ -465,13 +465,13 @@ interface GridMetrics {
  * divide by zero or throw inside render.
  */
 function gridMetrics(n: number): GridMetrics {
-  const size = clamp(Math.round(n) || MIN_SIZE, MIN_SIZE, MAX_SIZE)
-  const pitch = GRID_SPAN / size
+  const size = clamp(Math.round(n) || MIN_SIZE, MIN_SIZE, MAX_SIZE);
+  const pitch = GRID_SPAN / size;
   return {
     size,
     at: (k) => round(GRID_MIN + k * pitch),
     cage: round(clamp(CAGE_DUTY * pitch, CAGE_MIN, OUTER_STROKE)),
-  }
+  };
 }
 
 /**
@@ -484,15 +484,15 @@ function gridMetrics(n: number): GridMetrics {
  * margin inside the square.
  */
 function gridDividers({ size, at }: GridMetrics) {
-  const lines = []
+  const lines = [];
   for (let k = 1; k < size; k += 1) {
-    const p = at(k)
+    const p = at(k);
     lines.push(
       <line key={`v${k}`} x1={p} y1={GRID_MIN} x2={p} y2={GRID_MAX} {...HAIRLINE} />,
       <line key={`h${k}`} x1={GRID_MIN} y1={p} x2={GRID_MAX} y2={p} {...HAIRLINE} />,
-    )
+    );
   }
-  return lines
+  return lines;
 }
 
 /**
@@ -518,7 +518,7 @@ function gridDividers({ size, at }: GridMetrics) {
  * shows, but it costs nothing and it keeps the two frames the same shape.
  */
 function gridFrame(weight: 'outline' | 'hairline') {
-  const stroke = weight === 'hairline' ? HAIRLINE : { strokeWidth: OUTER_STROKE }
+  const stroke = weight === 'hairline' ? HAIRLINE : { strokeWidth: OUTER_STROKE };
   return (
     <rect
       x={GRID_MIN}
@@ -528,7 +528,7 @@ function gridFrame(weight: 'outline' | 'hairline') {
       strokeLinejoin="miter"
       {...stroke}
     />
-  )
+  );
 }
 
 /**
@@ -539,17 +539,17 @@ function gridFrame(weight: 'outline' | 'hairline') {
  */
 export interface GridIconProps extends IconProps {
   /** Grid order, 3..9. Values outside that are clamped, never thrown on. */
-  n: number
+  n: number;
 }
 
 export function GridIcon({ n, ...props }: GridIconProps) {
-  const metrics = gridMetrics(n)
+  const metrics = gridMetrics(n);
   return (
     <IconBase {...props}>
       {gridDividers(metrics)}
       {gridFrame('hairline')}
     </IconBase>
-  )
+  );
 }
 
 /**
@@ -594,7 +594,7 @@ export function GridIcon({ n, ...props }: GridIconProps) {
  * stay countable under the cage, the frame heaviest and drawn last (§5), and
  * square corners throughout.
  */
-const DIFFICULTY_ORDER = 4
+const DIFFICULTY_ORDER = 4;
 
 /**
  * Each cage as a closed ring of grid-*line* indices, `[column, row]`, so the
@@ -634,7 +634,7 @@ const DIFFICULTY_CAGE: Record<Difficulty, readonly (readonly [number, number])[]
     [3, 3],
     [1, 3],
   ],
-}
+};
 
 /**
  * The cage's fill alpha.
@@ -646,25 +646,25 @@ const DIFFICULTY_CAGE: Record<Difficulty, readonly (readonly [number, number])[]
  * through the tint — below about 0.3 the ramp flattens out, above about 0.45
  * the dividers under the cage disappear and it stops looking like cells.
  */
-const CAGE_TINT = 0.38
+const CAGE_TINT = 0.38;
 
 export interface DifficultyIconProps extends IconProps {
-  difficulty: Difficulty
+  difficulty: Difficulty;
 }
 
 export function DifficultyIcon({ difficulty, ...props }: DifficultyIconProps) {
-  const metrics = gridMetrics(DIFFICULTY_ORDER)
-  const { at, cage } = metrics
+  const metrics = gridMetrics(DIFFICULTY_ORDER);
+  const { at, cage } = metrics;
 
   /*
    * Defensive, not an assertion: `difficulty` arrives from a prop, and a tile
    * drawing the wrong cage is a blemish where a tile throwing mid-render takes
    * the app down behind an error boundary.
    */
-  const ring = DIFFICULTY_CAGE[difficulty] ?? DIFFICULTY_CAGE.easy
+  const ring = DIFFICULTY_CAGE[difficulty] ?? DIFFICULTY_CAGE.easy;
   const outline = `${ring
     .map(([col, row], index) => `${index === 0 ? 'M' : 'L'}${at(col)} ${at(row)}`)
-    .join('')}Z`
+    .join('')}Z`;
 
   return (
     <IconBase {...props}>
@@ -678,7 +678,7 @@ export function DifficultyIcon({ difficulty, ...props }: DifficultyIconProps) {
       />
       {gridFrame('outline')}
     </IconBase>
-  )
+  );
 }
 
 /**
@@ -716,7 +716,7 @@ export function ThemeLightIcon(props: IconProps) {
       <path d="m19.07 4.93-1.41 1.41" />
       <path d="m6.34 17.66-1.41 1.41" />
     </IconBase>
-  )
+  );
 }
 
 /**
@@ -743,7 +743,7 @@ export function ThemeDarkIcon(props: IconProps) {
     <IconBase {...props}>
       <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
     </IconBase>
-  )
+  );
 }
 
 /**
@@ -772,5 +772,5 @@ export function ThemeSystemIcon(props: IconProps) {
       <path d="M12 17v4" />
       <path d="M8 21h8" />
     </IconBase>
-  )
+  );
 }

@@ -21,11 +21,11 @@ would fight them. Nothing in the UI may imply the player is being graded.
 
 The app is a full-height column of three zones, in this order:
 
-| Zone | Contents | Sizing |
-|---|---|---|
-| **Header** | Wordmark, puzzle meta, new game, settings | Fixed height, hugs the top |
-| **Play** | The board, centred | `flex: 1` — absorbs all leftover height |
-| **Controls** | Action row, digit pad | Fixed height, anchored to the bottom |
+| Zone         | Contents                                  | Sizing                                  |
+| ------------ | ----------------------------------------- | --------------------------------------- |
+| **Header**   | Wordmark, puzzle meta, new game, settings | Fixed height, hugs the top              |
+| **Play**     | The board, centred                        | `flex: 1` — absorbs all leftover height |
+| **Controls** | Action row, digit pad                     | Fixed height, anchored to the bottom    |
 
 The controls are **anchored to the bottom of the viewport**, in the thumb zone.
 The play zone takes whatever height is left and centres the board inside it.
@@ -92,14 +92,14 @@ the third option, a flow element that grows from nothing.
 
 4px base. Use only these steps; do not invent intermediate values.
 
-| Token | Value | Use |
-|---|---|---|
-| `--sp-1` | 4px | Icon-to-label, inside a key |
-| `--sp-2` | 8px | Between sibling keys, chips |
-| `--sp-3` | 12px | Inside a panel, list rows |
-| `--sp-4` | 16px | Page gutter, panel padding |
-| `--sp-5` | 24px | Between groups (action row / digit pad) |
-| `--sp-6` | 32px | Between zones |
+| Token    | Value | Use                                     |
+| -------- | ----- | --------------------------------------- |
+| `--sp-1` | 4px   | Icon-to-label, inside a key             |
+| `--sp-2` | 8px   | Between sibling keys, chips             |
+| `--sp-3` | 12px  | Inside a panel, list rows               |
+| `--sp-4` | 16px  | Page gutter, panel padding              |
+| `--sp-5` | 24px  | Between groups (action row / digit pad) |
+| `--sp-6` | 32px  | Between zones                           |
 
 The current stylesheet uses 4/8/10/12/14/18/20 with no system. Every one of
 those must resolve to a step above.
@@ -108,11 +108,11 @@ those must resolve to a step above.
 
 Three tiers only.
 
-| Token | Value | Applies to |
-|---|---|---|
-| `--r-sm` | 6px | Inline chips, marks, small controls |
-| `--r-md` | 10px | Keys, buttons, triggers |
-| `--r-lg` | 14px | Large cards |
+| Token    | Value | Applies to                          |
+| -------- | ----- | ----------------------------------- |
+| `--r-sm` | 6px   | Inline chips, marks, small controls |
+| `--r-md` | 10px  | Keys, buttons, triggers             |
+| `--r-lg` | 14px  | Large cards                         |
 
 The board is **square-cornered** and takes no radius. A rounded grid reads as a
 card that contains a puzzle; the board is the puzzle.
@@ -131,7 +131,7 @@ would take, not as a licence to round a panel.
 navy in light mode and light blue in dark mode — the same token, two
 renderings, so every rule that references `--accent` is written once.
 
-The accent means exactly one thing: *this is interactive, or this is yours*. It
+The accent means exactly one thing: _this is interactive, or this is yours_. It
 is never decorative and never used to draw the eye to something the player did
 not ask about. It is applied as **ink** — the colour of the glyph or the word
 itself — and as a fill only for board state and state badges (§4.1).
@@ -140,7 +140,7 @@ Everything else is neutral grey. Two colours break the monochrome, and both are
 status rather than accent: **red is "this is wrong", green is "this is right".**
 
 Red carries more than one claim, deliberately. It is a proven contradiction — a
-repeated digit, a cage that can no longer be completed — *and* an entry the
+repeated digit, a cage that can no longer be completed — _and_ an entry the
 correctness check found disagrees with the solution. The two are reached
 differently and are not the same size of claim, but they are the same news to a
 player, so they get one hue and are told apart by shape (§5.1), never by a
@@ -148,7 +148,7 @@ second colour.
 
 Green is the win state, and now only that. It used to ring a cell the check
 confirmed as well; that is gone, because a check has no business congratulating
-the player on work they did themselves. A digit the hint panel placed is *not*
+the player on work they did themselves. A digit the hint panel placed is _not_
 green either: it is an ordinary entry made on the player's behalf, so it takes
 the accent like everything else they own.
 
@@ -210,14 +210,14 @@ they look like they need to be:
 - Cage labels, pencil marks, muted help text: **4.5:1**. These are small; they
   do not get the large-text exemption.
 - Focus rings, switch tracks, icon strokes, and **cage borders and the board
-  outline**: **3:1**. These carry meaning — the cage structure *is* the puzzle.
+  outline**: **3:1**. These carry meaning — the cage structure _is_ the puzzle.
 - **Cell dividers inside a cage are exempt.** They subdivide, they do not
   inform: the grid is legible from the cage structure and the digits alone, and
   pushing a hairline to 3:1 makes it compete with the cage borders it is
   supposed to sit beneath. They take `--border-strong` and are allowed to be
   quiet. This is the one deliberate exception in the document.
 - Disabled controls are exempt from the text floor but must still clear **3:1**
-  on their glyph, because they still have to be *identifiable*.
+  on their glyph, because they still have to be _identifiable_.
 
 ### 2.5 How the token layer is built
 
@@ -242,7 +242,7 @@ Consequences worth stating:
   an anchor that was written wrong. Exactly one declaration legitimately lives
   in that block — `--hint-dim-opacity`, because an opacity is a number and
   `light-dark()` takes colours only. A shadow is not a colour either, but its
-  *colour slots* are, so `light-dark()` still reaches inside one.
+  _colour slots_ are, so `light-dark()` still reaches inside one.
 - **The theme setting is this architecture, exposed.** `light-dark()` resolves
   against `color-scheme`, so `:root[data-theme='dark'] { color-scheme: dark }`
   re-themes the app without redeclaring a single token, and `system` is the
@@ -260,11 +260,11 @@ Three levels. Elevation is how far something is from the page, and it is
 signalled differently per theme because a black shadow on a black page is
 invisible.
 
-| Level | Light | Dark |
-|---|---|---|
-| **Flat** — the page | `--bg`, no shadow | `--bg`, no shadow |
-| **Raised** — board, keys, cards | `--surface` + 1px `--border` | `--surface` (lighter than bg) + 1px `--border` |
-| **Floating** — popovers | `--surface` + 1px `--cell-border` + `--shadow-popover` | Same, with every shadow layer pushed harder |
+| Level                           | Light                                                  | Dark                                           |
+| ------------------------------- | ------------------------------------------------------ | ---------------------------------------------- |
+| **Flat** — the page             | `--bg`, no shadow                                      | `--bg`, no shadow                              |
+| **Raised** — board, keys, cards | `--surface` + 1px `--border`                           | `--surface` (lighter than bg) + 1px `--border` |
+| **Floating** — popovers         | `--surface` + 1px `--cell-border` + `--shadow-popover` | Same, with every shadow layer pushed harder    |
 
 A "recessed" treatment must use `--surface-sunken`. Painting a well in `--bg`
 paints nothing — the action row's strip did exactly that in both themes and was
@@ -285,7 +285,7 @@ around a whole grid, a slab around a menu, with the content reading as trapped
 inside it. A panel is still the board; it wears the board's quieter line.
 
 **Depth is the shadow's job, and only the shadow's.** There is no scrim. Dimming
-the page is a fine way to say *modal* and a poor way to say *floating* — it
+the page is a fine way to say _modal_ and a poor way to say _floating_ — it
 takes the puzzle away from a player who is mid-way through reading it, and every
 panel here opens over a board that is still the subject. `--shadow-popover` does
 the separating in both themes: three layers (contact, lift, ambient), pushed
@@ -318,7 +318,7 @@ instead, and a dismiss button beside it would make leaving look like a decision.
 **One rule, held everywhere: blue means touchable.** Every control is bare blue
 ink on the page — a blue word or a blue glyph. No border, no fill, no surface.
 Everything informational is grey or near-black: the wordmark, cage labels,
-entered values, hint prose, panel headings, and the labels *under* toolbar
+entered values, hint prose, panel headings, and the labels _under_ toolbar
 icons.
 
 Reading the screen is therefore a colour test rather than a shape test. That is
@@ -338,7 +338,7 @@ tile is glyph-over-label exactly like both. A control styled as its own species
 is the bug this rule exists to prevent.
 
 There are exactly two things in the app that are not this stack, and both are
-deliberate: the digit keys, which are bare numerals because the numeral *is* the
+deliberate: the digit keys, which are bare numerals because the numeral _is_ the
 glyph, and the Erase key beside them (§4.2). Everything else that can be pressed
 wears a glyph over a grey label.
 
@@ -355,7 +355,7 @@ Redo, which nothing focuses on the way in, use the real attribute.
 
 **A glyph may carry information, not just identity.** The wizard's size tiles
 draw the actual n×n grid, so the picture answers the question the button is
-asking. Where a glyph is a *picture of the product* it comes from real data and
+asking. Where a glyph is a _picture of the product_ it comes from real data and
 must not lie about it: a size tile draws n-1 dividers because the board has n
 columns, never a stylised grid that merely suggests one. Nothing informational
 is computed during a render.
@@ -363,7 +363,7 @@ is computed during a render.
 **But a picture of the product is not automatically the better glyph**, and the
 difficulty tiles are where that broke down. They used to draw the real baked
 cage layout for the chosen size and difficulty — honest data pointed the wrong
-way. This generator builds harder puzzles out of *fewer, larger* cages (9/7/6/5
+way. This generator builds harder puzzles out of _fewer, larger_ cages (9/7/6/5
 cages at 4×4; 42/35/29/24 at 9×9), so the tile emptied out as the word beneath
 it got scarier and the row read as a ramp running backwards. Above 6×6 it
 carried nothing at all: 42 cages in a 32px box is a 1.73px stroke on a 2.67px
@@ -382,12 +382,12 @@ legibility, not measured, and `DifficultyIcon` says so at the definition.
 reader does not mistake it for data — and where it is data, it must survive
 every size it will be asked to draw.
 
-| | Treatment |
-|---|---|
-| **Rest** | `--accent` ink, transparent background, no border |
-| **Hover / press** | `--accent-soft` fill — the one *transient* fill, gone the moment the finger lifts |
-| **Disabled** | `--text-muted` ink, nothing else changes |
-| **Current in a group** | 2px underline at 5px offset, via `aria-current` / `aria-pressed` |
+|                        | Treatment                                                                         |
+| ---------------------- | --------------------------------------------------------------------------------- |
+| **Rest**               | `--accent` ink, transparent background, no border                                 |
+| **Hover / press**      | `--accent-soft` fill — the one _transient_ fill, gone the moment the finger lifts |
+| **Disabled**           | `--text-muted` ink, nothing else changes                                          |
+| **Current in a group** | 2px underline at 5px offset, via `aria-current` / `aria-pressed`                  |
 
 This replaces an earlier three-level hierarchy built on fills. There is no
 "primary button": the commit press in the New Game wizard is blue like
@@ -448,7 +448,7 @@ preference; a preference on the toolbar is a mode.
 
 ### 4.4 Touch targets
 
-44 × 44px minimum for anything tappable, met by the *union* of the control's
+44 × 44px minimum for anything tappable, met by the _union_ of the control's
 box — padding counts, and height alone may carry the floor when width is
 constrained (§1.3).
 
@@ -473,18 +473,18 @@ constrained (§1.3).
 A cell can be several things at once. These are additive layers, resolved by
 channel so they never have to fight for one property:
 
-| State | Channel | Treatment |
-|---|---|---|
-| In selected row/column | Fill | `--accent-soft` at lowest strength |
-| In selected cage | Fill | `--accent-soft`, one step stronger |
-| **Selected** | Fill | `--accent-soft`, full strength — always the strongest fill on the board |
-| Hint band | Fill | Accent, very low strength (only ever while dimmed) |
-| Hint support | Fill | Accent, low strength |
-| **Hint focus** | Ring | Accent ring, inset |
-| **Error** | Text | `--danger` value, at the grid's ordinary weight |
-| **Incorrect** | Corner | `--danger` flag in the top-right corner. Held until *that cell* is edited |
-| Placed by a hint | Text | `--accent` value. Gone on the player's next move |
-| Hint dim | Opacity | Everything not named by the hint drops to ~0.4 |
+| State                  | Channel | Treatment                                                                 |
+| ---------------------- | ------- | ------------------------------------------------------------------------- |
+| In selected row/column | Fill    | `--accent-soft` at lowest strength                                        |
+| In selected cage       | Fill    | `--accent-soft`, one step stronger                                        |
+| **Selected**           | Fill    | `--accent-soft`, full strength — always the strongest fill on the board   |
+| Hint band              | Fill    | Accent, very low strength (only ever while dimmed)                        |
+| Hint support           | Fill    | Accent, low strength                                                      |
+| **Hint focus**         | Ring    | Accent ring, inset                                                        |
+| **Error**              | Text    | `--danger` value, at the grid's ordinary weight                           |
+| **Incorrect**          | Corner  | `--danger` flag in the top-right corner. Held until _that cell_ is edited |
+| Placed by a hint       | Text    | `--accent` value. Gone on the player's next move                          |
+| Hint dim               | Opacity | Everything not named by the hint drops to ~0.4                            |
 
 Precedence: nothing has to win, because **no two rows in that table share a
 channel.** A cell that is selected, wrong, and a hint's focus reads as all
@@ -505,7 +505,7 @@ offending digit and nowhere else.
 
 **Error and incorrect are claims of different sizes, and the shape is what
 separates them.** A conflict is impossible under every solution; a rejected
-entry is merely not *the* answer. Both are `--danger`, so "wrong" means one
+entry is merely not _the_ answer. Both are `--danger`, so "wrong" means one
 thing on this board, and the smaller claim takes the smaller mark. The two can
 land on one cell at once, and the accessible name then says `conflict` — the
 stronger of them.
@@ -514,7 +514,7 @@ stronger of them.
 outlives the press that produced it, so it can still be on a cell the player has
 since selected, or that a later hint has ringed — it cannot afford a channel
 something else might want. The top-right corner is free (the cage label is
-top-*left*) and nothing else on the board uses it. That also keeps the mark off
+top-_left_) and nothing else on the board uses it. That also keeps the mark off
 the digit, which stays in the player's own ink: the entry is theirs, and only
 the verdict about it belongs to the app. A placed digit is safe in the text
 channel for the reason it always was — it is by construction correct, so it
@@ -527,7 +527,7 @@ colour alone.
 Hints previously had their own teal family, on the reasoning that "the hint
 points here" must never read as "you have this selected."
 
-That separation is no longer needed, because a hint changes the *whole board*:
+That separation is no longer needed, because a hint changes the _whole board_:
 `dimRest` drops every uninvolved cell to 40% opacity. Nothing else in the app
 does that, so hint mode is unmistakable from context before colour is even
 considered. Within that mode, geometry separates the two meanings — **selection
@@ -565,7 +565,7 @@ answer, not a list. It answers "what am I playing", which nothing
 on screen said before: neither the size nor the difficulty appeared anywhere
 outside the New Game wizard.
 
-It is deliberately *not* a status strip. The game is untimed and unscored, so
+It is deliberately _not_ a status strip. The game is untimed and unscored, so
 this is the only state the header carries, and it must never grow into a row of
 counters.
 
@@ -578,17 +578,17 @@ times nine", so a `.kk-sr-only` sibling says "Playing 9 by 9, medium" instead.
 
 One family: the `system-ui` stack.
 
-| Role | Size | Weight |
-|---|---|---|
-| Wordmark | 20px | 600 |
-| Puzzle meta | 13px | 500, `--text-muted` |
-| Panel heading | 13px | 500, sentence case, `--text-muted` |
-| Body / hint text | 15px | 400 |
-| Help text | 13px | 400, `--text-muted` |
-| Key label | 18px | 600 |
-| Cell value | `--cell × 0.5` | 500 |
-| Cage label | `max(10px, --cell × 0.22)` | 600 |
-| Digit key | `clamp(22px, …, 32px)` | 500 |
+| Role             | Size                       | Weight                             |
+| ---------------- | -------------------------- | ---------------------------------- |
+| Wordmark         | 20px                       | 600                                |
+| Puzzle meta      | 13px                       | 500, `--text-muted`                |
+| Panel heading    | 13px                       | 500, sentence case, `--text-muted` |
+| Body / hint text | 15px                       | 400                                |
+| Help text        | 13px                       | 400, `--text-muted`                |
+| Key label        | 18px                       | 600                                |
+| Cell value       | `--cell × 0.5`             | 500                                |
+| Cage label       | `max(10px, --cell × 0.22)` | 600                                |
+| Digit key        | `clamp(22px, …, 32px)`     | 500                                |
 
 **A panel heading is the puzzle meta line**, to the pixel: the same grey, the
 same 13px, the same sentence case. It used to be 700 uppercase at `0.08em`,

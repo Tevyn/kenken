@@ -1,27 +1,33 @@
-import { useCallback, useMemo, useState } from 'react'
-import type { Difficulty, Puzzle } from './engine/types'
-import { createErrorChecker, generatePuzzle } from './engine'
-import { SAMPLE_PUZZLE } from './fixtures/samplePuzzle'
-import type { Theme } from './game/preferences'
-import { applyTheme, loadAutoClearMarks, loadTheme, saveAutoClearMarks, saveTheme } from './game/preferences'
-import { useGame } from './game/useGame'
-import { Board } from './ui/Board'
-import { Controls } from './ui/Controls'
-import { Keypad } from './ui/Keypad'
-import type { OpenMenu } from './ui/Popover'
-import { WinDialog } from './ui/WinDialog'
-import './App.css'
+import { useCallback, useMemo, useState } from 'react';
+import type { Difficulty, Puzzle } from './engine/types';
+import { createErrorChecker, generatePuzzle } from './engine';
+import { SAMPLE_PUZZLE } from './fixtures/samplePuzzle';
+import type { Theme } from './game/preferences';
+import {
+  applyTheme,
+  loadAutoClearMarks,
+  loadTheme,
+  saveAutoClearMarks,
+  saveTheme,
+} from './game/preferences';
+import { useGame } from './game/useGame';
+import { Board } from './ui/Board';
+import { Controls } from './ui/Controls';
+import { Keypad } from './ui/Keypad';
+import type { OpenMenu } from './ui/Popover';
+import { WinDialog } from './ui/WinDialog';
+import './App.css';
 
 function App() {
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   /*
    * Which popover is open lives here, not with any of them: an open panel is
    * modal enough to own the keyboard, so the game's shortcuts have to know
    * about it. One slot for all three, so opening the hint panel closes the
    * wizard and vice versa.
    */
-  const [openMenu, setOpenMenu] = useState<OpenMenu>(null)
+  const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
   /*
    * The solved dialog, as two facts rather than one. `solvedSeen` mirrors the
    * game's own status, and `winDismissed` records that this solve has already
@@ -32,37 +38,37 @@ function App() {
    * the keyboard away from the board. The reconciliation that keeps the mirror
    * honest is below, where the game's status is finally known.
    */
-  const [solvedSeen, setSolvedSeen] = useState(false)
-  const [winDismissed, setWinDismissed] = useState(false)
-  const winOpen = solvedSeen && !winDismissed
+  const [solvedSeen, setSolvedSeen] = useState(false);
+  const [winDismissed, setWinDismissed] = useState(false);
+  const winOpen = solvedSeen && !winDismissed;
 
-  const openHint = useCallback(() => setOpenMenu('hint'), [])
+  const openHint = useCallback(() => setOpenMenu('hint'), []);
   const handleHintOpenChange = useCallback(
     (open: boolean) => setOpenMenu(open ? 'hint' : null),
     [],
-  )
+  );
 
   // Lazy initialiser so storage is read once, at mount, rather than on every render.
-  const [initialAutoClearMarks] = useState(loadAutoClearMarks)
+  const [initialAutoClearMarks] = useState(loadAutoClearMarks);
 
   /*
    * The theme is applied to <html> in `main.tsx`, before React mounts, so the
    * page never paints in the wrong palette. This state only mirrors it so the
    * picker can show which one is current.
    */
-  const [theme, setTheme] = useState(loadTheme)
+  const [theme, setTheme] = useState(loadTheme);
 
   const handleThemeChange = useCallback((next: Theme) => {
-    setTheme(next)
-    applyTheme(next)
-    saveTheme(next)
-  }, [])
+    setTheme(next);
+    applyTheme(next);
+    saveTheme(next);
+  }, []);
 
   const game = useGame(SAMPLE_PUZZLE, {
     autoClearMarks: initialAutoClearMarks,
     suspended: openMenu !== null || winOpen,
     onRequestHint: openHint,
-  })
+  });
 
   /*
    * The panel prints whatever the game last worked out, whichever choice asked
@@ -76,10 +82,10 @@ function App() {
       ? game.state.hint.hint.text
       : game.state.hint.kind === 'message'
         ? game.state.hint.message.text
-        : null
+        : null;
 
-  const newPuzzle = game.newPuzzle
-  const setAutoClearMarks = game.setAutoClearMarks
+  const newPuzzle = game.newPuzzle;
+  const setAutoClearMarks = game.setAutoClearMarks;
 
   /*
    * The dialog follows the status in both directions, and only on the change:
@@ -93,13 +99,13 @@ function App() {
    * effect would commit one render in which the board is solved and the
    * keyboard still live.
    */
-  const solved = game.state.status === 'solved'
+  const solved = game.state.status === 'solved';
   if (solved !== solvedSeen) {
-    setSolvedSeen(solved)
-    setWinDismissed(false)
+    setSolvedSeen(solved);
+    setWinDismissed(false);
   }
 
-  const handleWinDismiss = useCallback(() => setWinDismissed(true), [])
+  const handleWinDismiss = useCallback(() => setWinDismissed(true), []);
 
   /*
    * "New game" from the solved dialog opens the wizard rather than starting
@@ -107,16 +113,16 @@ function App() {
    * wizard is the one place that asks for them.
    */
   const handleWinNewGame = useCallback(() => {
-    setWinDismissed(true)
-    setOpenMenu('new-game')
-  }, [])
+    setWinDismissed(true);
+    setOpenMenu('new-game');
+  }, []);
 
   /* Nothing filled in is nothing for the check to judge. Marks are not entries,
      so they do not count: `checkCorrectness` only ever looks at values. */
   const canCheck = useMemo(
     () => game.state.values.some((value) => value != null),
     [game.state.values],
-  )
+  );
 
   /* Restarting an untouched board would do nothing but add an undo entry. */
   const canRestart = useMemo(
@@ -124,21 +130,21 @@ function App() {
       game.state.values.some((value) => value != null) ||
       game.state.marks.some((marks) => marks.length > 0),
     [game.state.values, game.state.marks],
-  )
+  );
 
   const handleAutoClearMarksChange = useCallback(
     (enabled: boolean) => {
-      setAutoClearMarks(enabled)
-      saveAutoClearMarks(enabled)
+      setAutoClearMarks(enabled);
+      saveAutoClearMarks(enabled);
     },
     [setAutoClearMarks],
-  )
+  );
 
   // Live error checking. The cage-combination tables are enumerated once per
   // puzzle and reused for every keystroke; the errors themselves are derived
   // state, so they are memoized here rather than kept in the reducer.
-  const checkErrors = useMemo(() => createErrorChecker(game.state.puzzle), [game.state.puzzle])
-  const errors = useMemo(() => checkErrors(game.state.values), [checkErrors, game.state.values])
+  const checkErrors = useMemo(() => createErrorChecker(game.state.puzzle), [game.state.puzzle]);
+  const errors = useMemo(() => checkErrors(game.state.values), [checkErrors, game.state.values]);
 
   /*
    * The one commit point for a new game: the wizard collects both choices and
@@ -151,23 +157,23 @@ function App() {
    */
   const handleStartGame = useCallback(
     (nextSize: number, nextDifficulty: Difficulty) => {
-      setLoading(true)
-      setError(null)
+      setLoading(true);
+      setError(null);
       // Flip the loading flag, then let the browser paint before the (possibly ~1s)
       // synchronous generation work, so the UI doesn't appear to freeze.
       setTimeout(() => {
-        let next: Puzzle | null = null
+        let next: Puzzle | null = null;
         try {
-          next = generatePuzzle({ size: nextSize, difficulty: nextDifficulty })
+          next = generatePuzzle({ size: nextSize, difficulty: nextDifficulty });
         } catch (err) {
-          setError(err instanceof Error ? err.message : 'Failed to generate puzzle.')
+          setError(err instanceof Error ? err.message : 'Failed to generate puzzle.');
         }
-        if (next) newPuzzle(next)
-        setLoading(false)
-      }, 0)
+        if (next) newPuzzle(next);
+        setLoading(false);
+      }, 0);
     },
     [newPuzzle],
-  )
+  );
 
   /*
    * Generating never unmounts the game. Replacing it with one line of text
@@ -179,9 +185,9 @@ function App() {
   // Same capitalisation the wizard's own difficulty buttons use, so the two
   // places the word appears agree.
   const difficultyLabel =
-    game.state.puzzle.difficulty[0].toUpperCase() + game.state.puzzle.difficulty.slice(1)
+    game.state.puzzle.difficulty[0].toUpperCase() + game.state.puzzle.difficulty.slice(1);
 
-  const busyClass = loading ? 'kk-is-busy' : ''
+  const busyClass = loading ? 'kk-is-busy' : '';
 
   return (
     <div className="kk-app">
@@ -286,7 +292,7 @@ function App() {
       */}
       <WinDialog visible={winOpen} onDismiss={handleWinDismiss} onNewGame={handleWinNewGame} />
     </div>
-  )
+  );
 }
 
-export default App
+export default App;

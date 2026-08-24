@@ -1,14 +1,14 @@
 /** localStorage key for the auto-clear-pencil-marks preference, namespaced to the app. */
-const AUTO_CLEAR_MARKS_KEY = 'kenken:autoClearMarks'
+const AUTO_CLEAR_MARKS_KEY = 'kenken:autoClearMarks';
 
 /** localStorage key for the colour-theme preference. */
-const THEME_KEY = 'kenken:theme'
+const THEME_KEY = 'kenken:theme';
 
 /** Which palette to paint: follow the operating system, or override it. */
-export type Theme = 'light' | 'dark' | 'system'
+export type Theme = 'light' | 'dark' | 'system';
 
 /** The three choices, in the order the settings picker shows them. */
-export const THEMES: readonly Theme[] = ['light', 'dark', 'system']
+export const THEMES: readonly Theme[] = ['light', 'dark', 'system'];
 
 /**
  * Read the persisted theme, defaulting to `system`. Same storage caveats as
@@ -16,18 +16,18 @@ export const THEMES: readonly Theme[] = ['light', 'dark', 'system']
  */
 export function loadTheme(): Theme {
   try {
-    const stored = localStorage.getItem(THEME_KEY)
-    if (stored === 'light' || stored === 'dark' || stored === 'system') return stored
-    return 'system'
+    const stored = localStorage.getItem(THEME_KEY);
+    if (stored === 'light' || stored === 'dark' || stored === 'system') return stored;
+    return 'system';
   } catch {
-    return 'system'
+    return 'system';
   }
 }
 
 /** Persist the theme. A storage failure silently drops the write. */
 export function saveTheme(theme: Theme): void {
   try {
-    localStorage.setItem(THEME_KEY, theme)
+    localStorage.setItem(THEME_KEY, theme);
   } catch {
     // Storage unavailable or full - the preference just won't persist this time.
   }
@@ -42,9 +42,9 @@ export function saveTheme(theme: Theme): void {
  * `system` is simply the attribute's absence — no token knows this exists.
  */
 export function applyTheme(theme: Theme): void {
-  const root = document.documentElement
-  if (theme === 'system') root.removeAttribute('data-theme')
-  else root.setAttribute('data-theme', theme)
+  const root = document.documentElement;
+  if (theme === 'system') root.removeAttribute('data-theme');
+  else root.setAttribute('data-theme', theme);
 }
 
 /**
@@ -57,11 +57,11 @@ export function applyTheme(theme: Theme): void {
  */
 export function loadAutoClearMarks(): boolean {
   try {
-    const stored = localStorage.getItem(AUTO_CLEAR_MARKS_KEY)
-    if (stored === 'false') return false
-    return true
+    const stored = localStorage.getItem(AUTO_CLEAR_MARKS_KEY);
+    if (stored === 'false') return false;
+    return true;
   } catch {
-    return true
+    return true;
   }
 }
 
@@ -71,7 +71,7 @@ export function loadAutoClearMarks(): boolean {
  */
 export function saveAutoClearMarks(enabled: boolean): void {
   try {
-    localStorage.setItem(AUTO_CLEAR_MARKS_KEY, String(enabled))
+    localStorage.setItem(AUTO_CLEAR_MARKS_KEY, String(enabled));
   } catch {
     // Storage unavailable or full - the preference just won't persist this time.
   }

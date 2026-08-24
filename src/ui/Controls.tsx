@@ -1,39 +1,39 @@
-import { useCallback } from 'react'
-import type { Difficulty } from '../engine/types'
-import type { Theme } from '../game/preferences'
-import { RestartIcon } from './icons'
-import { NewGameMenu } from './NewGameMenu'
-import type { OpenMenu } from './Popover'
-import { SettingsMenu } from './SettingsMenu'
-import './Controls.css'
+import { useCallback } from 'react';
+import type { Difficulty } from '../engine/types';
+import type { Theme } from '../game/preferences';
+import { RestartIcon } from './icons';
+import { NewGameMenu } from './NewGameMenu';
+import type { OpenMenu } from './Popover';
+import { SettingsMenu } from './SettingsMenu';
+import './Controls.css';
 
 export interface ControlsProps {
   /** The size currently being played; shown as the current choice in the wizard. */
-  size: number
+  size: number;
   /** The difficulty currently being played; shown as the current choice in the wizard. */
-  difficulty: Difficulty
+  difficulty: Difficulty;
   /** Commit a new game. Both values arrive together, once the wizard finishes. */
-  onStartGame: (size: number, difficulty: Difficulty) => void
+  onStartGame: (size: number, difficulty: Difficulty) => void;
   /** Empty the board, keeping the puzzle. Undoable, so it asks nothing first. */
-  onRestart: () => void
+  onRestart: () => void;
   /** False when the board is already empty and restarting would do nothing. */
-  canRestart: boolean
+  canRestart: boolean;
   /** Whether entering a value also strips it from the row/column peers' pencil marks. */
-  autoClearMarks: boolean
-  onAutoClearMarksChange: (enabled: boolean) => void
+  autoClearMarks: boolean;
+  onAutoClearMarksChange: (enabled: boolean) => void;
   /** Which palette to paint, or `system` to follow the OS. */
-  theme: Theme
-  onThemeChange: (theme: Theme) => void
+  theme: Theme;
+  onThemeChange: (theme: Theme) => void;
   /**
    * The open popover, owned by the app rather than by this component: a popover
    * takes the keyboard away from the board while it is open, so whoever owns
    * the board's shortcuts has to know one is open. The slot is shared with the
    * keypad's hint panel, so opening either header trigger closes that too.
    */
-  openMenu: OpenMenu
-  onOpenMenuChange: (menu: OpenMenu) => void
+  openMenu: OpenMenu;
+  onOpenMenuChange: (menu: OpenMenu) => void;
   /** True while a puzzle is generating; disables the controls that touch the board. */
-  disabled?: boolean
+  disabled?: boolean;
 }
 
 /**
@@ -63,21 +63,21 @@ export function Controls({
   const handleNewGameOpenChange = useCallback(
     (open: boolean) => onOpenMenuChange(open ? 'new-game' : null),
     [onOpenMenuChange],
-  )
+  );
   const handleSettingsOpenChange = useCallback(
     (open: boolean) => onOpenMenuChange(open ? 'settings' : null),
     [onOpenMenuChange],
-  )
+  );
 
   const handleStartGame = useCallback(
     (nextSize: number, nextDifficulty: Difficulty) => {
-      onOpenMenuChange(null)
-      onStartGame(nextSize, nextDifficulty)
+      onOpenMenuChange(null);
+      onStartGame(nextSize, nextDifficulty);
     },
     [onOpenMenuChange, onStartGame],
-  )
+  );
 
-  const restartUnavailable = disabled || !canRestart
+  const restartUnavailable = disabled || !canRestart;
 
   return (
     <div className="kk-controls">
@@ -102,8 +102,8 @@ export function Controls({
         className="kk-control kk-control--stack"
         aria-disabled={restartUnavailable || undefined}
         onClick={() => {
-          if (restartUnavailable) return
-          onRestart()
+          if (restartUnavailable) return;
+          onRestart();
         }}
       >
         <RestartIcon size={22} />
@@ -118,5 +118,5 @@ export function Controls({
         onOpenChange={handleSettingsOpenChange}
       />
     </div>
-  )
+  );
 }

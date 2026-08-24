@@ -1,8 +1,7 @@
 # KenKen — Engineering Reference
 
 KenKen (also sold/branded as Calcudoku, MathDoku, Mathdoku, KenDoku) is a
-number-placement puzzle invented by Japanese math teacher Tetsuya Miyamoto in
-2004. This document is a precise reference for implementing a generator,
+number-placement puzzle invented by Japanese math teacher Tetsuya Miyamoto in 2004. This document is a precise reference for implementing a generator,
 solver, and playable UI. It is written from verified sources (see
 [Sources](#5-sources)) plus one worked example that was checked by exhaustive
 computer search, not just by hand.
@@ -34,13 +33,13 @@ computer search, not just by hand.
 
 ### 1.3 Operations
 
-| Op | Cage size | Rule | Notes |
-|----|-----------|------|-------|
-| `+` addition | any size ≥ 1 | sum of all cell values == target | order-independent |
-| `×` multiplication | any size ≥ 1 | product of all cell values == target | order-independent |
-| `−` subtraction | **2 cells only** (standard convention) | `\|a − b\| == target` | order-independent because it's an absolute difference |
-| `÷` division | **2 cells only** (standard convention) | `max(a,b) / min(a,b) == target`, and it must divide evenly | order-independent for the same reason |
-| (none) | 1 cell ("freebie") | the single value **is** the target | no operator shown; only one legal placement |
+| Op                 | Cage size                              | Rule                                                       | Notes                                                 |
+| ------------------ | -------------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------- |
+| `+` addition       | any size ≥ 1                           | sum of all cell values == target                           | order-independent                                     |
+| `×` multiplication | any size ≥ 1                           | product of all cell values == target                       | order-independent                                     |
+| `−` subtraction    | **2 cells only** (standard convention) | `\|a − b\| == target`                                      | order-independent because it's an absolute difference |
+| `÷` division       | **2 cells only** (standard convention) | `max(a,b) / min(a,b) == target`, and it must divide evenly | order-independent for the same reason                 |
+| (none)             | 1 cell ("freebie")                     | the single value **is** the target                         | no operator shown; only one legal placement           |
 
 Key details, confirmed by multiple sources (Wikipedia, KenKenPuzzle.com FAQ):
 
@@ -51,8 +50,8 @@ Key details, confirmed by multiple sources (Wikipedia, KenKenPuzzle.com FAQ):
   in the same row or column (the Latin-square constraint is the only thing
   that ever forbids repetition — cages themselves place no
   "no-repeat" restriction). This is explicit in the KenKenPuzzle.com FAQ:
-  *"a number may be repeated within a cage as long as it is not repeated
-  within the same row or column."*
+  _"a number may be repeated within a cage as long as it is not repeated
+  within the same row or column."_
 - **Single-cell cages** ("freebies") show just a bare number with no
   operator; the only legal value for that cell is the number itself.
 
@@ -133,16 +132,16 @@ cells of the same cage):
 
 Cage definitions (row, col are 1-indexed, row 1 = top, col 1 = left):
 
-| Cage | Cells | Op | Target |
-|------|-------|----|--------|
-| A | (1,2), (2,2) | × | 8 |
-| B | (2,3), (3,3) | − | 3 |
-| C | (3,2), (4,2), (4,3) | × | 6 |
-| D | (1,3), (1,4) | + | 7 |
-| E | (1,1), (2,1) | ÷ | 3 |
-| F | (2,4), (3,4) | − | 1 |
-| G | (3,1), (4,1) | × | 8 |
-| H | (4,4) | (freebie) | 1 |
+| Cage | Cells               | Op        | Target |
+| ---- | ------------------- | --------- | ------ |
+| A    | (1,2), (2,2)        | ×         | 8      |
+| B    | (2,3), (3,3)        | −         | 3      |
+| C    | (3,2), (4,2), (4,3) | ×         | 6      |
+| D    | (1,3), (1,4)        | +         | 7      |
+| E    | (1,1), (2,1)        | ÷         | 3      |
+| F    | (2,4), (3,4)        | −         | 1      |
+| G    | (3,1), (4,1)        | ×         | 8      |
+| H    | (4,4)               | (freebie) | 1      |
 
 Unique solution:
 
@@ -191,7 +190,7 @@ then apply a random permutation of the N row indices, a random permutation
 of the N column indices, and a random permutation (relabeling) of the N
 symbols. This is O(N²) and trivial to implement.
 
-*Important caveat*: this does **not** sample uniformly from the full space
+_Important caveat_: this does **not** sample uniformly from the full space
 of order-N Latin squares. Every square reachable this way is "isotopic" to
 the cyclic square, but the total number of order-N Latin squares grows much
 faster than the number of row/column/symbol permutations (`(N!)^3`), and for
@@ -202,7 +201,7 @@ puzzles this way, the underlying solution grids will be statistically less
 diverse than true uniform sampling would produce — an attentive player who
 sees many puzzles might notice recurring structural patterns. For a
 few-puzzles-per-day consumer app this is a non-issue; for a puzzle
-*database* meant to feel infinite/varied, prefer approach B or a proper
+_database_ meant to feel infinite/varied, prefer approach B or a proper
 uniform sampler (e.g. Jacobson–Matthews Markov chain).
 
 **B. Randomized backtracking fill.**
@@ -228,12 +227,12 @@ Standard approach: **randomized flood-fill / region growth**.
 2. While unassigned cells remain:
    a. Pick a random unassigned cell as a new cage's seed.
    b. Pick a target size for this cage, drawn from a configured **cage-size
-      distribution** (e.g. weighted toward 2–3 cells, a small tail up to
-      4–5, and a small proportion of 1-cell freebies).
+   distribution** (e.g. weighted toward 2–3 cells, a small tail up to
+   4–5, and a small proportion of 1-cell freebies).
    c. Grow the cage by repeatedly picking a random unassigned cell adjacent
-      (orthogonally) to the current cage region and adding it, until the
-      cage reaches its target size or has no legal neighbor left (dead end —
-      accept the smaller cage and move on).
+   (orthogonally) to the current cage region and adding it, until the
+   cage reaches its target size or has no legal neighbor left (dead end —
+   accept the smaller cage and move on).
 3. Optionally, do a cleanup pass merging any leftover 1-cell cages that
    weren't intentionally chosen as freebies (a flood-fill can strand
    isolated single cells at the end); merge each into an adjacent cage
@@ -264,7 +263,7 @@ out by generator authors as something to filter out).
 For each cage, given the known solution values in its cells:
 
 - **1 cell**: no operator; target = the value. Always legal.
-- **2 cells** `{a, b}`, `a ≠ b` in general (though they *can* be equal if not
+- **2 cells** `{a, b}`, `a ≠ b` in general (though they _can_ be equal if not
   in the same row/col — rare but must be handled):
   - `+`: target = `a + b`. Always legal.
   - `×`: target = `a * b`. Always legal.
@@ -282,6 +281,7 @@ For each cage, given the known solution values in its cells:
   between the two (both are always legal for any set of values 1..N).
 
 **Difficulty bias in operator selection**:
+
 - Skewing choice toward `−`/`÷` on 2-cell cages, and away from `+`, makes
   puzzles harder because subtraction/division are less "additive-obvious"
   and interact less predictably with row/column sums.
@@ -316,8 +316,8 @@ uniquely-solvable puzzle — this must be checked explicitly:
      different operator for the same value set breaks the symmetry (note:
      this doesn't help against operations that are inherently
      order-independent per cage — the ambiguity is almost always an
-     *inter-cage* symmetry, not an intra-cage one, since every valid KenKen
-     operation only depends on the *set* of values in its own cage).
+     _inter-cage_ symmetry, not an intra-cage one, since every valid KenKen
+     operation only depends on the _set_ of values in its own cage).
    - **Regenerate the cage partition from scratch** (cheapest to implement,
      costs the most generation time) if local repairs don't converge
      quickly (e.g. after a handful of failed local repair attempts).
@@ -336,7 +336,7 @@ repeat anywhere within a cage**, even across different rows/columns (this is
 the Killer-Sudoku convention, not the standard KenKen/Calcudoku one).
 Effects of enabling it:
 
-- It's a strictly *additional* constraint on top of standard rules, so it
+- It's a strictly _additional_ constraint on top of standard rules, so it
   can only reduce (never increase) the number of valid completions for a
   given cage shape/target — meaning generation may need more retries to hit
   uniqueness, but puzzles are generally a bit easier to prune, since the
@@ -383,11 +383,11 @@ implementations surveyed (kenny, CanCan, chanioxaris/kenken-solver):
      If a cage is reduced to exactly one remaining candidate combination,
      solve all its cells accordingly.
    - **Cage confinement** (a KenKen-specific analogue of Sudoku's "pointing
-     pairs/triples"): if *every* remaining candidate combination for a cage
+     pairs/triples"): if _every_ remaining candidate combination for a cage
      places a particular digit only within a specific row-segment or
      column-segment of that cage (i.e. the digit is confined to cells of
      the cage that all share a row, or all share a column), then that digit
-     can be eliminated from every *other* cell in that row/column outside
+     can be eliminated from every _other_ cell in that row/column outside
      the cage. This is one of the most powerful non-backtracking KenKen
      techniques and is what lets human solvers avoid guessing on most
      published puzzles.
@@ -409,9 +409,9 @@ A CSP comparison (chanioxaris/kenken-solver, see §5) measured assignment
 counts for different search strategies on the same puzzles:
 
 | Grid | Plain backtracking | Backtracking + MRV | Forward checking | FC + MRV | Maintaining Arc Consistency (MAC) |
-|------|--------------------:|--------------------:|------------------:|---------:|-----------------------------------:|
-| 6×6  | 947 | (fewer) | (fewer) | (fewer) | 73 |
-| 7×7  | 2,600 | (fewer) | (fewer) | (fewer) | 66 |
+| ---- | -----------------: | -----------------: | ---------------: | -------: | --------------------------------: |
+| 6×6  |                947 |            (fewer) |          (fewer) |  (fewer) |                                73 |
+| 7×7  |              2,600 |            (fewer) |          (fewer) |  (fewer) |                                66 |
 
 The exact intermediate columns weren't recoverable from the source, but the
 headline finding is clear and expected: **plain backtracking is an order of
@@ -437,7 +437,7 @@ always interleave propagation.
   low-millisecond scale on modern hardware).
 - **Uniqueness verification is the dominant cost**: the solver must run to
   completion (or find a 2nd solution) for every candidate puzzle, and
-  poorly-pruned puzzles can force deep backtracking during *this* check.
+  poorly-pruned puzzles can force deep backtracking during _this_ check.
   Mitigations:
   - Always run full constraint propagation (§3.1) before falling back to
     search, and use MRV-style cage ordering — this is what separates the
@@ -451,7 +451,7 @@ always interleave propagation.
     fast); avoid many large (5+) cages at once, especially at 8×8/9×9.
   - Because generation = (build Latin square) + (partition + assign,
     cheap) + (solve-and-count, the expensive part) run in a retry loop, the
-    practical way to keep *total* generation under ~1–2 seconds is to keep
+    practical way to keep _total_ generation under ~1–2 seconds is to keep
     each individual solve-and-count fast (bounded, well-propagated) rather
     than trying to guarantee success on the first attempt — a handful of
     sub-100ms failed attempts before landing a unique puzzle is a
@@ -476,17 +476,17 @@ solver-technique discussions), the recurring factors are:
    more of them makes a puzzle strictly easier (this is explicitly called
    out by CanCan's authors as something to cap).
 4. **Operator mix** — subtraction/division cages (especially 2-cell ones
-   with few legal value pairs) can be very constraining and easy, *or*, when
+   with few legal value pairs) can be very constraining and easy, _or_, when
    combined with ambiguity from other cages, can be genuinely tricky;
    addition/multiplication on larger cages tends to open up more candidate
    combinations and is generally what makes higher grid sizes feel hard.
    Practically: a higher proportion of `−`/`÷` cages relative to `+`/`×`
-   tends to *reduce* difficulty (tighter constraints, fewer candidates per
+   tends to _reduce_ difficulty (tighter constraints, fewer candidates per
    cage), which is somewhat counter-intuitive but falls out directly from
    candidate-combination counting.
 5. **Number of cages** — fewer, larger cages generally raise difficulty
    (more combinations to track per cage); more, smaller cages lower it.
-6. **Solver effort required** — the most *direct* and reliable difficulty
+6. **Solver effort required** — the most _direct_ and reliable difficulty
    signal, and the one a generator should ultimately calibrate against:
    how much backtracking search (beyond pure constraint propagation) the
    solver from §3 needs to finish the puzzle. A puzzle solvable by
@@ -506,6 +506,7 @@ by running the §3 solver instrumented to count:
 ```
 effort = B * 3 + D * 2
 ```
+
 (weights are a reasonable starting point; tune against real playtesting —
 the key property to preserve is that puzzles solvable by propagation alone
 score near 0, and effort grows roughly with both breadth and depth of
@@ -515,24 +516,24 @@ Combine `effort` with the structural generation parameters (grid size,
 max cage size, freebie count, allowed operators) to define named tiers.
 Recommended defaults per grid size:
 
-| Grid (N) | Tier | Max cage size | Freebie count (of total cages) | Allowed ops | Target `effort` |
-|---|---|---|---|---|---|
-| 3 | Easy | 2 | 1–2 | `+`, `×` only | 0 |
-| 4 | Easy | 2 | 1–2 | `+`, `×`, `−` | 0 |
-| 4 | Medium | 3 | 0–1 | all 4 | 0–3 |
-| 4 | Hard | 3 | 0 | all 4, bias toward `−`/`÷` avoided (favor `+`/`×` on 3-cell cages) | 4–10 |
-| 5 | Easy | 3 | 1–2 | `+`, `×`, `−` | 0 |
-| 5 | Medium | 3 | 0–1 | all 4 | 0–5 |
-| 5 | Hard | 4 | 0 | all 4 | 6–15 |
-| 6 | Medium | 3 | 0–1 | all 4 | 0–6 |
-| 6 | Hard | 4 | 0 | all 4 | 7–18 |
-| 6 | Expert | 4–5 | 0 | all 4, cage-size skewed larger | 19+ |
-| 7 | Hard | 4 | 0 | all 4 | 0–20 |
-| 7 | Expert | 5 | 0 | all 4, cage-size skewed larger | 21+ |
-| 8 | Hard | 4 | 0 | all 4 | 0–25 |
-| 8 | Expert | 5 | 0 | all 4, cage-size skewed larger | 26+ |
-| 9 | Hard | 4 | 0 | all 4 | 0–30 |
-| 9 | Expert | 5 | 0 | all 4, cage-size skewed larger | 31+ |
+| Grid (N) | Tier   | Max cage size | Freebie count (of total cages) | Allowed ops                                                        | Target `effort` |
+| -------- | ------ | ------------- | ------------------------------ | ------------------------------------------------------------------ | --------------- |
+| 3        | Easy   | 2             | 1–2                            | `+`, `×` only                                                      | 0               |
+| 4        | Easy   | 2             | 1–2                            | `+`, `×`, `−`                                                      | 0               |
+| 4        | Medium | 3             | 0–1                            | all 4                                                              | 0–3             |
+| 4        | Hard   | 3             | 0                              | all 4, bias toward `−`/`÷` avoided (favor `+`/`×` on 3-cell cages) | 4–10            |
+| 5        | Easy   | 3             | 1–2                            | `+`, `×`, `−`                                                      | 0               |
+| 5        | Medium | 3             | 0–1                            | all 4                                                              | 0–5             |
+| 5        | Hard   | 4             | 0                              | all 4                                                              | 6–15            |
+| 6        | Medium | 3             | 0–1                            | all 4                                                              | 0–6             |
+| 6        | Hard   | 4             | 0                              | all 4                                                              | 7–18            |
+| 6        | Expert | 4–5           | 0                              | all 4, cage-size skewed larger                                     | 19+             |
+| 7        | Hard   | 4             | 0                              | all 4                                                              | 0–20            |
+| 7        | Expert | 5             | 0                              | all 4, cage-size skewed larger                                     | 21+             |
+| 8        | Hard   | 4             | 0                              | all 4                                                              | 0–25            |
+| 8        | Expert | 5             | 0                              | all 4, cage-size skewed larger                                     | 26+             |
+| 9        | Hard   | 4             | 0                              | all 4                                                              | 0–30            |
+| 9        | Expert | 5             | 0                              | all 4, cage-size skewed larger                                     | 31+             |
 
 Notes on the table:
 

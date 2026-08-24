@@ -113,7 +113,12 @@ function driveWithHints(puzzle: Puzzle): {
   for (let steps = 1; steps <= cap; steps++) {
     const result = findHint(puzzle, values, marks, {});
     if (result.kind !== 'hint') {
-      return { outcome: result.kind === 'solved' ? 'solved' : result.kind, values, steps, techniques };
+      return {
+        outcome: result.kind === 'solved' ? 'solved' : result.kind,
+        values,
+        steps,
+        techniques,
+      };
     }
     techniques.push(result.hint.technique);
     ({ values, marks } = applyHint(puzzle, values, marks, result.hint));
@@ -279,7 +284,12 @@ describe('detector: last-cell-in-unit', () => {
     expect(hint?.text).toBe('Only 1 can go here in row 4');
     expect(hint?.secondary).toBe('Last cell in a row');
     expect(hint?.apply).toEqual({ kind: 'place', cells: [{ cell: 15, value: 1 }] });
-    expect(hint?.highlight).toMatchObject({ focus: [15], support: [12, 13, 14], rows: [3], cols: [] });
+    expect(hint?.highlight).toMatchObject({
+      focus: [15],
+      support: [12, 13, 14],
+      rows: [3],
+      cols: [],
+    });
   });
 
   it('says "column" when the unit is a column', () => {
@@ -363,7 +373,13 @@ describe('detector: naked-single', () => {
     const hint = detect('naked-single', SAMPLE_PUZZLE).find((h) => h.highlight.focus[0] === 0);
     expect(hint?.text).toBe('This cell has to be 1');
     expect(hint?.secondary).toBe('Naked single');
-    expect(hint?.highlight).toMatchObject({ focus: [0], support: [1, 5], rows: [], cols: [], cages: [0] });
+    expect(hint?.highlight).toMatchObject({
+      focus: [0],
+      support: [1, 5],
+      rows: [],
+      cols: [],
+      cages: [0],
+    });
   });
 
   it('points at the peers when row and column elimination alone does it', () => {
@@ -458,7 +474,12 @@ describe('detector: cage-locks-line', () => {
         { cell: 1, digits: [3, 4] },
       ],
     });
-    expect(hints[0].highlight).toMatchObject({ focus: [0, 1], support: [2, 3], rows: [0], cages: [0] });
+    expect(hints[0].highlight).toMatchObject({
+      focus: [0, 1],
+      support: [2, 3],
+      rows: [0],
+      cages: [0],
+    });
   });
 
   it('drops the conjunction when only one digit is locked in', () => {
@@ -877,7 +898,11 @@ describe('progress: applying hints drives the grid to the solution', () => {
   it.each(SIZES)('terminates cleanly on every size-%i puzzle it is given', (size) => {
     for (const difficulty of DIFFICULTIES) {
       for (let s = 0; s < 4; s++) {
-        const puzzle = generatePuzzle({ size, difficulty, seed: `drive-${size}-${difficulty}-${s}` });
+        const puzzle = generatePuzzle({
+          size,
+          difficulty,
+          seed: `drive-${size}-${difficulty}-${s}`,
+        });
         const run = driveWithHints(puzzle);
         // Never a cycle, and never an accusation against a grid the engine
         // filled in itself.
