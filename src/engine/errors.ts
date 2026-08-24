@@ -14,8 +14,13 @@
  *
  * Class 3 reuses `enumerateCageCombos` from the solver rather than
  * reimplementing per-operator bounds arithmetic: a partial cage is feasible
- * exactly when at least one enumerated combination agrees with the digits the
- * player has already placed, at the positions they placed them.
+ * exactly when at least one enumerated combination can still absorb the digits
+ * the player has already placed — counting how many of each digit they used,
+ * but *not* which cell each sits in. A digit placed in the "wrong" cell of a
+ * cage it genuinely belongs to (e.g. the lone 4 of a 36× "3,4,3" cage dropped
+ * into an arm rather than the corner) is therefore left alone; only a digit no
+ * combination offers, or more copies of one than any combination holds, is an
+ * error.
  */
 
 import type { CellIndex, Grid, Puzzle } from './types';
@@ -110,12 +115,13 @@ export function createErrorChecker(puzzle: Puzzle, options: ErrorCheckOptions = 
         // (2) the cage is complete: just do the arithmetic.
         bad = !cageSatisfied(cage, placed);
       } else {
-        // (3) the cage is partial: feasible iff some legal combination agrees
-        //     with what the player has already placed.
+        // (3) the cage is partial: feasible iff some legal combination can
+        //     still absorb the digits placed so far, counting repeats but
+        //     disregarding which cell each digit sits in.
         const combos = combosByCage[ci];
         // An empty list means *no* grid could ever satisfy this cage — that is
         // malformed puzzle data, not a player mistake, so say nothing.
-        bad = combos !== null && combos.length > 0 && !anyComboAgrees(combos, placed);
+        bad = combos !== null && combos.length > 0 && !anyComboAbsorbs(combos, placed);
       }
       if (!bad) continue;
 
@@ -177,18 +183,32 @@ export function markDuplicates(cells: readonly number[], grid: Grid, out: Set<Ce
   }
 }
 
-/** Does some combination match every digit already placed in the cage? */
-function anyComboAgrees(combos: readonly number[][], placed: readonly number[]): boolean {
+/**
+ * Can some combination absorb the placed digits as a sub-multiset — i.e. does it
+ * hold at least as many of each digit as the player has placed, regardless of
+ * position? A valid cage digit in the "wrong" cell is absorbed; a digit no
+ * combination offers, or more copies of one than any combination has, is not.
+ */
+function anyComboAbsorbs(combos: readonly number[][], placed: readonly number[]): boolean {
+  const need = new Map<number, number>();
+  for (let k = 0; k < placed.length; k++) {
+    const v = placed[k];
+    if (v !== 0) need.set(v, (need.get(v) ?? 0) + 1);
+  }
   for (let i = 0; i < combos.length; i++) {
-    const combo = combos[i];
-    let ok = true;
-    for (let k = 0; k < placed.length; k++) {
-      if (placed[k] !== 0 && combo[k] !== placed[k]) {
-        ok = false;
-        break;
-      }
-    }
-    if (ok) return true;
+    if (comboAbsorbs(combos[i], need)) return true;
   }
   return false;
+}
+
+/** Does one combination hold at least `need`-many of every digit it requires? */
+function comboAbsorbs(combo: readonly number[], need: ReadonlyMap<number, number>): boolean {
+  const have = new Map<number, number>();
+  for (let k = 0; k < combo.length; k++) {
+    have.set(combo[k], (have.get(combo[k]) ?? 0) + 1);
+  }
+  for (const [v, count] of need) {
+    if ((have.get(v) ?? 0) < count) return false;
+  }
+  return true;
 }

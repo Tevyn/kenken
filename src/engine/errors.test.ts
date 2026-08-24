@@ -156,16 +156,40 @@ describe('findGridErrors: partial cage infeasibility', () => {
     expect(errors.badCages).toEqual([5]);
   });
 
-  it('respects within-cage row and column uniqueness when judging feasibility', () => {
+  it('accepts a valid cage digit placed in a cell no combination assigns it', () => {
     // Fixture cage 1 is cells [2, 3, 7] with "36×". Cells 2 and 3 share a row and
-    // cells 3 and 7 share a column, so [3, 4, 3] is the only legal combination.
+    // cells 3 and 7 share a column, so [3, 4, 3] is the only combination and the
+    // 4 belongs in cell 3 (the corner). Putting that 4 in an arm is a valid cage
+    // digit in the "wrong" place, not something the cage can disprove — feasibility
+    // ignores position, so it must not be flagged.
+    const arm = empty(4);
+    arm[2] = 4;
+    expect(findGridErrors(P, arm).cells.size).toBe(0);
+
+    const otherArm = empty(4);
+    otherArm[7] = 4;
+    expect(findGridErrors(P, otherArm).cells.size).toBe(0);
+  });
+
+  it('flags a digit no combination of the cage contains', () => {
+    // Still cage 1 ("36×", multiset {3, 3, 4}): a 1 appears in no combination, so
+    // it is provably impossible wherever it sits.
     const grid = empty(4);
     grid[2] = 1;
     expect(findGridErrors(P, grid).cells).toEqual(new Set([2]));
+  });
 
-    const ok = empty(4);
-    ok[2] = 3;
-    expect(findGridErrors(P, ok).cells.size).toBe(0);
+  it('flags a repeated digit no combination has enough copies of', () => {
+    // Cage 1's only combination is [3, 4, 3] — a single 4. Cells 2 and 7 share
+    // neither a row nor a column, so the duplicate check stays silent, but two 4s
+    // cannot both belong to the cage, so the partial-cage rule must flag them.
+    const grid = empty(4);
+    grid[2] = 4;
+    grid[7] = 4;
+    const errors = findGridErrors(P, grid);
+    expect(errors.cells).toEqual(new Set([2, 7]));
+    expect(errors.badCages).toEqual([1]);
+    expect(errors.duplicates.size).toBe(0);
   });
 
   it('highlights only the filled cells of an infeasible cage', () => {
@@ -182,7 +206,7 @@ describe('findGridErrors: partial cage infeasibility', () => {
 
   it('never flags an empty cell', () => {
     const grid = empty(4);
-    grid[0] = 2; // fixture cage 0 admits only [1, 2, 1]
+    grid[0] = 3; // fixture cage 0 is "2×", whose combinations contain no 3
     const errors = findGridErrors(P, grid);
     expect(errors.cells.size).toBeGreaterThan(0);
     for (const cell of errors.cells) expect(grid[cell]).not.toBeNull();
