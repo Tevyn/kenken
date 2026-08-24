@@ -4,7 +4,6 @@ import type { Difficulty } from '../engine/types'
 import { DIFFICULTIES } from '../engine/types'
 import type { IconProps } from './icons'
 import {
-  CagedGridIcon,
   CorrectnessIcon,
   DifficultyIcon,
   EraseIcon,
@@ -37,49 +36,10 @@ const icons = [
   ['NumberIcon', NumberIcon],
 ] as const
 
-/**
- * A 3x3 cage layout, written out by hand so the expected cage boundaries below
- * can be reasoned about rather than snapshotted. Cage ids in reading order:
- *
- *     0 0 1
- *     2 2 1
- *     2 3 3
- *
- * Walking it (an edge is heavy where two orthogonal neighbours differ, and
- * only right/bottom edges are ever emitted, so nothing is drawn twice):
- *
- *   - cell 0: right 0|0 same; below 0|2 differ  -> bottom heavy
- *   - cell 1: right 0|1 differ -> right heavy;   below 0|2 differ -> bottom heavy
- *   - cell 2: last column;                       below 1|1 same
- *   - cell 3: right 2|2 same;                    below 2|2 same
- *   - cell 4: right 2|1 differ -> right heavy;   below 2|3 differ -> bottom heavy
- *   - cell 5: last column;                       below 1|3 differ -> bottom heavy
- *   - cell 6: right 2|3 differ -> right heavy;   last row
- *   - cell 7: right 3|3 same;                    last row
- *   - cell 8: last column, last row
- *
- * Seven heavy edges. The grid lines for n=3 sit at 3, 9, 15 and 21 (an 18-unit
- * span in three 6-unit cells, measured from the outer square's centre line),
- * which turns those seven into the coordinates asserted in the test.
- */
-const CAGES_3 = [0, 0, 1, 2, 2, 1, 2, 3, 3] as const
-
-/** Every cage-weight segment `CAGES_3` should produce, as `x1,y1,x2,y2`. */
-const CAGE_EDGES_3 = [
-  '3,9,9,9', // under cell 0
-  '15,3,15,9', // right of cell 1
-  '9,9,15,9', // under cell 1
-  '15,9,15,15', // right of cell 4
-  '9,15,15,15', // under cell 4
-  '15,15,21,15', // under cell 5
-  '9,15,9,21', // right of cell 6
-]
-
 /** Parameterised icons, wrapped so they take the same bare props as the rest. */
 const gridIcons = [
   ['GridIcon(3)', (props: IconProps) => <GridIcon n={3} {...props} />],
   ['GridIcon(9)', (props: IconProps) => <GridIcon n={9} {...props} />],
-  ['CagedGridIcon(3)', (props: IconProps) => <CagedGridIcon n={3} cageIds={CAGES_3} {...props} />],
   ...DIFFICULTIES.map(
     (difficulty) =>
       [
@@ -97,16 +57,6 @@ const newIcons = [
 ] as const
 
 const svgOf = (container: HTMLElement) => container.querySelector('svg') as SVGSVGElement
-
-const strokeWidthsOf = (svg: SVGSVGElement, tag: string) =>
-  Array.from(svg.querySelectorAll(tag)).map((el) => Number(el.getAttribute('stroke-width')))
-
-const segmentsOf = (svg: SVGSVGElement, strokeWidth: number) =>
-  Array.from(svg.querySelectorAll('line'))
-    .filter((line) => line.getAttribute('stroke-width') === String(strokeWidth))
-    .map((line) =>
-      ['x1', 'y1', 'x2', 'y2'].map((name) => line.getAttribute(name)).join(','),
-    )
 
 /**
  * Serializes an svg's child geometry (element tag plus every geometry
@@ -340,12 +290,12 @@ describe('grid and theme icons', () => {
 
     /*
      * The weight hierarchy still holds where there is one to hold: the caged
-     * glyph keeps its outline heaviest. Asserted here so that flattening the
-     * size tile stays a change to `GridIcon` alone rather than a quiet edit to
-     * the shared `gridFrame`.
+     * glyph (`DifficultyIcon`) keeps its outline heaviest. Asserted here so that
+     * flattening the size tile stays a change to `GridIcon` alone rather than a
+     * quiet edit to the shared `gridFrame`.
      */
     it('leaves the caged glyph outline at full weight', () => {
-      const { container } = render(<CagedGridIcon n={3} cageIds={CAGES_3} />)
+      const { container } = render(<DifficultyIcon difficulty="easy" />)
       const rect = svgOf(container).querySelector('rect') as SVGRectElement
       expect(rect).toHaveAttribute('stroke-width', '2')
       expect(rect).not.toHaveAttribute('stroke-opacity')
@@ -382,55 +332,6 @@ describe('grid and theme icons', () => {
         const { container } = render(<GridIcon n={n} />)
         expect(svgOf(container).querySelectorAll('line').length).toBeGreaterThan(0)
       }
-    })
-  })
-
-  describe('CagedGridIcon', () => {
-    it('draws cage-weight edges exactly on the cage boundaries', () => {
-      const { container } = render(<CagedGridIcon n={3} cageIds={CAGES_3} />)
-      const svg = svgOf(container)
-      // n=3 caps the cage weight at the frame's 2 units (two weights, not three).
-      expect(segmentsOf(svg, 2).sort()).toEqual([...CAGE_EDGES_3].sort())
-    })
-
-    it('leaves every non-boundary edge at divider weight', () => {
-      const { container } = render(<CagedGridIcon n={3} cageIds={CAGES_3} />)
-      const svg = svgOf(container)
-      // Two full-span dividers per axis, untouched by the cage overlay.
-      expect(segmentsOf(svg, 1).sort()).toEqual(
-        ['9,3,9,21', '3,9,21,9', '15,3,15,21', '3,15,21,15'].sort(),
-      )
-    })
-
-    /*
-     * Three weights compete in a 24-unit box. The cage border must stay under
-     * the frame (§5) and clearly over the 1px divider at every n — including
-     * n=9, where the raw proportional weight would have dropped *below* the
-     * divider and inverted the hierarchy.
-     */
-    it('keeps cage weight between the divider and the frame at every size', () => {
-      // Every cell its own cage: every internal edge is a boundary.
-      for (const n of [3, 4, 5, 6, 7, 8, 9]) {
-        const cageIds = Array.from({ length: n * n }, (_, i) => i)
-        const { container } = render(<CagedGridIcon n={n} cageIds={cageIds} />)
-        const svg = svgOf(container)
-        const frame = strokeWidthsOf(svg, 'rect')[0]
-        const cageWidth = Math.max(...strokeWidthsOf(svg, 'line'))
-        expect(cageWidth, `n=${n} cage vs divider`).toBeGreaterThanOrEqual(1.3)
-        expect(cageWidth, `n=${n} cage vs frame`).toBeLessThanOrEqual(frame)
-      }
-    })
-
-    it('falls back to the plain grid when cageIds is the wrong length', () => {
-      const { container: bad } = render(<CagedGridIcon n={3} cageIds={[0, 1]} />)
-      const { container: plain } = render(<GridIcon n={3} />)
-      expect(serializeGeometry(svgOf(bad))).toEqual(serializeGeometry(svgOf(plain)))
-      expect(segmentsOf(svgOf(bad), 2)).toEqual([])
-    })
-
-    it('draws no cage edges when every cell shares one cage', () => {
-      const { container } = render(<CagedGridIcon n={3} cageIds={new Array(9).fill(0)} />)
-      expect(segmentsOf(svgOf(container), 2)).toEqual([])
     })
   })
 
@@ -520,8 +421,8 @@ describe('grid and theme icons', () => {
     })
 
     /*
-     * Three weights in one box, same hierarchy as `CagedGridIcon` (§5): the
-     * frame is never beaten, and the cage never drops to the divider's.
+     * Three weights in one box, frame over cage over divider (§5): the frame is
+     * never beaten, and the cage never drops to the divider's.
      */
     it('keeps the cage between the divider and the frame', () => {
       const { container } = render(<DifficultyIcon difficulty="expert" />)

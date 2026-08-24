@@ -141,7 +141,7 @@ export function findInnies(state: CandidateState): UnitSumInnie[] {
     if (!shape) continue;
     if (shape.uncovered.length !== 1) continue;
     // With one cell uncovered there is always at least one inside cage for
-    // N >= 2, but assert it: "the  add together 0" is not a sentence.
+    // N >= 2, but guard it anyway: with no inside cages there is nothing to sum.
     if (shape.inside.length === 0) continue;
 
     const coveredSum = sumOfInsideCages(state, shape.inside);

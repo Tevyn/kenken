@@ -8,7 +8,6 @@
  *   solver.ts      cage-combination CSP + propagation + MRV search
  *   difficulty.ts  per-tier generation parameters and puzzle scoring
  *   generator.ts   the generate -> verify -> repair pipeline
- *   codec.ts       compact serialization
  *   errors.ts      live, solution-free error detection for a player's grid
  *   candidates.ts  reporting-oriented candidate bookkeeping for the hint engine
  *   unitSums.ts    the N(N+1)/2 innie/outie deductions
@@ -21,7 +20,6 @@ import { solve } from './solver';
 import { findGridErrors } from './errors';
 
 export { generatePuzzle } from './generator';
-export { encodePuzzle, decodePuzzle } from './codec';
 export { createErrorChecker, findGridErrors, DEFAULT_ERROR_COMBO_CAP } from './errors';
 export type { ErrorChecker, ErrorCheckOptions, GridErrors } from './errors';
 export {

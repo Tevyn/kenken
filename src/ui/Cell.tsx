@@ -29,7 +29,7 @@ export interface CellProps {
    * and holds until the cell is edited.
    */
   isIncorrect?: boolean
-  /** The panel's Number choice wrote this entry. Transient, like `isCorrect`. */
+  /** The panel's Number choice wrote this entry. Transient: cleared on the next move. */
   isPlaced?: boolean
   /** Derived in `Board` from the hint's `HintHighlight`; absent when no hint is shown. */
   hintRole?: HintRole

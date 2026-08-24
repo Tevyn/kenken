@@ -37,10 +37,6 @@ export function isSolved(puzzle: Puzzle, grid: Grid): boolean
  */
 export function findConflicts(puzzle: Puzzle, grid: Grid): Set<CellIndex>
 
-/** Serialize/parse a puzzle to a compact string (round-trips exactly). */
-export function encodePuzzle(puzzle: Puzzle): string
-export function decodePuzzle(text: string): Puzzle
-
 // Re-export everything from ./types as well.
 export * from './types'
 ```

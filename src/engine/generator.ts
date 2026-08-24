@@ -20,7 +20,7 @@
  * quickly enough that it is not needed.
  */
 
-import type { Cage, Difficulty, GenerateOptions, Puzzle } from './types';
+import type { Cage, GenerateOptions, Puzzle } from './types';
 import { MAX_SIZE, MIN_SIZE } from './types';
 import { makeRng, randomSeed } from './rng';
 import type { Rng } from './rng';
@@ -250,11 +250,3 @@ function rerollCages(
 
   return changed ? next : null;
 }
-
-/** Convenience wrapper mirroring `GenerateOptions` for callers with loose args. */
-export function generate(size: number, difficulty: Difficulty, seed?: string): Puzzle {
-  return generatePuzzle({ size, difficulty, seed });
-}
-
-/** Re-export so callers can reuse the partition helpers without deep imports. */
-export { assignCageOps, partitionCages };

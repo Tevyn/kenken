@@ -1,7 +1,6 @@
 import type { ReactNode, SVGProps } from 'react'
-import type { Difficulty, Puzzle } from '../engine/types'
-import { MAX_SIZE, MIN_SIZE, colOf, rowOf } from '../engine/types'
-import { computeCellEdges } from './cageBorders'
+import type { Difficulty } from '../engine/types'
+import { MAX_SIZE, MIN_SIZE } from '../engine/types'
 
 /**
  * Shared props for every icon: an optional pixel `size` (default 20) plus
@@ -304,10 +303,10 @@ export function NumberIcon(props: IconProps) {
  * Grid glyphs
  * ---------------------------------------------------------------------------
  *
- * `GridIcon` and `CagedGridIcon` are the one place in this file where the
- * glyph is *parameterised*, and that is what makes them hard: the same icon
- * has to hold together at n=3, where a cell is a third of the box, and at n=9,
- * where a cell is a twelfth of it and the render size is still ~22-28px.
+ * `GridIcon` and `DifficultyIcon` are the two glyphs built from a real grid,
+ * which is what makes them hard: the same machinery has to hold together at
+ * n=3, where a cell is a third of the box, and at n=9, where a cell is a
+ * twelfth of it and the render size is still ~22-28px.
  *
  * The trap is `IconBase`'s inherited `strokeWidth={2}`. Every other icon in
  * this file wants it; a 9x9 grid drawn with it does not. Eight internal
@@ -335,7 +334,7 @@ export function NumberIcon(props: IconProps) {
  *
  * The rest follows the board rather than a generic grid glyph:
  *
- *   - In `CagedGridIcon` the outer square is the heaviest line (STYLE_GUIDE §5: "the board's
+ *   - In `DifficultyIcon` the outer square is the heaviest line (STYLE_GUIDE §5: "the board's
  *     boundary always reads as the strongest line on the grid"). It is a
  *     constant 2 units at every n, which is also what keeps a 3x3 and a 9x9
  *     button looking like the same family — the frame carries nearly all of
@@ -500,7 +499,7 @@ function gridDividers({ size, at }: GridMetrics) {
  * The frame. Drawn last so it sits over every divider and cage terminus.
  *
  * Two weights, and which one a glyph takes is decided by how many weights it
- * has left to spend. `CagedGridIcon` runs a hierarchy — frame over cage over
+ * has left to spend. `DifficultyIcon` runs a hierarchy — frame over cage over
  * divider — so its frame takes `outline` and anchors the top of it.
  * `GridIcon` has no cages and so nothing to rank: the only relationship left
  * is frame against divider, and ranking those two says nothing the glyph needs
@@ -554,101 +553,6 @@ export function GridIcon({ n, ...props }: GridIconProps) {
 }
 
 /**
- * `computeCellEdges` wants a whole `Puzzle` but reads only `puzzle.size`. The
- * rest is inert filler so the icon can reuse the board's own adjacency rule
- * rather than re-deriving "different cage id to the right/below" a second
- * time — the alternative was a private copy of the walk that could silently
- * drift from the board it is a picture of.
- */
-const gridShaped = (size: number): Puzzle => ({
-  size,
-  difficulty: 'easy',
-  cages: [],
-  solution: [],
-  seed: '',
-})
-
-/**
- * Grid with cages: the same n x n grid, with cage boundaries overdrawn at
- * heavy weight on top of the light dividers. Sits on the four difficulty
- * buttons, where the glyph says "this is how chopped-up your board will be".
- *
- * Overdrawing is deliberate rather than drawing each cell edge once at its own
- * weight: it is exactly how the board composes (every cell paints a hairline
- * right/bottom border, cage cells paint a heavy one over it), and it keeps the
- * element count at `2(n-1)` full-span dividers plus only the boundary
- * segments, instead of `2n(n-1)` stubs.
- *
- * Only right and bottom edges are ever emitted — `computeCellEdges`' rule, and
- * the reason no boundary comes out doubled and no round cap stacks on another
- * round cap into a visible lump at cage corners.
- *
- * No labels, no digits, no operators. A cage label is `--cell * 0.22`, which
- * on a 24-unit box at a 24px render is a 0.5px numeral. The icon is about
- * structure; anything else in it is noise wearing a number's clothes.
- */
-export interface CagedGridIconProps extends IconProps {
-  n: number
-  /** `cageIds[i]` is the cage id of cell `i`, in reading order. Length `n * n`. */
-  cageIds: readonly number[]
-}
-
-export function CagedGridIcon({ n, cageIds, ...props }: CagedGridIconProps) {
-  const metrics = gridMetrics(n)
-  const { size, at, cage } = metrics
-
-  /*
-   * Defensive fallback, not an assertion: a wizard button rendering a
-   * slightly wrong picture is a blemish, a wizard button throwing during
-   * render unmounts the app behind an error boundary. A malformed layout
-   * degrades to the plain grid, which is still true about the board's size.
-   */
-  if (cageIds.length !== size * size) return <GridIcon n={n} {...props} />
-
-  const puzzle = gridShaped(size)
-  const edges = []
-  for (let index = 0; index < size * size; index += 1) {
-    const { rightHeavy, bottomHeavy } = computeCellEdges(puzzle, cageIds, index)
-    const row = rowOf(index, size)
-    const col = colOf(index, size)
-    if (rightHeavy) {
-      const x = at(col + 1)
-      edges.push(
-        <line
-          key={`r${index}`}
-          x1={x}
-          y1={at(row)}
-          x2={x}
-          y2={at(row + 1)}
-          strokeWidth={cage}
-        />,
-      )
-    }
-    if (bottomHeavy) {
-      const y = at(row + 1)
-      edges.push(
-        <line
-          key={`b${index}`}
-          x1={at(col)}
-          y1={y}
-          x2={at(col + 1)}
-          y2={y}
-          strokeWidth={cage}
-        />,
-      )
-    }
-  }
-
-  return (
-    <IconBase {...props}>
-      {gridDividers(metrics)}
-      {edges}
-      {gridFrame('outline')}
-    </IconBase>
-  )
-}
-
-/**
  * Difficulty: a fixed 4x4 board carrying one cage, which grows from a single
  * cell at easy to a four-cell block at expert.
  *
@@ -686,9 +590,9 @@ export function CagedGridIcon({ n, cageIds, ...props }: CagedGridIconProps) {
  * domino and a three-cell L differ by one notch in a line, where the tinted
  * versions differ by a third of their mass.
  *
- * Everything else is `CagedGridIcon`'s system untouched — hairline dividers so
- * the cells stay countable under the cage, the frame heaviest and drawn last
- * (§5), and square corners throughout.
+ * Everything else is the shared grid system — hairline dividers so the cells
+ * stay countable under the cage, the frame heaviest and drawn last (§5), and
+ * square corners throughout.
  */
 const DIFFICULTY_ORDER = 4
 
@@ -753,9 +657,9 @@ export function DifficultyIcon({ difficulty, ...props }: DifficultyIconProps) {
   const { at, cage } = metrics
 
   /*
-   * Defensive in the same spirit as `CagedGridIcon`'s length check: this
-   * arrives from a prop, and a tile drawing the wrong cage is a blemish where
-   * a tile throwing mid-render takes the app down behind an error boundary.
+   * Defensive, not an assertion: `difficulty` arrives from a prop, and a tile
+   * drawing the wrong cage is a blemish where a tile throwing mid-render takes
+   * the app down behind an error boundary.
    */
   const ring = DIFFICULTY_CAGE[difficulty] ?? DIFFICULTY_CAGE.easy
   const outline = `${ring

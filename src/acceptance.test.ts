@@ -16,8 +16,6 @@ import {
   solvePuzzle,
   isSolved,
   findConflicts,
-  encodePuzzle,
-  decodePuzzle,
   cageIdByCell,
   DIFFICULTIES,
   MIN_SIZE,
@@ -146,18 +144,11 @@ describe('puzzle reproducibility', () => {
     expect(b).toEqual(a)
   })
 
-  it('round-trips through the codec', () => {
-    for (const size of SIZES) {
-      const puzzle = generatePuzzle({ size, difficulty: 'medium', seed: `codec-${size}` })
-      expect(decodePuzzle(encodePuzzle(puzzle))).toEqual(puzzle)
-    }
-  })
-
   it('produces different puzzles for different seeds', () => {
     const seen = new Set<string>()
     for (let i = 0; i < 8; i++) {
       seen.add(
-        encodePuzzle(generatePuzzle({ size: 5, difficulty: 'medium', seed: `s${i}` })),
+        JSON.stringify(generatePuzzle({ size: 5, difficulty: 'medium', seed: `s${i}` })),
       )
     }
     expect(seen.size).toBeGreaterThan(1)
