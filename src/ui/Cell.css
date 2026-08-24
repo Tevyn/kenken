@@ -41,8 +41,8 @@
 }
 
 /*
- * Hint highlighting (docs/HINTS.md §5). Like the error styles below, these are
- * additive: a cell can be selected, wrong, and the subject of a hint at once.
+ * Hint highlighting (docs/HINTS.md §5). Like the conflict style below, these
+ * are additive: a cell can be selected, wrong, and a hint's subject at once.
  * The tints step aside for the selected cell so the cursor is never lost, and
  * the focus ring survives regardless — colour alone never carries the message,
  * which is also why `dim` is an opacity change and the aria-label says the role.
@@ -96,47 +96,70 @@
  * The panel's Number choice writes an ordinary, undoable entry - the only thing
  * that marks it out is the ink, and only until the player moves again. The text
  * channel, so the fill and the ring are both left to whatever else the cell is
- * (STYLE_GUIDE.md §5.1), and italic as well as green because colour is never
- * the only channel (§9).
+ * (STYLE_GUIDE.md §5.1). The accent rather than green: it is the player's own
+ * digit, entered on their behalf, not a verdict on it. Colour is not the only
+ * channel (§9) - the cell names itself "filled in for you" to a reader.
  */
 .kk-cell--placed .kk-cell__value {
-  color: var(--success);
-  font-style: italic;
+  color: var(--accent);
 }
 
 /*
- * A cell the correctness check confirmed. The ring channel, like the error
- * below it - the two are one another's answer, so they have to be the same
- * shape - and it deliberately sits ahead of the error rule, because a cell
- * cannot be both and the error ring wins the channel if it ever is.
- */
-.kk-cell--correct {
-  box-shadow: inset 0 0 0 max(2px, calc(var(--cell) * 0.07)) var(--success);
-  z-index: 1;
-}
-
-/*
- * Errors stack on top of the three highlight states rather than replacing
- * them, so a cell can read as "selected" and "wrong" at the same time. The
- * ring and the red digit carry the message; the background tint is only a
- * secondary cue, and it steps aside for the selected cell so the selection
- * never gets lost.
+ * A cell the correctness check rejected: a small red flag in the corner the
+ * cage label leaves free.
  *
- * These rules sit after the hint rules deliberately: `box-shadow` is a single
- * channel, so when a cell is both wrong and a hint's focus, the red ring wins.
+ * Geometry, not fill or ring, and that is the whole point of it. The check's
+ * verdict outlives the cursor and can still be on a cell the player has since
+ * selected, or that a later hint has ringed, so it cannot afford to be in a
+ * channel something else might want (STYLE_GUIDE.md §5.1). A corner mark takes
+ * a channel nothing else on the board uses and is out-argued by nothing.
+ *
+ * Red, but not the conflict's red shape. The two claims are different sizes -
+ * a conflict is impossible under every solution, a rejected entry is merely
+ * not the answer - and the flag says the smaller one in the smaller mark,
+ * while the hue keeps "wrong" meaning one thing on this board. Keeping the
+ * mark off the digit is what leaves the value's own colour free to say the
+ * other one.
+ *
+ * `::before`, because `::after` is already the hint cage's outline and the two
+ * can be on one cell at once. The z-index is a step above that outline so the
+ * corner stays legible when they are.
  */
-.kk-cell--error {
-  box-shadow: inset 0 0 0 max(2px, calc(var(--cell) * 0.07)) var(--danger);
-  z-index: 1;
+.kk-cell--incorrect::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  /* Floored, or it is a few pixels of nothing on a 9x9's 26px cells. */
+  width: max(9px, calc(var(--cell) * 0.28));
+  height: max(9px, calc(var(--cell) * 0.28));
+  background: var(--danger);
+  /* Top-right half of the box: the corner itself, tapering in and down. */
+  clip-path: polygon(100% 0, 0 0, 100% 100%);
+  pointer-events: none;
+  z-index: 3;
 }
 
-.kk-cell--error:not(.kk-cell--selected) {
-  background: var(--cell-error);
-}
-
+/*
+ * A conflict is the digit, and nothing but the digit. It used to take the ring
+ * channel and a background tint besides, which made one ordinary slip the
+ * loudest thing on the board and shouted it at a player who could already see
+ * the two 3s. Recolouring the value says the same thing quietly, and it says it
+ * exactly where the mistake is.
+ *
+ * Weight stays where the rest of the grid's values are. Bold on top of red was
+ * a second copy of one message, and it made the wrong digits the ones the eye
+ * reads first - which is backwards, since the cell the player is working in is
+ * the one that should lead.
+ *
+ * Giving up the ring costs nothing elsewhere: fill, ring and text stay one
+ * meaning each (STYLE_GUIDE.md §5.1), and a cell that is wrong, selected and a
+ * hint's focus now reads as all three without any channel being contested.
+ * Colour is not alone in carrying this - the cell names itself `conflict` to a
+ * screen reader, and the board's live region counts them (§9).
+ */
 .kk-cell--error .kk-cell__value {
   color: var(--danger);
-  font-weight: 700;
 }
 
 .kk-cell:focus-visible {

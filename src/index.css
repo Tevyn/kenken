@@ -46,7 +46,6 @@
    * so no rule downstream has to know which theme it is in.
    */
   --accent: light-dark(#2f5596, #8ab4f0);
-  --accent-hover: light-dark(#26467d, #a3c5f5);
   --accent-contrast: light-dark(#ffffff, #101318);
 
   /*
@@ -81,7 +80,6 @@
   --cell-line: color-mix(in oklab, var(--accent) 8%, var(--surface));
   --cell-cage: color-mix(in oklab, var(--accent) 14%, var(--surface));
   --cell-selected: color-mix(in oklab, var(--accent) 30%, var(--surface));
-  --cell-error: color-mix(in oklab, var(--danger) 16%, var(--surface));
 
   /* Low-strength accent: "this is the current choice", without shouting. */
   --accent-soft: color-mix(in oklab, var(--accent) 14%, var(--surface));
@@ -101,18 +99,25 @@
   --hint-strike: var(--accent);
 
   /*
-   * A popover is the board's own surface behind the board's own frame, so it
+   * A popover is the board's own surface behind the board's own gridline, so it
    * needs no colour of its own: it reads as another instance of the one object
    * the page already has. What it used to be — a tinted surface, a hairline
    * border and a lit top edge — was a second visual language for panels, and
    * those three tokens are gone with it.
    *
-   * The shadow survives. A shadow isn't a colour, but its *colour slots* are,
-   * so `light-dark()` still reaches inside one. Light casts it; dark can't (a
-   * black shadow on a near-black page is invisible) and leans on the frame.
+   * The shadow is now the *whole* separation. There is no scrim dimming the
+   * page behind a panel any more and no heavy frame around it, so this is what
+   * says "in front of" — which is why it is three layers and deeper than it
+   * was: a tight contact shadow, a mid lift, and a wide ambient pool.
+   *
+   * A shadow isn't a colour, but its *colour slots* are, so `light-dark()`
+   * still reaches inside one. Dark pushes every layer harder: black over a
+   * near-black page separates far less per unit of alpha than black over white,
+   * and dark no longer has a frame to fall back on.
    */
-  --shadow-popover: 0 14px 30px light-dark(#1c212226, #00000073),
-    0 2px 6px light-dark(#1c21221a, #00000059);
+  --shadow-popover: 0 20px 48px light-dark(#1c212226, #000000ad),
+    0 6px 16px light-dark(#1c21221f, #0000008c),
+    0 1px 3px light-dark(#1c21221a, #00000073);
 
   /* The one token left that `light-dark()` can't hold: it isn't a colour. */
   --hint-dim-opacity: 0.4;
@@ -142,10 +147,11 @@
   --content: min(100%, 30rem);
 
   /*
-   * The heavy line around the board, and around every popover panel: one frame,
-   * so a panel is the same object as the grid rather than chrome floating over
-   * it. `cqw` is resolved where the token is *used*, against `.kk-app`, so both
-   * consumers compute the same number.
+   * The heavy line around the board. Popover panels used to wear it too, on the
+   * theory that a panel is the same object as the grid; at 30rem it resolves to
+   * ~4px, which is right around a whole puzzle and a slab around a menu. They
+   * take the 1px gridline instead — same board, its quieter line. `cqw` is
+   * resolved where the token is *used*, against `.kk-app`.
    */
   --frame: max(2px, calc(min(100cqw, 30rem) * 0.008));
 
@@ -280,10 +286,10 @@ button {
 
 /*
  * Press feedback has to come from somewhere once the resting chrome is gone,
- * so it is the one transient fill: it exists only while the finger is down (or
- * the pointer is over), never at rest.
+ * so it is the one transient fill: it exists only while the finger is down,
+ * never at rest. Touch is the primary input, so there is no hover twin - a
+ * pointer resting on a control is not a press and should not look like one.
  */
-.kk-control:hover:not(:disabled):not([aria-disabled='true']),
 .kk-control:active:not(:disabled):not([aria-disabled='true']) {
   background: var(--accent-soft);
 }
@@ -301,7 +307,7 @@ button {
 
 .kk-control[aria-disabled='true'] {
   /* No native click-blocking like the disabled attribute, so neutralise the
-     hover and active rules above for it too. */
+     active rule above for it too. */
   pointer-events: none;
 }
 

@@ -25,31 +25,31 @@ export type HintPhase =
 const IDLE_HINT: HintPhase = { kind: 'idle' }
 
 /**
- * What the panel's Correctness check found. Ephemeral like `hint` — it is a
- * photograph of one moment, not a fact about the grid — so it is stored here
- * and never in a `HistorySnapshot`.
+ * The cells the panel's Correctness check rejected. Ephemeral like `hint` — it
+ * is a photograph of one moment, not a fact about the grid — so it is stored
+ * here and never in a `HistorySnapshot`.
  *
- * Stored rather than derived because the two halves expire differently, and
- * neither expiry is a function of the board: `correct` is gone the moment the
- * player moves again, while `incorrect` belongs to its cell and outlives
- * everything until that cell is edited. A player who is told they are wrong
- * has to still be told it while they fix it.
+ * The wrong cells only. The check used to record the confirmed ones too and
+ * ring them green, which was the app taking a bow for work the player did; the
+ * only news a check has is what is wrong. What is left is the half that had to
+ * be stored anyway, because its expiry is not a function of the board: a
+ * rejected cell holds its mark until that cell is edited, since a player who
+ * has been told they are wrong has to still be told it while they fix it.
  */
-export interface Verdict {
-  correct: readonly CellIndex[]
-  incorrect: readonly CellIndex[]
-}
+export type Verdict = readonly CellIndex[]
 
-const NO_VERDICT: Verdict = { correct: [], incorrect: [] }
+const NO_VERDICT: Verdict = []
 const NOTHING_PLACED: readonly CellIndex[] = []
 
 /**
- * The check's red on every cell except the one just edited. Green never
- * survives an edit at all — it is a claim about a board that no longer exists —
- * and the edited cell has outrun whatever the check said about it.
+ * The verdict on every cell except the one just edited, which has outrun
+ * whatever the check said about it.
+ *
+ * Returns the same array when the cell was not in it, so an edit anywhere else
+ * on the board leaves the identity `Board` memoizes against untouched.
  */
 function afterEdit(verdict: Verdict, cell: CellIndex): Verdict {
-  return { correct: [], incorrect: verdict.incorrect.filter((c) => c !== cell) }
+  return verdict.includes(cell) ? verdict.filter((c) => c !== cell) : verdict
 }
 
 /** How many applied-hint signatures `recentHints` remembers. See §6.3. */
@@ -447,9 +447,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         ? pushSignature(state.recentHints, signature)
         : state.recentHints
       const size = state.puzzle.size
-      // Placing a digit here says nothing about the cells the check already
-      // called wrong, so only the green goes.
-      const verdict: Verdict = { correct: [], incorrect: state.verdict.incorrect }
 
       if (apply.kind === 'place') {
         const values = state.values.slice()
@@ -470,7 +467,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           status,
           recentHints,
           hint: IDLE_HINT,
-          verdict,
           placed: apply.cells.map((entry) => entry.cell),
         }
       }
@@ -488,7 +484,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         marks,
         recentHints,
         hint: IDLE_HINT,
-        verdict,
         placed: NOTHING_PLACED,
       }
     }
@@ -502,22 +497,19 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return {
         ...state,
         hint: IDLE_HINT,
-        verdict: { correct: action.report.correct, incorrect: action.report.incorrect },
+        verdict: action.report.incorrect,
         placed: NOTHING_PLACED,
       }
 
     /*
-     * The player's next move, whatever it was. Green is a claim about the board
-     * as it stood a moment ago and expires with the moment; red is a claim about
-     * a cell and is dropped by that cell's own edit instead.
+     * The player's next move, whatever it was. Only the hint-placed mark expires
+     * this way — it is a claim about the board as it stood a moment ago. The
+     * verdict is a claim about particular cells and is dropped by each cell's
+     * own edit instead, in `afterEdit`.
      */
     case 'CLEAR_FEEDBACK': {
-      if (state.verdict.correct.length === 0 && state.placed.length === 0) return state
-      return {
-        ...state,
-        verdict: { correct: [], incorrect: state.verdict.incorrect },
-        placed: NOTHING_PLACED,
-      }
+      if (state.placed.length === 0) return state
+      return { ...state, placed: NOTHING_PLACED }
     }
 
     case 'DISMISS_HINT':

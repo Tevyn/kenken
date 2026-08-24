@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import type { Difficulty } from '../engine/types'
 import { DIFFICULTIES } from '../engine/types'
-import { cageLayout } from '../fixtures/cageLayouts'
 import { NewGameMenu } from './NewGameMenu'
 
 /**
@@ -39,35 +38,45 @@ const svgOf = (element: HTMLElement) => {
 /**
  * The grid order the glyph actually drew, read back off the DOM.
  *
- * `GridIcon` emits `size - 1` internal dividers per axis and nothing else with
- * `vector-effect`, so the hairline count is `2(n - 1)` and inverts cleanly.
- * Counting the drawn lines rather than trusting a prop is the point: this is
- * the only way a test can tell a 9x9 tile from a 4x4 one.
+ * `GridIcon` emits `size - 1` internal dividers per axis, so the divider count
+ * is `2(n - 1)` and inverts cleanly. The selector is scoped to `line` because
+ * the frame is a hairline too now and would otherwise be counted as a divider,
+ * putting every tile's inferred order half a cell out. Counting the drawn
+ * lines rather than trusting a prop is the point: this is the only way a test
+ * can tell a 9x9 tile from a 4x4 one.
  */
 function gridOrderOf(button: HTMLElement) {
-  const hairlines = svgOf(button).querySelectorAll('[vector-effect="non-scaling-stroke"]')
+  const hairlines = svgOf(button).querySelectorAll('line[vector-effect="non-scaling-stroke"]')
   expect(hairlines.length % 2).toBe(0)
   return hairlines.length / 2 + 1
 }
 
-/** Cage-boundary segments: the heavy lines, which carry no `vector-effect`. */
-const cageEdgeCountOf = (button: HTMLElement) =>
-  svgOf(button).querySelectorAll('line:not([vector-effect])').length
-
 /**
- * How many heavy segments a layout should produce, derived here rather than
- * imported, so the expectation is independent of the drawing code: a boundary
- * exists wherever a cell's right or bottom neighbour is in a different cage.
+ * How many cells the tile's cage covers, measured off the drawn path.
+ *
+ * Shoelace area over one cell's area. The difficulty tile is a fixed 4x4 on
+ * the shared 18-unit span, so the pitch is 4.5 and a cell is 20.25 square
+ * units. Derived here rather than imported so the expectation is independent
+ * of the drawing code, the same way the old heavy-edge count was.
  */
-function heavyEdgesIn(n: number, cageIds: readonly number[]) {
-  let edges = 0
-  for (let index = 0; index < n * n; index += 1) {
-    const col = index % n
-    const row = Math.floor(index / n)
-    if (col + 1 < n && cageIds[index] !== cageIds[index + 1]) edges += 1
-    if (row + 1 < n && cageIds[index] !== cageIds[index + n]) edges += 1
+function cageCellsOf(button: HTMLElement) {
+  const cage = svgOf(button).querySelector('path[fill="currentColor"]')
+  if (!cage) throw new Error('No tinted cage on the tile')
+  const numbers = (cage.getAttribute('d') ?? '').match(/-?\d+(?:\.\d+)?/g) ?? []
+  expect(numbers.length % 2).toBe(0)
+
+  const points = []
+  for (let i = 0; i < numbers.length; i += 2) {
+    points.push([Number(numbers[i]), Number(numbers[i + 1])] as const)
   }
-  return edges
+  let twiceArea = 0
+  for (let i = 0; i < points.length; i += 1) {
+    const [x1, y1] = points[i]
+    const [x2, y2] = points[(i + 1) % points.length]
+    twiceArea += x1 * y2 - x2 * y1
+  }
+  const pitch = 18 / 4
+  return Math.abs(twiceArea) / 2 / (pitch * pitch)
 }
 
 const sizeButton = (n: number) => screen.getByRole('button', { name: `${n} by ${n}` })
@@ -116,12 +125,15 @@ describe('NewGameMenu tiles', () => {
 
   describe('the difficulty step', () => {
     /*
-     * The bug this file exists for. `size` is the board being *played* and
-     * `pendingSize` the one just chosen; they are equal until the player picks
-     * a different size, so a tile wired to `size` looks perfectly plausible on
-     * screen. Playing a 4x4 and choosing a 9x9 is what separates them.
+     * The tile draws a fixed 4x4 board and deliberately says nothing about the
+     * size chosen in step one — see `DifficultyIcon` for why the tile it
+     * replaced, which drew the real n x n layout, could not survive n=9.
+     *
+     * Pinned rather than left implicit, because "the tile follows the chosen
+     * size" is what this file used to assert and is the obvious thing for
+     * someone to put back.
      */
-    it('draws the size just chosen, not the size being played', async () => {
+    it('draws the same fixed 4x4 board whatever size was chosen', async () => {
       const user = userEvent.setup()
       render(<WizardHarness size={4} difficulty="easy" />)
       await openWizard(user)
@@ -129,7 +141,7 @@ describe('NewGameMenu tiles', () => {
 
       for (const option of DIFFICULTIES) {
         const label = option[0].toUpperCase() + option.slice(1)
-        expect(gridOrderOf(difficultyButton(label))).toBe(9)
+        expect(gridOrderOf(difficultyButton(label))).toBe(4)
       }
     })
 
@@ -145,27 +157,20 @@ describe('NewGameMenu tiles', () => {
       expect(heading.querySelector('.kk-sr-only')).toHaveTextContent('9 by 9')
     })
 
-    it('overdraws each option with that option’s own baked cage layout', async () => {
+    it('gives each option a cage one cell bigger than the last', async () => {
       const user = userEvent.setup()
       render(<WizardHarness size={4} />)
       await openWizard(user)
       await user.click(sizeButton(9))
 
-      // Each tile's heavy-edge count is recomputed from the fixture it claims
-      // to preview, which pins both halves of the lookup: a tile drawing the
-      // wrong difficulty, or the right difficulty at the wrong size, misses.
+      // Wired to the option, not to its position: a row that drew 1-2-3-4 by
+      // index would pass a monotonicity check while showing every tile the
+      // wrong cage.
+      const expected: Record<string, number> = { easy: 1, medium: 2, hard: 3, expert: 4 }
       for (const option of DIFFICULTIES) {
         const label = option[0].toUpperCase() + option.slice(1)
-        const expected = heavyEdgesIn(9, cageLayout(9, option).cageIds)
-        expect(expected).toBeGreaterThan(0)
-        expect(cageEdgeCountOf(difficultyButton(label))).toBe(expected)
+        expect(cageCellsOf(difficultyButton(label)), label).toBe(expected[option])
       }
-
-      // And they are visibly four different pictures, not one repeated.
-      const edges = DIFFICULTIES.map((option) =>
-        cageEdgeCountOf(difficultyButton(option[0].toUpperCase() + option.slice(1))),
-      )
-      expect(new Set(edges).size).toBeGreaterThan(1)
     })
 
     it('still marks the difficulty being played and lands focus on it', async () => {

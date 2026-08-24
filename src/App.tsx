@@ -111,6 +111,13 @@ function App() {
     setOpenMenu('new-game')
   }, [])
 
+  /* Nothing filled in is nothing for the check to judge. Marks are not entries,
+     so they do not count: `checkCorrectness` only ever looks at values. */
+  const canCheck = useMemo(
+    () => game.state.values.some((value) => value != null),
+    [game.state.values],
+  )
+
   /* Restarting an untouched board would do nothing but add an undo entry. */
   const canRestart = useMemo(
     () =>
@@ -265,6 +272,7 @@ function App() {
             open: openMenu === 'hint',
             onOpenChange: handleHintOpenChange,
             text: hintText,
+            canCheck,
             onCorrectness: game.checkBoard,
             onTip: game.showHint,
             onNumber: game.placeNumber,

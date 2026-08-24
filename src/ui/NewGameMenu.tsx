@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Difficulty } from '../engine/types'
 import { DIFFICULTIES, MAX_SIZE, MIN_SIZE } from '../engine/types'
-import { cageLayout } from '../fixtures/cageLayouts'
-import { CagedGridIcon, GridIcon, NewGameIcon } from './icons'
+import { DifficultyIcon, GridIcon, NewGameIcon } from './icons'
 import { Popover } from './Popover'
 import './NewGameMenu.css'
 
@@ -19,18 +18,6 @@ const SIZES = Array.from({ length: MAX_SIZE - MIN_SIZE + 1 }, (_, i) => MIN_SIZE
  * seven size tiles past two comfortable rows in the panel.
  */
 const TILE_ICON = 32
-
-/**
- * Cage ids for one size/difficulty tile, or `[]` when the size is outside the
- * baked range. `cageLayout` throws a RangeError on an unsupported pair, and
- * `pendingSize` ultimately comes from a prop — a bad one must degrade to the
- * plain grid (`CagedGridIcon`'s own fallback for a wrong-length array) rather
- * than take the app down from inside render.
- */
-function tileCageIds(size: number, difficulty: Difficulty): readonly number[] {
-  if (!Number.isInteger(size) || size < MIN_SIZE || size > MAX_SIZE) return []
-  return cageLayout(size, difficulty).cageIds
-}
 
 type Step = 'size' | 'difficulty'
 
@@ -122,16 +109,13 @@ function NewGameWizard({ size, difficulty, onStartGame }: WizardProps) {
             onClick={() => onStartGame(pendingSize, option)}
           >
             {/*
-              `pendingSize`, never `size`: the tile previews the board about to
-              be generated, not the one being played. The two are equal until
-              the player picks a different size in step one, which is exactly
-              why this is easy to get wrong and invisible on screen.
+              The tile draws a fixed 4x4 board and says nothing about the size
+              chosen in step one — see `DifficultyIcon` for why the previous
+              tile, which drew the real n x n layout, could not. That makes the
+              heading above the only place the chosen size appears on this
+              step, which is why it is tested rather than merely written.
             */}
-            <CagedGridIcon
-              n={pendingSize}
-              cageIds={tileCageIds(pendingSize, option)}
-              size={TILE_ICON}
-            />
+            <DifficultyIcon difficulty={option} size={TILE_ICON} />
             <span className="kk-control__label">
               {option[0].toUpperCase() + option.slice(1)}
             </span>

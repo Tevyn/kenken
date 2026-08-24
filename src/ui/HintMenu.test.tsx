@@ -11,7 +11,8 @@ function HintMenuHarness(props: Partial<Omit<HintMenuProps, 'open' | 'onOpenChan
   return (
     <HintMenu
       text={null}
-      onCorrectness={() => {}}
+      canCheck
+      onCorrectness={() => 0}
       onTip={() => {}}
       onNumber={() => true}
       {...props}
@@ -40,20 +41,68 @@ describe('HintMenu', () => {
   })
 
   /*
-   * The check paints its whole answer onto the board, and the panel is parked
-   * over the action row - staying open would leave it covering part of what it
-   * just said.
+   * Like Tip: the check has a sentence either way, so it replaces the choices
+   * with it rather than closing. The board carries the rest of the answer.
    */
-  it('Correctness runs the check and gets out of the way', async () => {
+  it('Correctness runs the check and says what it found, in the same panel', async () => {
     const user = userEvent.setup()
-    const onCorrectness = vi.fn()
+    const onCorrectness = vi.fn(() => 2)
     render(<HintMenuHarness onCorrectness={onCorrectness} />)
 
     await user.click(trigger())
     await user.click(choice('Correctness'))
 
     expect(onCorrectness).toHaveBeenCalledTimes(1)
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(screen.getByText('The 2 marked cells are incorrect')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Correctness' })).not.toBeInTheDocument()
+  })
+
+  it('says so, and only so, when the check finds nothing wrong', async () => {
+    const user = userEvent.setup()
+    render(<HintMenuHarness onCorrectness={() => 0} text="a tip nobody asked for" />)
+
+    await user.click(trigger())
+    await user.click(choice('Correctness'))
+
+    expect(screen.getByText('Everything is correct')).toBeInTheDocument()
+    // Its own sentence, not whatever the ladder last had to say.
+    expect(screen.queryByText('a tip nobody asked for')).not.toBeInTheDocument()
+  })
+
+  it('counts one wrong cell in the singular', async () => {
+    const user = userEvent.setup()
+    render(<HintMenuHarness onCorrectness={() => 1} />)
+
+    await user.click(trigger())
+    await user.click(choice('Correctness'))
+
+    expect(screen.getByText('The marked cell is incorrect')).toBeInTheDocument()
+  })
+
+  /* Nothing filled in is nothing to judge. §4.2.1: the choice loses its ink. */
+  it('disables Correctness on an empty board, and only Correctness', async () => {
+    const user = userEvent.setup()
+    const onCorrectness = vi.fn(() => 0)
+    render(<HintMenuHarness canCheck={false} onCorrectness={onCorrectness} />)
+
+    await user.click(trigger())
+    expect(choice('Correctness')).toBeDisabled()
+    expect(choice('Tip')).toBeEnabled()
+    expect(choice('Number')).toBeEnabled()
+
+    await user.click(choice('Correctness'))
+    expect(onCorrectness).not.toHaveBeenCalled()
+    expect(choice('Correctness')).toBeInTheDocument()
+  })
+
+  /* A disabled button is not a tab stop, so entry focus falls to the next one. */
+  it('opens focused on Tip when Correctness is disabled', async () => {
+    const user = userEvent.setup()
+    render(<HintMenuHarness canCheck={false} />)
+
+    await user.click(trigger())
+    expect(choice('Tip')).toHaveFocus()
   })
 
   it('Tip replaces the choices with the sentence, in the same panel', async () => {

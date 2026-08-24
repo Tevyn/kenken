@@ -17,14 +17,22 @@
 
 /*
  * Every panel is the same object as the board: square corners, the board's own
- * surface, and the board's frame line around it (`--frame`, index.css). It used
- * to be a rounded, tinted card with a lit top edge - a second visual language
- * for panels, sitting over a page that only has one.
+ * surface, and the board's own line around it. The line is the *gridline*, not
+ * the frame - 1px in `--cell-border`, exactly what Cell.css draws between two
+ * cells. The frame weight (`--frame`, up to 4px at 30rem) is right around a
+ * whole grid and far too heavy around a panel: it read as a slab of ink with
+ * the content trapped inside it.
+ *
+ * Depth is now the shadow's job alone (index.css, `--shadow-popover`). The
+ * panel used to sit on a dimmed page, which is a fine way to say "modal" and a
+ * poor way to say "floating" - it darkened the puzzle the player was mid-way
+ * through reading. The shield below still swallows the press; it just no
+ * longer paints.
  *
  * `position: fixed` here resolves against `.kk-app`, not the viewport:
  * `container-type: inline-size` on that element applies layout containment,
  * which makes it the containing block for fixed descendants. `.kk-app` spans
- * the viewport, so the two coincide - but the scrim is sized the same way
+ * the viewport, so the two coincide - but the shield is sized the same way
  * rather than assuming otherwise.
  */
 .kk-popover__panel {
@@ -40,20 +48,40 @@
   max-height: calc(100% - 2 * var(--sp-5));
   overflow-y: auto;
   padding: var(--sp-4);
-  border: var(--frame) solid var(--cell-border-heavy);
+  /*
+   * One step less underneath. Every panel ends in a control - a switch row, a
+   * grid of tiles, the win dialog's next move - and a control is a 44px touch
+   * box (STYLE_GUIDE.md 4.4) with its ink centred inside it. That slack reads
+   * as padding, so a full `--sp-4` under it stacked on top of ~7px the last
+   * row was already contributing and left every panel sitting low in its own
+   * box: 16px of clear space above the heading against 23-29px below the last
+   * control. The heading has no such slack - it is bare text hard against the
+   * padding - so the fix belongs on the side that has too much.
+   *
+   * The hint panel overrides `padding` outright and is unaffected; it solves
+   * the same problem from the other end, giving its heading a row tall enough
+   * to hold the close button (HintMenu.css).
+   */
+  padding-bottom: var(--sp-3);
+  border: 1px solid var(--cell-border);
   background: var(--cell-bg);
   color: var(--text);
-  /* Light casts a shadow; dark can't (a black shadow on a near-black page is
-     invisible) and leans on the frame instead. */
+  /* The only thing lifting the panel off the page now, in both themes. */
   box-shadow: var(--shadow-popover);
 }
 
-.kk-popover__scrim {
+/*
+ * Invisible, and deliberately so. It paints nothing - the panel's shadow says
+ * "floating" without taking the board's colour away - but it still covers the
+ * page, so a press aimed at anything behind an open panel closes the panel and
+ * stops there. Without it, dismissing a panel would also select whatever cell
+ * happened to be under the finger.
+ */
+.kk-popover__shield {
   position: fixed;
   inset: 0;
-  /* One below the panel's own z-index, so it dims the page and nothing else. */
+  /* One below the panel's own z-index, so it covers the page and nothing else. */
   z-index: 19;
-  background: light-dark(#1c212259, #00000099);
 }
 
 /*

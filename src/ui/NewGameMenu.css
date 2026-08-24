@@ -10,18 +10,19 @@
   flex-direction: column;
   gap: 10px;
   /*
-   * The steps no longer have the same natural height: seven stacked size tiles
-   * are two rows, four difficulty tiles are one. The floor absorbs most of the
-   * difference so the centre-placed panel barely moves on the tap that
-   * advances the wizard.
+   * No height floor. The steps do not have the same natural height - seven
+   * stacked size tiles are two rows, four difficulty tiles are one - and this
+   * used to carry a 124px floor to absorb most of that so the centre-placed
+   * panel barely moved on the tap that advances the wizard.
    *
-   * It is deliberately not raised to step one's full ~160px. Reserving all of
-   * it leaves a ~70px band of empty panel under the difficulty row, which
-   * reads as a missing third row rather than as padding - tried on screen at
-   * 375x812, both top-aligned and with the row centred in the reserve, and
-   * both looked worse than the smaller shift this leaves behind.
+   * The reserve was the wrong side of that trade. It bought ~13px less travel
+   * and cost a ~26px band of empty panel under the difficulty row, which read
+   * as a missing third row rather than as padding - the same complaint the
+   * original comment made about reserving step one's full height, just
+   * quieter. Sized to its contents, step two's tiles sit the same ~19px above
+   * the panel's edge that step one's do, and the two steps are the same panel
+   * with different contents rather than one padded to look like the other.
    */
-  min-height: 124px;
   /* Let the size grid use the width the panel is allowed, not just 3 buttons'. */
   min-width: min(17rem, calc(100vw - 56px));
 }

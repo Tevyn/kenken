@@ -24,8 +24,8 @@ export interface PopoverPanelProps {
 }
 
 /**
- * The panel half of a popover: the surface, the scrim behind it, and the modal
- * mechanics.
+ * The panel half of a popover: the surface, the press shield behind it, and the
+ * modal mechanics.
  *
  * Split out from `Popover` because not every panel has a trigger — the solved
  * dialog opens because the puzzle was solved, not because anything was pressed
@@ -115,9 +115,9 @@ export function PopoverPanel({
       /*
        * The anchor's own press closes the panel through its click handler
        * instead of reopening it right after this. Only the anchor is exempt:
-       * checking the whole popover root, as this used to, meant the scrim —
-       * a child of that root — counted as inside, so a press on the dimmed
-       * page did nothing at all.
+       * checking the whole popover root, as this used to, meant the shield —
+       * a child of that root — counted as inside, so a press on the page
+       * behind the panel did nothing at all.
        */
       if (anchorRef?.current?.contains(target)) return
       skipRestore.current = true
@@ -168,12 +168,14 @@ export function PopoverPanel({
   return (
     <>
       {/*
-        Purely a backdrop: it dims the page so the panel reads as modal rather
-        than as something floating loose over the board. Closing is handled by
-        the document-level mousedown listener above, so this deliberately
-        carries no handlers of its own.
+        A press shield, not a backdrop. It paints nothing — the panel's own
+        shadow is what lifts it off the page, and dimming the board took the
+        puzzle away from a player who is still reading it — but it covers the
+        page so a press outside the panel closes it and does nothing else.
+        Closing is handled by the document-level mousedown listener above, so
+        this deliberately carries no handlers of its own.
       */}
-      <div className="kk-popover__scrim" aria-hidden="true" />
+      <div className="kk-popover__shield" aria-hidden="true" />
       <div
         ref={panelRef}
         className="kk-popover__panel"
@@ -234,7 +236,7 @@ export interface PopoverProps {
 /**
  * A button plus the modal panel it opens, rendered next to it in the DOM.
  *
- * Every panel is centred behind a scrim. There used to be a second, anchored
+ * Every panel is centred over the page. There used to be a second, anchored
  * placement that hung the panel off its trigger; both header popovers are big
  * enough that dangling one from a corner left it lopsided, so the choice is
  * now put where the player is already looking and the option is gone.

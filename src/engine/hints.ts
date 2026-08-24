@@ -208,11 +208,12 @@ function unitName(key: number, size: number): string {
   return `${unitKind(key, size)} ${unitLine(key, size) + 1}`;
 }
 
-/** `"1, 2 and 3"` / `"1 or 2"` / `"1"`. */
+/** `"1, 2, and 3"` / `"1 or 2"` / `"1"`. Three or more take the serial comma. */
 function joinList(parts: readonly string[], conjunction: 'and' | 'or'): string {
   if (parts.length === 0) return '';
   if (parts.length === 1) return parts[0];
-  return `${parts.slice(0, -1).join(', ')} ${conjunction} ${parts[parts.length - 1]}`;
+  if (parts.length === 2) return `${parts[0]} ${conjunction} ${parts[1]}`;
+  return `${parts.slice(0, -1).join(', ')}, ${conjunction} ${parts[parts.length - 1]}`;
 }
 
 const digitList = (digits: readonly number[], conjunction: 'and' | 'or' = 'and'): string =>

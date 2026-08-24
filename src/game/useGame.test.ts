@@ -268,45 +268,63 @@ describe('useGame hints', () => {
 })
 
 describe('useGame correctness check', () => {
-  it('splits the filled cells and leaves the empty ones out of it', () => {
-    const { result } = renderHook(() => useGame(SAMPLE_PUZZLE))
-
+  /** Cell 0 right, cell 1 wrong, then judged. */
+  function judge(result: { current: ReturnType<typeof useGame> }) {
     act(() => result.current.select(0))
     act(() => result.current.enterDigit(SAMPLE_PUZZLE.solution[0] as number))
     act(() => result.current.select(1))
     act(() => result.current.enterDigit(SAMPLE_PUZZLE.solution[1] === 1 ? 2 : 1))
+  }
+
+  it('keeps only the wrong cells, and leaves the empty ones out of it', () => {
+    const { result } = renderHook(() => useGame(SAMPLE_PUZZLE))
+    judge(result)
     act(() => result.current.checkBoard())
 
-    expect(result.current.state.verdict.correct).toEqual([0])
-    expect(result.current.state.verdict.incorrect).toEqual([1])
+    expect(result.current.state.verdict).toEqual([1])
+  })
+
+  it('reports how many were wrong, for the sentence the panel writes', () => {
+    const { result } = renderHook(() => useGame(SAMPLE_PUZZLE))
+    judge(result)
+
+    let wrong = -1
+    act(() => {
+      wrong = result.current.checkBoard()
+    })
+    expect(wrong).toBe(1)
+  })
+
+  it('reports none wrong when every filled cell is right', () => {
+    const { result } = renderHook(() => useGame(SAMPLE_PUZZLE))
+    act(() => result.current.select(0))
+    act(() => result.current.enterDigit(SAMPLE_PUZZLE.solution[0] as number))
+
+    let wrong = -1
+    act(() => {
+      wrong = result.current.checkBoard()
+    })
+    expect(wrong).toBe(0)
+    expect(result.current.state.verdict).toEqual([])
   })
 
   /*
-   * The press that asked for the check is a `click`, and a click is the end of
-   * an interaction that began with a mousedown. So the listener installed by
-   * that click can only ever see the *next* press.
+   * The verdict is not on the one-move clock a placed digit is: it belongs to
+   * its cells and survives any number of presses elsewhere.
    */
-  it('green goes on the next press, red stays until its own cell is edited', () => {
+  it('a mark stays until its own cell is edited', () => {
     const { result } = renderHook(() => useGame(SAMPLE_PUZZLE))
-
-    act(() => result.current.select(0))
-    act(() => result.current.enterDigit(SAMPLE_PUZZLE.solution[0] as number))
-    act(() => result.current.select(1))
-    act(() => result.current.enterDigit(SAMPLE_PUZZLE.solution[1] === 1 ? 2 : 1))
+    judge(result)
     act(() => result.current.checkBoard())
 
     pressMouse()
-    expect(result.current.state.verdict.correct).toEqual([])
-    expect(result.current.state.verdict.incorrect).toEqual([1])
-
-    // Still there several presses later: red belongs to the cell, not the moment.
     pressMouse()
     pressKey('ArrowLeft')
-    expect(result.current.state.verdict.incorrect).toEqual([1])
+    expect(result.current.state.verdict).toEqual([1])
 
     act(() => result.current.select(1))
     act(() => result.current.erase())
-    expect(result.current.state.verdict.incorrect).toEqual([])
+    expect(result.current.state.verdict).toEqual([])
   })
 
   it('a placed digit loses its ink on the next press', () => {

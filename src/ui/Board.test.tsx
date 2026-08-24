@@ -214,6 +214,33 @@ describe('Board hint highlighting', () => {
     expect(struck[0]).toHaveTextContent('2')
   })
 
+  /*
+   * Two claims of different sizes, and the board has to be able to say either
+   * without saying the other: a conflict is impossible under every solution, a
+   * rejected entry is only not the answer.
+   */
+  it('marks a rejected cell without calling it a conflict', () => {
+    const values = new Array(16).fill(null)
+    values[3] = 2
+    const cells = renderBoardCells({ values, verdict: [3] })
+
+    expect(cells[3].className).toContain('kk-cell--incorrect')
+    expect(cells[3].className).not.toContain('kk-cell--error')
+    expect(cells[3].getAttribute('aria-label')).toMatch(/, incorrect$/)
+  })
+
+  it('lets one cell be both, and names the stronger claim', () => {
+    const values = new Array(16).fill(null)
+    values[0] = 3
+    values[1] = 3
+    const errors = { cells: new Set([0, 1]), duplicates: new Set([0, 1]), badCages: [] }
+    const cells = renderBoardCells({ values, errors, verdict: [0] })
+
+    expect(cells[0].className).toContain('kk-cell--incorrect')
+    expect(cells[0].className).toContain('kk-cell--error')
+    expect(cells[0].getAttribute('aria-label')).toMatch(/, conflict$/)
+  })
+
   it('keeps a cell readable as selected, wrong, and the hint’s focus at once', () => {
     const cells = renderBoardCells({
       selected: 0,

@@ -124,10 +124,19 @@ export function useGame(initialPuzzle: Puzzle, options?: UseGameOptions) {
     dispatch({ type: 'REQUEST_HINT', result })
   }, [hintOptions])
 
-  /** The panel's Correctness choice: judge every filled cell against the solution. */
-  const checkBoard = useCallback(() => {
+  /**
+   * The panel's Correctness choice: judge every filled cell against the
+   * solution.
+   *
+   * Reports how many came back wrong, because the panel has a sentence to write
+   * either way and the count is part of it. Only the rejected cells reach the
+   * board; the confirmed ones are the player's own work and go unremarked.
+   */
+  const checkBoard = useCallback((): number => {
     const current = stateRef.current
-    dispatch({ type: 'CHECK_CORRECTNESS', report: checkCorrectness(current.puzzle, current.values) })
+    const report = checkCorrectness(current.puzzle, current.values)
+    dispatch({ type: 'CHECK_CORRECTNESS', report })
+    return report.incorrect.length
   }, [])
 
   /**
@@ -220,12 +229,13 @@ export function useGame(initialPuzzle: Puzzle, options?: UseGameOptions) {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [suspended])
 
-  const expiring = state.verdict.correct.length > 0 || state.placed.length > 0
+  const expiring = state.placed.length > 0
 
   /*
-   * The green treatments last exactly one move: a confirmed cell and a
-   * placed digit are both statements about the board as the player left it, and
-   * the moment they touch it again the statement is about something else.
+   * A hint-placed digit is marked for exactly one move: it is a statement about
+   * the board as the player left it, and the moment they touch it again the
+   * statement is about something else. The verdict's marks are not on this
+   * clock — each belongs to its own cell and goes when that cell is edited.
    *
    * `mousedown` and `keydown` rather than `click` and `keyup`, and that is the
    * whole trick: both states are created by a `click` on a panel button, and a

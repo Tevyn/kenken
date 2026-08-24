@@ -34,8 +34,8 @@
  */
 .kk-board {
   --board-max: min(100cqw, 30rem);
-  /* `--frame` is shared with the popover panels and lives in index.css: the
-     grid and a panel wear the same line. It is derived from this same budget. */
+  /* `--frame` lives in index.css and is the board's alone now — a panel wears
+     the 1px gridline instead. It is derived from this same budget. */
   --cell: clamp(26px, calc((var(--board-max) - 2 * var(--frame)) / var(--size)), 84px);
 
   display: grid;

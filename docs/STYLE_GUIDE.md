@@ -139,13 +139,18 @@ itself — and as a fill only for board state and state badges (§4.1).
 Everything else is neutral grey. Two colours break the monochrome, and both are
 status rather than accent: **red is "this is wrong", green is "this is right".**
 
-Each carries more than one claim, deliberately. Red is a proven contradiction —
-a repeated digit, a cage that can no longer be completed — *and* an entry the
+Red carries more than one claim, deliberately. It is a proven contradiction — a
+repeated digit, a cage that can no longer be completed — *and* an entry the
 correctness check found disagrees with the solution. The two are reached
-differently, but they are the same news to a player, so they get one appearance.
-Green is the win state, a cell the check confirmed, and a digit the hint panel
-placed on the player's behalf. What tells those apart is the channel each lands
-in (§5.1), never a second hue.
+differently and are not the same size of claim, but they are the same news to a
+player, so they get one hue and are told apart by shape (§5.1), never by a
+second colour.
+
+Green is the win state, and now only that. It used to ring a cell the check
+confirmed as well; that is gone, because a check has no business congratulating
+the player on work they did themselves. A digit the hint panel placed is *not*
+green either: it is an ordinary entry made on the player's behalf, so it takes
+the accent like everything else they own.
 
 ### 2.2 Tokens
 
@@ -161,7 +166,6 @@ in (§5.1), never a second hue.
 --border-strong    #aeb5c0
 --structure        #1c2128   heavy grid: cage borders, board outline
 --accent           #2f5596   lighter navy   (7.3:1 on white)
---accent-hover     #26467d
 --accent-soft      #e3eaf6   "this is the current choice", selection fill
 --accent-contrast  #ffffff
 --danger           #c0362c
@@ -180,7 +184,6 @@ in (§5.1), never a second hue.
 --border-strong    #464c56
 --structure        #6b7480   grey, NOT near-white  (3.5:1 on --surface)
 --accent           #8ab4f0   light blue
---accent-hover     #a3c5f5
 --accent-soft      #1e2b40
 --accent-contrast  #101318
 --danger           #f08a80
@@ -261,19 +264,37 @@ invisible.
 |---|---|---|
 | **Flat** — the page | `--bg`, no shadow | `--bg`, no shadow |
 | **Raised** — board, keys, cards | `--surface` + 1px `--border` | `--surface` (lighter than bg) + 1px `--border` |
-| **Floating** — popovers | Board treatment + cast shadow + scrim | Board treatment + scrim |
+| **Floating** — popovers | `--surface` + 1px `--cell-border` + `--shadow-popover` | Same, with every shadow layer pushed harder |
 
 A "recessed" treatment must use `--surface-sunken`. Painting a well in `--bg`
 paints nothing — the action row's strip did exactly that in both themes and was
 invisible.
 
-**A popover panel is the board, moved.** Same surface, same square corners, same
-`--frame` line in `--cell-border-heavy`, centred behind a scrim. It is not a
-card with a look of its own: the page has exactly one object in it, and a panel
-is another instance of that object rather than a second visual language. What
-this replaces — a rounded, tinted surface with a hairline border and a lit top
-edge — was that second language, and it made a menu read as chrome floating over
-the puzzle instead of as part of it.
+**A popover panel is the board, moved.** Same surface, same square corners, and
+the board's own line around it. It is not a card with a look of its own: the
+page has exactly one object in it, and a panel is another instance of that
+object rather than a second visual language. What this replaces — a rounded,
+tinted surface with a hairline border and a lit top edge — was that second
+language, and it made a menu read as chrome floating over the puzzle instead of
+as part of it.
+
+**The line is the gridline, not the frame.** 1px in `--cell-border` — what
+Cell.css draws between two cells — and not `--frame` in `--cell-border-heavy`,
+which the panel used to take. `--frame` resolves to ~4px at 30rem: correct
+around a whole grid, a slab around a menu, with the content reading as trapped
+inside it. A panel is still the board; it wears the board's quieter line.
+
+**Depth is the shadow's job, and only the shadow's.** There is no scrim. Dimming
+the page is a fine way to say *modal* and a poor way to say *floating* — it
+takes the puzzle away from a player who is mid-way through reading it, and every
+panel here opens over a board that is still the subject. `--shadow-popover` does
+the separating in both themes: three layers (contact, lift, ambient), pushed
+harder in dark, where black over a near-black page separates far less per unit
+of alpha and there is no heavy frame to fall back on.
+
+A transparent press shield still spans the page under an open panel. It paints
+nothing; it exists so a press aimed outside the panel closes it and stops there,
+rather than also selecting the cell under the finger.
 
 Panels are **centred**, never hung off their trigger. All three — New game,
 Settings and Hint — are wide enough that anchoring one to a corner left it
@@ -333,25 +354,33 @@ same commit, so they stay focusable and the handler guards instead. Undo and
 Redo, which nothing focuses on the way in, use the real attribute.
 
 **A glyph may carry information, not just identity.** The wizard's size tiles
-draw the actual n×n grid and its difficulty tiles draw a real cage layout, so
-the picture answers the question the button is asking. Where a glyph is
-informational it comes from real data — `src/fixtures/cageLayouts.ts` holds one
-generated, verified puzzle per size and difficulty, baked at author time. An
-icon that illustrates the product must not lie about it, and must not be
-computed during a render.
+draw the actual n×n grid, so the picture answers the question the button is
+asking. Where a glyph is a *picture of the product* it comes from real data and
+must not lie about it: a size tile draws n-1 dividers because the board has n
+columns, never a stylised grid that merely suggests one. Nothing informational
+is computed during a render.
 
-**Known limit, accepted deliberately.** The difficulty tiles stop carrying
-information above 6×6. At 9×9 a tile is 84–105 cage-border segments in a 32px
-box — a 1.73px stroke on a 2.67px cell pitch, so 65% of every cell is ink and
-the clear space between strokes is under one device pixel. The tiles read as
-woven texture rather than as a grid divided into cages, and two pairs are
-effectively tied in density besides (8×8 hard and expert, 3×3 medium and hard).
-This is a density limit, not a tuning bug: 42 cages cannot be counted in 32px at
-any stroke weight. It is accepted because the tile is never alone — the
-difficulty word sits directly under it and is the thing actually being read.
-Enlarging the tile and thinning the stroke widens the gaps and was measured, but
-it buys legibility, not countability, so it was not taken. Do not "fix" this
-without deciding first what the glyph is supposed to tell someone at 9×9.
+**But a picture of the product is not automatically the better glyph**, and the
+difficulty tiles are where that broke down. They used to draw the real baked
+cage layout for the chosen size and difficulty — honest data pointed the wrong
+way. This generator builds harder puzzles out of *fewer, larger* cages (9/7/6/5
+cages at 4×4; 42/35/29/24 at 9×9), so the tile emptied out as the word beneath
+it got scarier and the row read as a ramp running backwards. Above 6×6 it
+carried nothing at all: 42 cages in a 32px box is a 1.73px stroke on a 2.67px
+cell pitch, which is woven texture, not a grid divided into cages.
+
+**So they now draw a legend rather than a measurement.** A fixed 4×4 board
+carries one tinted cage that grows 1 → 2 → 3 → 4 cells across the four
+difficulties, and it ignores the size chosen in step one — the heading above the
+tiles is the only place that size appears, which is why it is tested and not
+merely written. The ordering and the endpoints stay true of the engine: easy is
+the only difficulty thick with one-cell cages and holds nothing bigger than
+three, while hard and expert contain no single-cell cage at all and hold 47
+cages of four or more between them. The 1-2-3-4 ramp itself is drawn for
+legibility, not measured, and `DifficultyIcon` says so at the definition.
+**Where a glyph is a legend, label it one where it is defined**, so the next
+reader does not mistake it for data — and where it is data, it must survive
+every size it will be asked to draw.
 
 | | Treatment |
 |---|---|
@@ -452,22 +481,46 @@ channel so they never have to fight for one property:
 | Hint band | Fill | Accent, very low strength (only ever while dimmed) |
 | Hint support | Fill | Accent, low strength |
 | **Hint focus** | Ring | Accent ring, inset |
-| **Correct** | Ring | `--success` ring, inset. Gone on the player's next move |
-| **Error** | Ring + text | `--danger` ring, `--danger` value at weight 700 |
-| **Incorrect** | Ring + text | The error treatment exactly. Held until *that cell* is edited |
-| Placed by a hint | Text | `--success` value, italic. Gone on the player's next move |
+| **Error** | Text | `--danger` value, at the grid's ordinary weight |
+| **Incorrect** | Corner | `--danger` flag in the top-right corner. Held until *that cell* is edited |
+| Placed by a hint | Text | `--accent` value. Gone on the player's next move |
 | Hint dim | Opacity | Everything not named by the hint drops to ~0.4 |
 
-Precedence: **the error ring always wins the ring channel.** Fill and ring are
-different channels, so a cell that is selected, wrong, and a hint's focus still
-reads as all three.
+Precedence: nothing has to win, because **no two rows in that table share a
+channel.** A cell that is selected, wrong, and a hint's focus reads as all
+three — accent fill, red digit, accent ring. Errors used to take the ring as
+well, and a tint besides, so they had to be declared the winner of a contest
+that no longer happens.
 
-Correct and incorrect are the same ring in two colours, which is the one place
-in this table where colour comes close to carrying a state alone. It does not:
-both are named in the cell's accessible name, and the two can never appear on
-the same cell to be confused with one another. A placed digit is safe in the
-text channel for the same reason — it is by construction correct, so it never
-has to argue with the red value it would otherwise collide with.
+**A confirmed cell gets nothing.** There is no Correct row here any more. The
+check used to ring one in `--success`, which was the app taking a bow for work
+the player did; the only news a check has is what is wrong.
+
+**An error is the digit, and nothing around it.** Two 3s in a row are already
+visible as two 3s; the app's job is to point, not to alarm. A ring, a tint and a
+bold red value said the same thing three times over one ordinary slip, and the
+extra weight pulled the eye to the mistakes ahead of the cell the player is
+actually working in. Recolouring the value alone lands the message on the
+offending digit and nowhere else.
+
+**Error and incorrect are claims of different sizes, and the shape is what
+separates them.** A conflict is impossible under every solution; a rejected
+entry is merely not *the* answer. Both are `--danger`, so "wrong" means one
+thing on this board, and the smaller claim takes the smaller mark. The two can
+land on one cell at once, and the accessible name then says `conflict` — the
+stronger of them.
+
+**Incorrect is the one state with a channel to itself, and it needs one.** It
+outlives the press that produced it, so it can still be on a cell the player has
+since selected, or that a later hint has ringed — it cannot afford a channel
+something else might want. The top-right corner is free (the cage label is
+top-*left*) and nothing else on the board uses it. That also keeps the mark off
+the digit, which stays in the player's own ink: the entry is theirs, and only
+the verdict about it belongs to the app. A placed digit is safe in the text
+channel for the reason it always was — it is by construction correct, so it
+never has to argue with a red value it would otherwise collide with, and it says
+"filled in for you" in the cell's accessible name rather than leaning on the
+colour alone.
 
 ### 5.2 Why hints share the accent hue
 
@@ -497,7 +550,7 @@ than to reintroduce a second hue.
 - **Errors are shown on the cells**, not narrated in a banner. The board's live
   region announces them for screen readers only.
 - **Never punish.** No "wrong!", no counters, no red banners. An error is a red
-  ring and a red digit; that is the whole message.
+  digit; that is the whole message.
 - **Solving opens a panel, not a banner.** It says `Solved` / `Nice work.` and
   offers the one move that follows — New game, which opens the wizard rather
   than deciding a size for you. It dismisses like any other panel (Escape, or a
@@ -562,7 +615,7 @@ useful information on it.
 
 Restrained. Motion confirms an action; it never announces one.
 
-- State transitions (hover, press, toggle): `150ms ease`.
+- State transitions (press, toggle): `150ms ease`.
 - Popover open and close: `180ms ease-out`.
 - The board itself never animates. Values appear instantly.
 - All of it collapses under `prefers-reduced-motion: reduce`.

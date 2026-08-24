@@ -124,9 +124,13 @@
 
 .kk-switch__knob {
   position: absolute;
-  /* Track border is now 2px, so the knob insets from the border box. */
-  top: 2px;
-  left: 2px;
+  /*
+   * Offsets resolve against the track's padding box (inside its 2px border),
+   * so 1px here is a symmetric 3px from the visible edge on every side --
+   * 42x22 of padding box, 20x20 of knob, 1px spare all round.
+   */
+  top: 1px;
+  left: 1px;
   width: 20px;
   height: 20px;
   border-radius: 50%;

@@ -1,5 +1,5 @@
 import type { ReactNode, SVGProps } from 'react'
-import type { Puzzle } from '../engine/types'
+import type { Difficulty, Puzzle } from '../engine/types'
 import { MAX_SIZE, MIN_SIZE, colOf, rowOf } from '../engine/types'
 import { computeCellEdges } from './cageBorders'
 
@@ -335,13 +335,16 @@ export function NumberIcon(props: IconProps) {
  *
  * The rest follows the board rather than a generic grid glyph:
  *
- *   - The outer square is the heaviest line (STYLE_GUIDE §5: "the board's
+ *   - In `CagedGridIcon` the outer square is the heaviest line (STYLE_GUIDE §5: "the board's
  *     boundary always reads as the strongest line on the grid"). It is a
  *     constant 2 units at every n, which is also what keeps a 3x3 and a 9x9
  *     button looking like the same family — the frame carries nearly all of
  *     the icon's optical mass, so freezing it freezes the mass. It stays in
  *     viewBox units, unlike the dividers, so the frame still matches the
  *     stroke weight of every other icon in this file at any render size.
+ *   - `GridIcon` gives that up on purpose and draws its frame as a hairline
+ *     too, so a size tile is a single uniform weight throughout. See
+ *     `gridFrame` for why.
  *   - Square corners, not `rx`. `Board.css` argues this explicitly: "a rounded
  *     grid reads as a card containing a puzzle rather than as the puzzle
  *     itself". That needs `strokeLinejoin="miter"` on the rect specifically,
@@ -405,6 +408,17 @@ const OUTER_STROKE = 2
  */
 const DIVIDER_STROKE = 1
 const DIVIDER_OPACITY = 0.55
+
+/**
+ * The hairline treatment itself, hoisted because two callers wear it now: the
+ * dividers at every n, and `GridIcon`'s outer frame. See `gridFrame`.
+ */
+const HAIRLINE = {
+  strokeWidth: DIVIDER_STROKE,
+  strokeOpacity: DIVIDER_OPACITY,
+  vectorEffect: 'non-scaling-stroke',
+  shapeRendering: 'crispEdges',
+} as const
 
 /**
  * Cage borders: proportional to the cell pitch, floored, capped at the frame.
@@ -472,32 +486,48 @@ function gridMetrics(n: number): GridMetrics {
  */
 function gridDividers({ size, at }: GridMetrics) {
   const lines = []
-  const hairline = {
-    strokeWidth: DIVIDER_STROKE,
-    strokeOpacity: DIVIDER_OPACITY,
-    vectorEffect: 'non-scaling-stroke',
-    shapeRendering: 'crispEdges',
-  } as const
   for (let k = 1; k < size; k += 1) {
     const p = at(k)
     lines.push(
-      <line key={`v${k}`} x1={p} y1={GRID_MIN} x2={p} y2={GRID_MAX} {...hairline} />,
-      <line key={`h${k}`} x1={GRID_MIN} y1={p} x2={GRID_MAX} y2={p} {...hairline} />,
+      <line key={`v${k}`} x1={p} y1={GRID_MIN} x2={p} y2={GRID_MAX} {...HAIRLINE} />,
+      <line key={`h${k}`} x1={GRID_MIN} y1={p} x2={GRID_MAX} y2={p} {...HAIRLINE} />,
     )
   }
   return lines
 }
 
-/** The frame. Drawn last so it sits over every divider and cage terminus. */
-function gridFrame() {
+/**
+ * The frame. Drawn last so it sits over every divider and cage terminus.
+ *
+ * Two weights, and which one a glyph takes is decided by how many weights it
+ * has left to spend. `CagedGridIcon` runs a hierarchy — frame over cage over
+ * divider — so its frame takes `outline` and anchors the top of it.
+ * `GridIcon` has no cages and so nothing to rank: the only relationship left
+ * is frame against divider, and ranking those two says nothing the glyph needs
+ * to say, since the outer edge of an n x n grid is not more informative than
+ * its interior. So it takes `hairline` and the whole glyph becomes one weight
+ * — every line in a size tile drawn exactly the way the divider is, which is
+ * also the way `Cell.css` draws a real cell edge.
+ *
+ * `hairline` carries the divider's 0.55 alpha as well as its width, because
+ * splitting them would leave the frame a *different* stroke that merely
+ * measures the same, which is the thing this is trying not to be.
+ *
+ * `strokeLinejoin="miter"` stays on both: the shell sets `round` globally and
+ * `Board.css` is explicit that "a rounded grid reads as a card containing a
+ * puzzle rather than as the puzzle itself". At hairline weight the join barely
+ * shows, but it costs nothing and it keeps the two frames the same shape.
+ */
+function gridFrame(weight: 'outline' | 'hairline') {
+  const stroke = weight === 'hairline' ? HAIRLINE : { strokeWidth: OUTER_STROKE }
   return (
     <rect
       x={GRID_MIN}
       y={GRID_MIN}
       width={GRID_SPAN}
       height={GRID_SPAN}
-      strokeWidth={OUTER_STROKE}
       strokeLinejoin="miter"
+      {...stroke}
     />
   )
 }
@@ -518,7 +548,7 @@ export function GridIcon({ n, ...props }: GridIconProps) {
   return (
     <IconBase {...props}>
       {gridDividers(metrics)}
-      {gridFrame()}
+      {gridFrame('hairline')}
     </IconBase>
   )
 }
@@ -613,7 +643,136 @@ export function CagedGridIcon({ n, cageIds, ...props }: CagedGridIconProps) {
     <IconBase {...props}>
       {gridDividers(metrics)}
       {edges}
-      {gridFrame()}
+      {gridFrame('outline')}
+    </IconBase>
+  )
+}
+
+/**
+ * Difficulty: a fixed 4x4 board carrying one cage, which grows from a single
+ * cell at easy to a four-cell block at expert.
+ *
+ * This replaces a tile that drew the whole baked cage layout for the
+ * size/difficulty pair, and it gives up two things on purpose.
+ *
+ * It gives up the played size. The tile no longer previews the board about to
+ * be generated, because at n=9 it could not: 42 cages in a 32px box is 84-105
+ * border segments on a 2.67px cell pitch, which reads as woven texture rather
+ * than as a grid divided into cages. The heading directly above the tiles
+ * already restates the chosen size in words and in digits, so nothing is lost
+ * that the panel does not say twice.
+ *
+ * It gives up drawing the real layout, and that is the sharper trade. The old
+ * tile was honest data pointed in a misleading direction: this generator makes
+ * *harder* puzzles out of *fewer, larger* cages — 9/7/6/5 cages at 4x4 and
+ * 42/35/29/24 at 9x9 — so the picture emptied out as the word beneath it got
+ * scarier, and at 4x4 the four tiles differed by four segments out of fifteen
+ * besides. Someone scanning the row read a ramp that ran backwards.
+ *
+ * What is drawn instead is a legend rather than a measurement, and this
+ * comment says so instead of implying a correspondence that is not there. Its
+ * ordering and its endpoints are real, though, which is what keeps it honest:
+ * across the 28 baked layouts easy is the only difficulty thick with one-cell
+ * cages (42 of them) and holds nothing bigger than three, while hard and
+ * expert contain no single-cell cage at all and between them hold 47 cages of
+ * four or more. "Easy hands you a free square, expert hands you a block" is a
+ * true sentence about this engine, and 1-2-3-4 is the shortest way to draw it
+ * four times running.
+ *
+ * The cage is tinted as well as outlined. §4.1 reserves fills for the board's
+ * own state, which is exactly the claim being made here — this is a picture of
+ * a cage sitting on a board, drawn the way `--cell-cage` paints one. Outline
+ * alone was tried first and the ramp did not survive it: at 32px a two-cell
+ * domino and a three-cell L differ by one notch in a line, where the tinted
+ * versions differ by a third of their mass.
+ *
+ * Everything else is `CagedGridIcon`'s system untouched — hairline dividers so
+ * the cells stay countable under the cage, the frame heaviest and drawn last
+ * (§5), and square corners throughout.
+ */
+const DIFFICULTY_ORDER = 4
+
+/**
+ * Each cage as a closed ring of grid-*line* indices, `[column, row]`, so the
+ * shapes are expressed in cells rather than in viewBox units and follow
+ * `gridMetrics` if the envelope ever moves.
+ *
+ * All four are anchored on the same corner and grow into the same central 2x2
+ * block, which is what makes the row read as one object at four sizes instead
+ * of four unrelated shapes. The three-cell case is the only one with a choice
+ * to make; the notch is put at the bottom right so the cage grows away from
+ * its anchor in both axes, the way the two-cell and four-cell cases do.
+ */
+const DIFFICULTY_CAGE: Record<Difficulty, readonly (readonly [number, number])[]> = {
+  easy: [
+    [1, 1],
+    [2, 1],
+    [2, 2],
+    [1, 2],
+  ],
+  medium: [
+    [1, 1],
+    [3, 1],
+    [3, 2],
+    [1, 2],
+  ],
+  hard: [
+    [1, 1],
+    [3, 1],
+    [3, 2],
+    [2, 2],
+    [2, 3],
+    [1, 3],
+  ],
+  expert: [
+    [1, 1],
+    [3, 1],
+    [3, 3],
+    [1, 3],
+  ],
+}
+
+/**
+ * The cage's fill alpha.
+ *
+ * `--cell-cage` mixes the accent into `--surface` at 14%, but that is a mix
+ * into a cell background; this is a fill of the stroke colour over the page,
+ * and 14% of it is invisible at 32px. 0.38 is where the four tiles' masses
+ * separate at a glance in both themes while the hairline dividers still read
+ * through the tint — below about 0.3 the ramp flattens out, above about 0.45
+ * the dividers under the cage disappear and it stops looking like cells.
+ */
+const CAGE_TINT = 0.38
+
+export interface DifficultyIconProps extends IconProps {
+  difficulty: Difficulty
+}
+
+export function DifficultyIcon({ difficulty, ...props }: DifficultyIconProps) {
+  const metrics = gridMetrics(DIFFICULTY_ORDER)
+  const { at, cage } = metrics
+
+  /*
+   * Defensive in the same spirit as `CagedGridIcon`'s length check: this
+   * arrives from a prop, and a tile drawing the wrong cage is a blemish where
+   * a tile throwing mid-render takes the app down behind an error boundary.
+   */
+  const ring = DIFFICULTY_CAGE[difficulty] ?? DIFFICULTY_CAGE.easy
+  const outline = `${ring
+    .map(([col, row], index) => `${index === 0 ? 'M' : 'L'}${at(col)} ${at(row)}`)
+    .join('')}Z`
+
+  return (
+    <IconBase {...props}>
+      {gridDividers(metrics)}
+      <path
+        d={outline}
+        fill="currentColor"
+        fillOpacity={CAGE_TINT}
+        strokeWidth={cage}
+        strokeLinejoin="miter"
+      />
+      {gridFrame('outline')}
     </IconBase>
   )
 }

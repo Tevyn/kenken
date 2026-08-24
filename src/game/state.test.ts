@@ -803,12 +803,20 @@ function judged(): GameState {
 }
 
 describe('CHECK_CORRECTNESS', () => {
-  it('records the report and takes the board over from any hint on it', () => {
+  /* The engine hands over both halves; only the wrong one is worth keeping. */
+  it('keeps the rejected cells and drops the confirmed ones on the floor', () => {
+    const state = gameReducer(shown(fresh(), fakeHint()), {
+      type: 'CHECK_CORRECTNESS',
+      report: { correct: [0, 2], incorrect: [1] },
+    })
+    expect(state.verdict).toEqual([1])
+  })
+
+  it('takes the board over from any hint on it', () => {
     const state = gameReducer(shown(fresh(), fakeHint()), {
       type: 'CHECK_CORRECTNESS',
       report: { correct: [0], incorrect: [1] },
     })
-    expect(state.verdict).toEqual({ correct: [0], incorrect: [1] })
     expect(state.hint).toEqual({ kind: 'idle' })
   })
 
@@ -824,13 +832,13 @@ describe('CHECK_CORRECTNESS', () => {
 })
 
 /*
- * Two lifetimes, and the split is the point: green is a claim about the board
- * as it stood a moment ago, red is a claim about one cell.
+ * A verdict is a claim about particular cells, not about a moment, so it goes
+ * cell by cell rather than on the next press.
  */
-describe('the two halves of a verdict expire differently', () => {
-  it('CLEAR_FEEDBACK drops the green and keeps the red', () => {
+describe('a verdict expires cell by cell', () => {
+  it('CLEAR_FEEDBACK leaves it alone — that clock is the placed digit’s', () => {
     const state = gameReducer(judged(), { type: 'CLEAR_FEEDBACK' })
-    expect(state.verdict).toEqual({ correct: [], incorrect: [1] })
+    expect(state.verdict).toEqual([1])
   })
 
   it('CLEAR_FEEDBACK with nothing to clear is a no-op', () => {
@@ -841,40 +849,39 @@ describe('the two halves of a verdict expire differently', () => {
     expect(gameReducer(untouched, { type: 'CLEAR_FEEDBACK' })).toBe(untouched)
   })
 
-  it('red survives an edit to any cell but its own', () => {
+  it('a mark survives an edit to any cell but its own', () => {
     const elsewhere = enter(judged(), 5, 1)
-    expect(elsewhere.verdict.incorrect).toEqual([1])
+    expect(elsewhere.verdict).toEqual([1])
 
     const itsOwn = enter(judged(), 1, 3)
-    expect(itsOwn.verdict.incorrect).toEqual([])
+    expect(itsOwn.verdict).toEqual([])
   })
 
-  it('erasing the offending cell drops its red too', () => {
+  /* Nothing was dropped, so `Board` must not be handed a fresh array to re-Set. */
+  it('an edit elsewhere keeps the same array', () => {
+    const before = judged()
+    expect(enter(before, 5, 1).verdict).toBe(before.verdict)
+  })
+
+  it('erasing the offending cell drops its mark too', () => {
     const state = gameReducer(gameReducer(judged(), { type: 'SELECT', index: 1 }), {
       type: 'ERASE',
     })
-    expect(state.verdict.incorrect).toEqual([])
-  })
-
-  it('any edit ends the green, wherever it lands', () => {
-    expect(enter(judged(), 5, 1).verdict.correct).toEqual([])
+    expect(state.verdict).toEqual([])
   })
 
   /* A whole snapshot moved underneath, so the check is not about this board. */
   it('undo and redo drop the verdict entirely', () => {
     const undone = gameReducer(judged(), { type: 'UNDO' })
-    expect(undone.verdict).toEqual({ correct: [], incorrect: [] })
-    expect(gameReducer(undone, { type: 'REDO' }).verdict).toEqual({ correct: [], incorrect: [] })
+    expect(undone.verdict).toEqual([])
+    expect(gameReducer(undone, { type: 'REDO' }).verdict).toEqual([])
   })
 
   it('reset and a new puzzle drop it as well', () => {
-    expect(gameReducer(judged(), { type: 'RESET' }).verdict).toEqual({
-      correct: [],
-      incorrect: [],
-    })
-    expect(
-      gameReducer(judged(), { type: 'NEW_PUZZLE', puzzle: SAMPLE_PUZZLE }).verdict,
-    ).toEqual({ correct: [], incorrect: [] })
+    expect(gameReducer(judged(), { type: 'RESET' }).verdict).toEqual([])
+    expect(gameReducer(judged(), { type: 'NEW_PUZZLE', puzzle: SAMPLE_PUZZLE }).verdict).toEqual(
+      [],
+    )
   })
 })
 
@@ -891,7 +898,7 @@ describe('a hint-written placement is marked until the next move', () => {
 
   it('placing says nothing about cells the check already called wrong', () => {
     const state = applied(judged(), fakeHint())
-    expect(state.verdict).toEqual({ correct: [], incorrect: [1] })
+    expect(state.verdict).toEqual([1])
   })
 
   /*

@@ -1,9 +1,12 @@
 import { render } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+import type { Difficulty } from '../engine/types'
+import { DIFFICULTIES } from '../engine/types'
 import type { IconProps } from './icons'
 import {
   CagedGridIcon,
   CorrectnessIcon,
+  DifficultyIcon,
   EraseIcon,
   GridIcon,
   HintIcon,
@@ -77,6 +80,13 @@ const gridIcons = [
   ['GridIcon(3)', (props: IconProps) => <GridIcon n={3} {...props} />],
   ['GridIcon(9)', (props: IconProps) => <GridIcon n={9} {...props} />],
   ['CagedGridIcon(3)', (props: IconProps) => <CagedGridIcon n={3} cageIds={CAGES_3} {...props} />],
+  ...DIFFICULTIES.map(
+    (difficulty) =>
+      [
+        `DifficultyIcon(${difficulty})`,
+        (props: IconProps) => <DifficultyIcon difficulty={difficulty} {...props} />,
+      ] as const,
+  ),
 ] as const
 
 const newIcons = [
@@ -258,14 +268,20 @@ describe('grid and theme icons', () => {
 
   /*
    * The glyphs render as accent ink and must inherit it (STYLE_GUIDE §4.1), so
-   * no child may name a colour of its own — a hardcoded `stroke` or any `fill`
+   * no child may name a colour of its own — a hardcoded `stroke` or `fill`
    * would survive into a theme it was not drawn for.
+   *
+   * `fill` is allowed to be present but only ever as `currentColor` (or the
+   * shell's `none`), which is inheritance rather than a colour: `NumberIcon`
+   * has filled its one cell that way since before this suite existed, and
+   * `DifficultyIcon` tints its cage the same way. Anything else is a literal.
    */
   it.each(newIcons)('%s paints nothing but inherited currentColor', (_name, Icon) => {
     const { container } = render(<Icon />)
     for (const el of Array.from(svgOf(container).querySelectorAll('*'))) {
       expect(el.getAttribute('stroke')).toBeNull()
-      expect(el.getAttribute('fill')).toBeNull()
+      const fill = el.getAttribute('fill')
+      if (fill !== null) expect(['currentColor', 'none']).toContain(fill)
     }
   })
 
@@ -303,20 +319,37 @@ describe('grid and theme icons', () => {
     })
 
     /*
-     * §5: the board outline is the strongest line on the grid. In the glyph
-     * that is both a wider stroke and full opacity, against dividers that are a
-     * single non-scaling pixel at reduced alpha.
+     * A size tile is one weight throughout: the frame is drawn with exactly the
+     * divider's hairline treatment, not merely a matching number. Width, alpha
+     * and both rendering hints are asserted together, because a frame that
+     * measured 1 unit in viewBox space while the dividers measured 1 CSS pixel
+     * would pass a width-only check and still render as two different strokes.
      */
-    it.each([3, 5, 9])('keeps the outer square heavier than the dividers at n=%i', (n) => {
+    it.each([3, 5, 9])('draws every stroke at one weight at n=%i', (n) => {
       const { container } = render(<GridIcon n={n} />)
       const svg = svgOf(container)
-      const [frame] = strokeWidthsOf(svg, 'rect')
-      for (const width of strokeWidthsOf(svg, 'line')) expect(width).toBeLessThan(frame)
-      expect(frame).toBe(2)
-      for (const line of Array.from(svg.querySelectorAll('line'))) {
-        expect(Number(line.getAttribute('stroke-opacity'))).toBeLessThan(1)
+      const strokes = Array.from(svg.querySelectorAll('rect, line'))
+      expect(strokes).toHaveLength(2 * (n - 1) + 1)
+      for (const el of strokes) {
+        expect(el).toHaveAttribute('stroke-width', '1')
+        expect(el).toHaveAttribute('stroke-opacity', '0.55')
+        expect(el).toHaveAttribute('vector-effect', 'non-scaling-stroke')
+        expect(el).toHaveAttribute('shape-rendering', 'crispEdges')
       }
-      expect(svg.querySelector('rect')).not.toHaveAttribute('stroke-opacity')
+    })
+
+    /*
+     * The weight hierarchy still holds where there is one to hold: the caged
+     * glyph keeps its outline heaviest. Asserted here so that flattening the
+     * size tile stays a change to `GridIcon` alone rather than a quiet edit to
+     * the shared `gridFrame`.
+     */
+    it('leaves the caged glyph outline at full weight', () => {
+      const { container } = render(<CagedGridIcon n={3} cageIds={CAGES_3} />)
+      const rect = svgOf(container).querySelector('rect') as SVGRectElement
+      expect(rect).toHaveAttribute('stroke-width', '2')
+      expect(rect).not.toHaveAttribute('stroke-opacity')
+      expect(rect).not.toHaveAttribute('vector-effect')
     })
 
     /*
@@ -398,6 +431,126 @@ describe('grid and theme icons', () => {
     it('draws no cage edges when every cell shares one cage', () => {
       const { container } = render(<CagedGridIcon n={3} cageIds={new Array(9).fill(0)} />)
       expect(segmentsOf(svgOf(container), 2)).toEqual([])
+    })
+  })
+
+  describe('DifficultyIcon', () => {
+    /*
+     * The whole point of the glyph, asserted by measuring what it drew rather
+     * than by counting corners: a cage with the right number of corners in the
+     * wrong places would pass a corner count and still be the wrong shape.
+     *
+     * Shoelace area over one cell's area. The board is fixed at 4x4 and the
+     * span is 18 units, so the pitch is 4.5 and a cell is 20.25 square units.
+     */
+    const cageCellsIn = (svg: SVGSVGElement) => {
+      const cage = svg.querySelector('path[fill="currentColor"]')
+      if (!cage) throw new Error('No tinted cage in the glyph')
+      const numbers = (cage.getAttribute('d') ?? '').match(/-?\d+(?:\.\d+)?/g) ?? []
+      expect(numbers.length).toBeGreaterThan(0)
+      expect(numbers.length % 2).toBe(0)
+
+      const points = []
+      for (let i = 0; i < numbers.length; i += 2) {
+        points.push([Number(numbers[i]), Number(numbers[i + 1])] as const)
+      }
+      let twiceArea = 0
+      for (let i = 0; i < points.length; i += 1) {
+        const [x1, y1] = points[i]
+        const [x2, y2] = points[(i + 1) % points.length]
+        twiceArea += x1 * y2 - x2 * y1
+      }
+      const pitch = 18 / 4
+      return Math.abs(twiceArea) / 2 / (pitch * pitch)
+    }
+
+    it.each([
+      ['easy', 1],
+      ['medium', 2],
+      ['hard', 3],
+      ['expert', 4],
+    ] as const)('%s draws a cage of %i cell(s)', (difficulty, cells) => {
+      const { container } = render(<DifficultyIcon difficulty={difficulty} />)
+      expect(cageCellsIn(svgOf(container))).toBe(cells)
+    })
+
+    /*
+     * The ramp itself. Asserted as a strictly increasing sequence rather than
+     * as four independent numbers, because the failure this guards against is
+     * the one the old tile actually had: a row of pictures whose ink ran the
+     * opposite way to the words underneath.
+     */
+    it('grows monotonically across DIFFICULTIES', () => {
+      const cells = DIFFICULTIES.map((difficulty) => {
+        const { container } = render(<DifficultyIcon difficulty={difficulty} />)
+        return cageCellsIn(svgOf(container))
+      })
+      for (let i = 1; i < cells.length; i += 1) {
+        expect(cells[i], `${DIFFICULTIES[i]} vs ${DIFFICULTIES[i - 1]}`).toBeGreaterThan(
+          cells[i - 1],
+        )
+      }
+    })
+
+    it('draws four distinct glyphs', () => {
+      const seen = new Set(
+        DIFFICULTIES.map((difficulty) => {
+          const { container } = render(<DifficultyIcon difficulty={difficulty} />)
+          return serializeGeometry(svgOf(container))
+        }),
+      )
+      expect(seen.size).toBe(DIFFICULTIES.length)
+    })
+
+    /*
+     * The board under the cage is fixed at 4x4 whatever the difficulty, and
+     * whatever size the player picked in step one - that is the change this
+     * glyph exists to make, so it is pinned here rather than left implicit.
+     */
+    it.each(DIFFICULTIES)('%s draws the same fixed 4x4 board', (difficulty) => {
+      const { container } = render(<DifficultyIcon difficulty={difficulty} />)
+      const svg = svgOf(container)
+      // 3 internal dividers per axis at n=4.
+      expect(svg.querySelectorAll('line')).toHaveLength(6)
+      const rect = svg.querySelector('rect') as SVGRectElement
+      expect(rect).toHaveAttribute('x', '3')
+      expect(rect).toHaveAttribute('y', '3')
+      expect(rect).toHaveAttribute('width', '18')
+      expect(rect).toHaveAttribute('height', '18')
+    })
+
+    /*
+     * Three weights in one box, same hierarchy as `CagedGridIcon` (§5): the
+     * frame is never beaten, and the cage never drops to the divider's.
+     */
+    it('keeps the cage between the divider and the frame', () => {
+      const { container } = render(<DifficultyIcon difficulty="expert" />)
+      const svg = svgOf(container)
+      const frame = Number(
+        (svg.querySelector('rect') as SVGRectElement).getAttribute('stroke-width'),
+      )
+      const cage = Number(
+        (svg.querySelector('path') as SVGPathElement).getAttribute('stroke-width'),
+      )
+      expect(cage).toBeLessThanOrEqual(frame)
+      expect(cage).toBeGreaterThan(1)
+      for (const line of Array.from(svg.querySelectorAll('line'))) {
+        expect(line).toHaveAttribute('stroke-width', '1')
+        expect(line).toHaveAttribute('stroke-opacity', '0.55')
+      }
+    })
+
+    /*
+     * `difficulty` reaches the glyph from a prop, so a value outside the union
+     * has to degrade rather than render a cage-less tile or throw inside the
+     * wizard's render.
+     */
+    it('degrades to the easy cage on an unknown difficulty', () => {
+      const { container: bad } = render(
+        <DifficultyIcon difficulty={'impossible' as Difficulty} />,
+      )
+      const { container: easy } = render(<DifficultyIcon difficulty="easy" />)
+      expect(serializeGeometry(svgOf(bad))).toEqual(serializeGeometry(svgOf(easy)))
     })
   })
 })

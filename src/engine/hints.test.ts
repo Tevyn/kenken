@@ -322,7 +322,7 @@ describe('detector: single-cage-combination', () => {
     // sorting or de-duplicating the list would misdescribe it.
     const hints = detect('single-cage-combination', SAMPLE_PUZZLE);
     const hint = hints.find((h) => h.highlight.cages[0] === 0);
-    expect(hint?.text).toBe('This cage has to be 1, 2 and 1');
+    expect(hint?.text).toBe('This cage has to be 1, 2, and 1');
     expect(hint?.apply).toEqual({
       kind: 'place',
       cells: [

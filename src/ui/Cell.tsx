@@ -23,14 +23,10 @@ export interface CellProps {
   /** This entry is provably wrong — see `createErrorChecker` in the engine. */
   isError: boolean
   /**
-   * The last correctness check confirmed this entry against the solution.
-   * Transient: gone on the player's next move.
-   */
-  isCorrect?: boolean
-  /**
-   * The last correctness check rejected it. A different claim from `isError` —
-   * that one never opens the answer key — but the same news to a player, so it
-   * wears the same treatment and holds until the cell is edited.
+   * The last correctness check rejected this entry. A weaker claim than
+   * `isError`: a conflict is impossible under any solution, while this is only
+   * not *the* answer — so it wears a mark of its own rather than the conflict's,
+   * and holds until the cell is edited.
    */
   isIncorrect?: boolean
   /** The panel's Number choice wrote this entry. Transient, like `isCorrect`. */
@@ -62,7 +58,6 @@ export function Cell({
   isInSelectedLine,
   isInSelectedCage,
   isError,
-  isCorrect = false,
   isIncorrect = false,
   isPlaced = false,
   hintRole,
@@ -84,8 +79,8 @@ export function Cell({
   if (hintRole) classNames.push(`kk-cell--hint-${hintRole}`)
   if (hintCageEdges) classNames.push(hintCageEdges)
   if (isPlaced) classNames.push('kk-cell--placed')
-  if (isCorrect) classNames.push('kk-cell--correct')
-  if (isError || isIncorrect) classNames.push('kk-cell--error')
+  if (isIncorrect) classNames.push('kk-cell--incorrect')
+  if (isError) classNames.push('kk-cell--error')
 
   const status = value != null ? `value ${value}` : 'empty'
   // Colour alone must not carry the highlight, so the role is named in the
@@ -93,17 +88,12 @@ export function Cell({
   const hintNote =
     hintRole === 'focus' ? ', hint focus' : hintRole === 'support' ? ', hint context' : ''
   /*
-   * Correct and incorrect are the same shape in two colours, so nothing but the
-   * words separates them for a reader who cannot see the difference (§9).
-   * `conflict` is the stronger claim and comes first when a cell is both.
+   * Both marks are red, and one cell can carry both, so the words are what
+   * separate them for a reader who cannot see the shapes (§9). `conflict` is
+   * the stronger claim — it holds against every solution — and is the one worth
+   * saying when a cell is both.
    */
-  const checkNote = isError
-    ? ', conflict'
-    : isIncorrect
-      ? ', incorrect'
-      : isCorrect
-        ? ', correct'
-        : ''
+  const checkNote = isError ? ', conflict' : isIncorrect ? ', incorrect' : ''
   const ariaLabel =
     `Row ${row + 1}, column ${col + 1}, cage ${cageLabelText}, ${status}` +
     checkNote +

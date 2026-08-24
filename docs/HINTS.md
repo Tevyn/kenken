@@ -200,7 +200,7 @@ Every technique uses one of these shapes:
 | shape | when |
 |---|---|
 | `This cell has to be 2` | a placement whose reason is not a whole line |
-| `This cage has to be 1, 2 and 1` | a placement covering a whole cage |
+| `This cage has to be 1, 2, and 1` | a placement covering a whole cage |
 | `Only 3 can go here in column 2` | a placement where the row or column *is* the reason |
 | `3 and 5 cannot go here` | an elimination striking exactly one cell |
 | `3 and 5 cannot go in this cage` | an elimination barring digits from a whole cage |
@@ -210,7 +210,7 @@ Every technique uses one of these shapes:
 A row or column number therefore appears in `text` only when the line is the
 reason, never as an address. The cage-placement list is read in **board order**
 and is neither sorted nor de-duplicated: a bent cage may legally repeat a digit
-(§11, "dog leg"), so `1, 2 and 1` is the honest reading of a cage that holds two
+(§11, "dog leg"), so `1, 2, and 1` is the honest reading of a cage that holds two
 1s, and sorting it would misdescribe the board.
 
 Where an elimination reaches several cells at once, widen the claim to the
@@ -298,7 +298,7 @@ because `visible` for both cells is `{1,2,3,4}`.
 
 **Example (placed)** — `SAMPLE_PUZZLE`'s `2×` cage covers cells 0, 1 and 5, and
 its only surviving arrangement is `(1, 2, 1)`.
-> This cage has to be 1, 2 and 1
+> This cage has to be 1, 2, and 1
 
 ---
 
@@ -662,6 +662,16 @@ Do **not** compute hints eagerly on every keystroke.
 Correctness, Tip and Number; the player picks how much help they want, rather
 than pressing the same button twice to get more of it.
 
+All three answer in the same place — the choices are replaced by a sentence in
+the panel that was already open. Correctness writes its own (`Everything is
+correct`, or a count of what is not), because its answer is about the board
+rather than about a deduction and no engine string covers it. Only Number can
+close the panel, and only when it actually placed a digit: there is then nothing
+left to say that the board is not already showing.
+
+Correctness is disabled while the grid is empty. There is nothing to judge, and
+per STYLE_GUIDE.md §4.2.1 the choice loses its ink rather than gaining chrome.
+
 This replaces an earlier two-press design — explain, then apply — and the reason
 is that "apply" was never one thing: applying an elimination writes pencil marks
 and applying a placement writes a digit, so the same second press did wildly
@@ -689,7 +699,7 @@ anything.
 |---|---|---|---|
 | choose Tip | any | `shown` or `message` | run `findHint` |
 | choose Number | any | `idle`, or `message` | run `findNextNumber`; on a hit `APPLY_HINT` writes the one cell, on a miss show what `findHint` says instead |
-| choose Correctness | any | `idle` | the check speaks about the whole board, so it takes it over |
+| choose Correctness | any | `idle` | the check speaks about the whole board, so it takes it over; the panel writes its own sentence and does not consult `HintPhase` |
 | `SELECT` / `MOVE` | `shown` | `shown` | unchanged — moving the cursor to look at the highlight must not destroy it |
 | `DIGIT` / `ERASE` / `UNDO` / `REDO` | any | `idle` | the board changed; the hint is stale |
 | `NEW_PUZZLE` / `RESET` | any | `idle` | also clear `recent` |
@@ -846,8 +856,8 @@ secondary: "Solved"
 ```
 
 Nothing disables the Hint button on a solved grid — Correctness is still a
-reasonable thing to ask for — so this string is what Tip and Number say once
-there is nothing left to work out.
+reasonable thing to ask for, and answers `Everything is correct` — so this
+string is what Tip and Number say once there is nothing left to work out.
 
 ---
 
@@ -1083,14 +1093,15 @@ It lives in `hints.ts` for one reason: this file is where every read of
 itself" without opening the answer key, so that its verdict is always one the
 player could have reached alone.
 
-The report is stored, not derived, because its two halves expire differently and
-neither expiry is a function of the grid: `correct` is a claim about the board as
-the player left it and is gone on their next move, while `incorrect` belongs to
-its cell and is dropped only by that cell's own edit — a player told they are
-wrong has to still be told it while they fix it. `placed` (the cell the Number
-choice filled) expires the same way `correct` does.
+Only `report.incorrect` is stored. The confirmed cells are dropped on the floor:
+they were the player's own work and the board says nothing about them, so the
+whole `correct` half exists to be counted and discarded. What is kept is stored
+rather than derived because its expiry is not a function of the grid — a
+rejected cell holds its mark until *that cell* is edited, since a player told
+they are wrong has to still be told it while they fix it.
 
-Both green treatments are cleared by a window-level `mousedown`/`keydown`
+`placed` (the cell the Number choice filled) is on a different clock: one move,
+whatever the move is. It is cleared by a window-level `mousedown`/`keydown`
 listener rather than by a reducer case, because "the next interaction" includes
 presses the reducer never sees. The listener can safely be installed by the very
 click that created the state: a click is the *end* of an interaction that began

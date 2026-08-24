@@ -89,6 +89,7 @@ function TestGame() {
           open: openMenu === 'hint',
           onOpenChange: (open) => setOpenMenu(open ? 'hint' : null),
           text: hintText,
+          canCheck: game.state.values.some((value) => value != null),
           onCorrectness: game.checkBoard,
           onTip: game.showHint,
           onNumber: game.placeNumber,
@@ -365,52 +366,93 @@ describe('Board + Keypad + useGame integration', () => {
       return cells
     }
 
-    it('rings the right cells green and the wrong ones red', async () => {
+    it('marks the wrong cells and says nothing at all about the right ones', async () => {
       const user = userEvent.setup()
-      render(<TestGame />)
+      const { container } = render(<TestGame />)
       const cells = await twoEntries(user)
 
       await user.click(hintButton())
       await user.click(screen.getByRole('button', { name: 'Correctness' }))
 
-      // It gets out of the way: its whole answer is on the board.
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-      expect(cells[0].className).toContain('kk-cell--correct')
-      expect(cells[6].className).toContain('kk-cell--error')
-      expect(cells[0].getAttribute('aria-label')).toMatch(/, correct$/)
+      expect(cells[6].className).toContain('kk-cell--incorrect')
       expect(cells[6].getAttribute('aria-label')).toMatch(/, incorrect$/)
+
+      // The confirmed cell is left exactly as the player left it.
+      expect(cells[0].className).toContain('kk-cell')
+      expect(cells[0].className).not.toContain('kk-cell--incorrect')
+      expect(cells[0].getAttribute('aria-label')).not.toMatch(/correct/)
+      // Nothing anywhere on the board is congratulated.
+      expect(container.querySelectorAll('.kk-cell--correct')).toHaveLength(0)
       // An empty cell is neither.
-      expect(cells[5].className).not.toContain('kk-cell--correct')
-      expect(cells[5].className).not.toContain('kk-cell--error')
+      expect(cells[5].className).not.toContain('kk-cell--incorrect')
     })
 
-    it('green goes on the next press, red stays until its own cell is edited', async () => {
+    it('reports the count in the panel, and stays open to do it', async () => {
+      const user = userEvent.setup()
+      render(<TestGame />)
+      await twoEntries(user)
+
+      await user.click(hintButton())
+      await user.click(screen.getByRole('button', { name: 'Correctness' }))
+
+      expect(screen.getByRole('dialog')).toBeInTheDocument()
+      expect(screen.getByText('The marked cell is incorrect')).toBeInTheDocument()
+    })
+
+    it('says everything is correct when it is', async () => {
+      const user = userEvent.setup()
+      render(<TestGame />)
+      const cells = screen.getAllByRole('gridcell')
+
+      await user.click(cells[0])
+      await user.keyboard(String(SAMPLE_PUZZLE.solution[0]))
+      await user.click(hintButton())
+      await user.click(screen.getByRole('button', { name: 'Correctness' }))
+
+      expect(screen.getByText('Everything is correct')).toBeInTheDocument()
+    })
+
+    it('is offered only once there is something to judge', async () => {
+      const user = userEvent.setup()
+      render(<TestGame />)
+
+      await user.click(hintButton())
+      expect(screen.getByRole('button', { name: 'Correctness' })).toBeDisabled()
+      await user.keyboard('{Escape}')
+
+      const cells = screen.getAllByRole('gridcell')
+      await user.click(cells[0])
+      await user.keyboard('1')
+
+      await user.click(hintButton())
+      expect(screen.getByRole('button', { name: 'Correctness' })).toBeEnabled()
+    })
+
+    it('a mark stays until its own cell is edited', async () => {
       const user = userEvent.setup()
       render(<TestGame />)
       const cells = await twoEntries(user)
 
       await user.click(hintButton())
       await user.click(screen.getByRole('button', { name: 'Correctness' }))
-      expect(cells[0].className).toContain('kk-cell--correct')
+      await user.keyboard('{Escape}')
 
+      // Editing an unrelated cell still leaves the mark where it was earned.
       await user.click(cells[5])
-      expect(cells[0].className).not.toContain('kk-cell--correct')
-      expect(cells[6].className).toContain('kk-cell--error')
-
-      // Editing an unrelated cell still leaves the red where it was earned.
       await user.keyboard('1')
-      expect(cells[6].className).toContain('kk-cell--error')
+      expect(cells[6].className).toContain('kk-cell--incorrect')
 
       await user.click(cells[6])
       await user.keyboard('{Backspace}')
-      expect(cells[6].className).not.toContain('kk-cell--error')
+      expect(cells[6].className).not.toContain('kk-cell--incorrect')
     })
 
     /*
      * Live conflict detection never opens the answer key, so it says nothing
-     * about a wrong-but-legal entry. The check is the only thing that can.
+     * about a wrong-but-legal entry. The check is the only thing that can — and
+     * the two wear different marks, because they are claims of different sizes.
      */
-    it('is a different claim from a conflict, and outlives one', async () => {
+    it('is a different claim from a conflict, and wears a different mark', async () => {
       const user = userEvent.setup()
       const { container } = render(<TestGame />)
       const cells = screen.getAllByRole('gridcell')
@@ -418,10 +460,13 @@ describe('Board + Keypad + useGame integration', () => {
       await user.click(cells[6])
       await user.keyboard('2')
       expect(cells[6].className).not.toContain('kk-cell--error')
+      expect(cells[6].className).not.toContain('kk-cell--incorrect')
 
       await user.click(hintButton())
       await user.click(screen.getByRole('button', { name: 'Correctness' }))
-      expect(cells[6].className).toContain('kk-cell--error')
+
+      expect(cells[6].className).toContain('kk-cell--incorrect')
+      expect(cells[6].className).not.toContain('kk-cell--error')
       // Still nothing for the board's conflict region to announce.
       expect(container.querySelector('.kk-board__errors')).toBeEmptyDOMElement()
     })
