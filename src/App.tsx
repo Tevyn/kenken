@@ -43,10 +43,6 @@ function App() {
   const winOpen = solvedSeen && !winDismissed;
 
   const openHint = useCallback(() => setOpenMenu('hint'), []);
-  const handleHintOpenChange = useCallback(
-    (open: boolean) => setOpenMenu(open ? 'hint' : null),
-    [],
-  );
 
   // Lazy initialiser so storage is read once, at mount, rather than on every render.
   const [initialAutoClearMarks] = useState(loadAutoClearMarks);
@@ -69,6 +65,21 @@ function App() {
     suspended: openMenu !== null || winOpen,
     onRequestHint: openHint,
   });
+
+  /*
+   * Closing the panel also drops whatever it was explaining, so the board's
+   * highlight lives and dies with the open panel rather than lingering until
+   * the next edit. `dismissHint` is a no-op when nothing is shown, so closing a
+   * panel that only ever displayed the three choices costs nothing.
+   */
+  const dismissHint = game.dismissHint;
+  const handleHintOpenChange = useCallback(
+    (open: boolean) => {
+      setOpenMenu(open ? 'hint' : null);
+      if (!open) dismissHint();
+    },
+    [dismissHint],
+  );
 
   /*
    * The panel prints whatever the game last worked out, whichever choice asked
