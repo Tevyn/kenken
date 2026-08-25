@@ -3,9 +3,6 @@ import { CorrectnessIcon, HintIcon, NumberIcon, TipIcon } from './icons';
 import { Popover } from './Popover';
 import './HintMenu.css';
 
-/* The panel is named by its own heading, which both screens keep. */
-const HEADING_ID = 'kk-hint-menu-heading';
-
 interface ChoicesProps {
   text: string | null;
   canCheck: boolean;
@@ -56,10 +53,6 @@ function HintChoices({ text, canCheck, onCorrectness, onTip, onNumber, onClose }
 
   return (
     <>
-      <h2 className="kk-popover__heading" id={HEADING_ID}>
-        Hint
-      </h2>
-
       {screen.kind !== 'choices' ? (
         <p className="kk-hint-menu__text" ref={textRef} tabIndex={-1}>
           {screen.kind === 'own' ? screen.text : text}
@@ -161,8 +154,8 @@ export function HintMenu({
   return (
     <Popover
       label="Hint"
-      panelLabelledBy={HEADING_ID}
       className="kk-hint-menu"
+      animated
       trigger={
         <>
           <HintIcon size={22} />

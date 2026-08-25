@@ -73,8 +73,8 @@ describe('Controls', () => {
       render(<ControlsHarness {...baseProps()} />);
 
       await user.click(newGameButton());
-      expect(screen.getByRole('dialog', { name: 'Size' })).toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: 'Size' })).toBeInTheDocument();
+      expect(screen.getByRole('dialog', { name: 'New game' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'New game' })).toBeInTheDocument();
 
       const sizes = screen.getAllByRole('button', { name: /^\d by \d$/ });
       expect(sizes).toHaveLength(7);
@@ -94,9 +94,11 @@ describe('Controls', () => {
       await user.click(screen.getByRole('button', { name: '6 by 6' }));
 
       expect(screen.queryByRole('button', { name: '6 by 6' })).not.toBeInTheDocument();
-      // The heading carries the size just committed — there is no way back to check.
-      expect(screen.getByRole('dialog', { name: /6 by 6.*Difficulty/ })).toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: /6 by 6.*Difficulty/ })).toBeInTheDocument();
+      // The title stays "New game"; the meta line under it carries the size just
+      // committed — there is no way back to check.
+      expect(screen.getByRole('dialog', { name: 'New game' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'New game' })).toBeInTheDocument();
+      expect(screen.getByText('6 by 6')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Easy' })).toHaveAttribute('aria-current', 'true');
       expect(screen.getByRole('button', { name: 'Hard' })).not.toHaveAttribute('aria-current');
       // Step one commits nothing on its own.
@@ -139,7 +141,7 @@ describe('Controls', () => {
       await user.keyboard('{Escape}');
       await user.click(newGameButton());
 
-      expect(screen.getByRole('dialog', { name: 'Size' })).toBeInTheDocument();
+      expect(screen.getByRole('dialog', { name: 'New game' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: '5 by 5' })).toBeInTheDocument();
     });
   });
@@ -240,11 +242,11 @@ describe('Controls', () => {
       render(<ControlsHarness {...baseProps()} />);
 
       await user.click(newGameButton());
-      expect(screen.getByRole('dialog', { name: 'Size' })).toBeInTheDocument();
+      expect(screen.getByRole('dialog', { name: 'New game' })).toBeInTheDocument();
 
       await user.click(settingsButton());
       expect(screen.getByRole('dialog', { name: 'Settings' })).toBeInTheDocument();
-      expect(screen.queryByRole('dialog', { name: 'Size' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('dialog', { name: 'New game' })).not.toBeInTheDocument();
       expect(newGameButton()).toHaveAttribute('aria-expanded', 'false');
       expect(settingsButton()).toHaveAttribute('aria-expanded', 'true');
     });
@@ -263,14 +265,11 @@ describe('Controls', () => {
 
       const options = screen.getAllByRole('button', { name: /^\d by \d$/ });
       const first = options[0];
-      // The panel's own close button is the last stop in the cycle, after
-      // everything the wizard put in it.
-      const last = screen.getByRole('button', { name: 'Close New game' });
+      // The size tiles are the whole of the panel's focusable content — the
+      // title and its meta line are not focusable, and there is no close button.
+      const last = options[options.length - 1];
 
-      options[options.length - 1].focus();
-      await user.tab();
-      expect(last).toHaveFocus();
-
+      last.focus();
       // Tab off the end wraps to the top of the panel, not out to the board.
       await user.tab();
       expect(first).toHaveFocus();

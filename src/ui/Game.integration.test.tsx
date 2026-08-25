@@ -274,7 +274,7 @@ describe('Board + Keypad + useGame integration', () => {
 
     // Closing the panel leaves the board's half of the hint alone: reading the
     // sentence and then studying the grid is one thought, not two.
-    await user.click(screen.getByRole('button', { name: 'Close Hint' }));
+    await user.keyboard('{Escape}');
     expect(cells[14].className).toContain('kk-cell--hint-focus');
   });
 
@@ -285,7 +285,7 @@ describe('Board + Keypad + useGame integration', () => {
 
     await user.click(hintButton());
     await user.click(screen.getByRole('button', { name: 'Tip' }));
-    await user.click(screen.getByRole('button', { name: 'Close Hint' }));
+    await user.keyboard('{Escape}');
 
     await user.click(cells[0]);
     await user.keyboard('1');
@@ -513,7 +513,7 @@ describe('Board + Keypad + useGame integration', () => {
      * ends up with focus - on the size being played, as always.
      */
     expect(screen.queryByRole('dialog', { name: 'Solved' })).not.toBeInTheDocument();
-    expect(screen.getByRole('dialog', { name: 'Size' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'New game' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '4 by 4' })).toHaveFocus();
   });
 
@@ -625,7 +625,7 @@ describe('Board + Keypad + useGame integration', () => {
       expect(valueOf(cells[0])).toBe('1');
 
       await user.keyboard('h');
-      expect(screen.getByRole('dialog')).toHaveAccessibleName(/Size/);
+      expect(screen.getByRole('dialog')).toHaveAccessibleName('New game');
       expect(hintButton()).toHaveAttribute('aria-expanded', 'false');
 
       await user.keyboard('{Backspace}');

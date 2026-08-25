@@ -1,12 +1,34 @@
 import { useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import type { Difficulty } from '../engine/types';
 import { DIFFICULTIES, MAX_SIZE, MIN_SIZE } from '../engine/types';
 import { DifficultyIcon, GridIcon, NewGameIcon } from './icons';
 import { Popover } from './Popover';
 import './NewGameMenu.css';
 
-/* The panel is named by whichever step heading is on screen. */
+/* The panel is named by its title, which reads "New game" on both steps. */
 const HEADING_ID = 'kk-newgame-heading';
+
+/**
+ * The panel's title, the same on both steps, with an optional meta line under
+ * it. The title alone no longer says which step you are on — step two used to
+ * restate the chosen size in its heading — so the size moves to the meta line,
+ * the same split-for-screen-readers form the app header uses (App.tsx §6.1).
+ *
+ * Step one has nothing chosen yet, so it passes no meta; the line is still
+ * rendered, and reserved by CSS, so the title and the tiles under it sit at the
+ * same height on both steps and the panel does not jump as the wizard advances.
+ */
+function StepHeader({ meta }: { meta?: ReactNode }) {
+  return (
+    <div className="kk-newgame__header">
+      <h2 className="kk-newgame__title" id={HEADING_ID}>
+        New game
+      </h2>
+      <p className="kk-newgame__meta">{meta}</p>
+    </div>
+  );
+}
 
 const SIZES = Array.from({ length: MAX_SIZE - MIN_SIZE + 1 }, (_, i) => MIN_SIZE + i);
 
@@ -52,9 +74,7 @@ function NewGameWizard({ size, difficulty, onStartGame }: WizardProps) {
   if (step === 'size') {
     return (
       <div className="kk-newgame__step">
-        <h2 className="kk-popover__heading" id={HEADING_ID}>
-          Size
-        </h2>
+        <StepHeader />
         <div className="kk-newgame__options">
           {SIZES.map((option) => (
             <button
@@ -89,15 +109,19 @@ function NewGameWizard({ size, difficulty, onStartGame }: WizardProps) {
   return (
     <div className="kk-newgame__step">
       {/*
-        Step two shows nothing you chose in step one unless the heading says
+        Step two shows nothing you chose in step one unless the meta line says
         it — and there is no way back to check.
       */}
-      <h2 className="kk-popover__heading" id={HEADING_ID}>
-        <span aria-hidden="true">
-          {pendingSize}×{pendingSize}
-        </span>
-        <span className="kk-sr-only">{`${pendingSize} by ${pendingSize}`}</span> Difficulty
-      </h2>
+      <StepHeader
+        meta={
+          <>
+            <span aria-hidden="true">
+              {pendingSize}×{pendingSize}
+            </span>
+            <span className="kk-sr-only">{`${pendingSize} by ${pendingSize}`}</span>
+          </>
+        }
+      />
       <div className="kk-newgame__options kk-newgame__options--difficulty" ref={difficultyRef}>
         {DIFFICULTIES.map((option) => (
           <button
