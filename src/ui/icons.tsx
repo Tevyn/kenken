@@ -298,6 +298,37 @@ export function NumberIcon(props: IconProps) {
   );
 }
 
+/**
+ * Combinations: a short stacked list, a leading tick-mark bullet on each row.
+ *
+ * The choice enumerates the ways a cage could be filled and sorts the ones the
+ * board still allows above the ones it has ruled out — so the glyph is a *list
+ * of options being sifted*, not the board (that is `NumberIcon`) and not a
+ * sentence (that is `TipIcon`'s bubble). Three rows read as "several", which is
+ * the whole point: a combinations list is never one line.
+ *
+ * The bullets are short ticks rather than dots or squares. A dot column reads as
+ * the pencil-mark keypad, and a checkbox column claims each row is toggleable,
+ * which it is not; a small rising tick says "an entry in a checklist" without
+ * promising interaction. They sit ~4 units clear of the text lines so the two
+ * do not fuse into one bar at a 1.83px stroke and 22px render — the same trap
+ * `TipIcon` and the grid dividers call out. The rows are held to the right two
+ * thirds for the same reason the bullets are kept short: a full-width rule
+ * beside a full-height tick closes the gap between them at render size.
+ */
+export function CombinationsIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M3 6.5 4.5 8 7 5" />
+      <path d="M3 12.5 4.5 14 7 11" />
+      <path d="M3 18.5 4.5 20 7 17" />
+      <line x1="11" y1="6" x2="21" y2="6" />
+      <line x1="11" y1="12" x2="21" y2="12" />
+      <line x1="11" y1="18" x2="21" y2="18" />
+    </IconBase>
+  );
+}
+
 /*
  * ---------------------------------------------------------------------------
  * Grid glyphs

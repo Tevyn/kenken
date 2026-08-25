@@ -87,12 +87,17 @@
 }
 
 /*
- * Three across, glyph over label, the same stack the toolbar underneath wears
- * (§4.1) - the panel is an extension of that row and reads as one.
+ * Two by two, glyph over label, the same stack the toolbar underneath wears
+ * (§4.1). Three across is what a single toolbar row wears, and the panel wore
+ * it too while it held three choices; the fourth (Combinations) does not fit a
+ * row this narrow - the panel is only three of the toolbar's four columns wide,
+ * so a fourth tile there squeezes the labels past legibility. A 2x2 pad keeps
+ * every tile as wide as it was and the longest label ("Combinations") on one
+ * line.
  */
 .kk-hint-menu__choices {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--sp-1);
   margin-top: var(--sp-2);
 }
@@ -124,4 +129,63 @@
   font-size: 15px;
   line-height: 1.4;
   color: var(--text-h);
+}
+
+/*
+ * The combination list. It replaces the tiles the same way the tip prose does,
+ * so it takes the same tile-padding inset (see `.kk-hint-menu__text`) on the
+ * sides it has to itself. Focusable as a whole (`tabIndex` in the markup) so a
+ * press on the choice lands focus here rather than on the body, so its own
+ * outline is suppressed - the panel is the modal surface, not this region.
+ */
+.kk-combos {
+  margin-top: var(--sp-2);
+  padding: 0 var(--sp-2);
+  outline: none;
+}
+
+/* Names the cage the list is for. The same quiet grey as the panel heading. */
+.kk-combos__caption {
+  margin: 0 0 var(--sp-2);
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* The overflow fallback and the empty case both read as one muted line. */
+.kk-combos__note {
+  margin: 0 0 var(--sp-2);
+  font-size: 15px;
+  color: var(--text-muted);
+}
+
+.kk-combos__list {
+  list-style: none;
+  margin: 0 0 var(--sp-2);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+/*
+ * One combination. Lining figures so the operands line up column-wise down the
+ * list - a ragged "2 ÷ 1 / 4 ÷ 2" reads worse than a tidy one, and the digits
+ * are the content here.
+ */
+.kk-combos__item {
+  font-size: 16px;
+  line-height: 1.3;
+  color: var(--text-h);
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Ruled out: greyed and struck. Two cues, not one - colour alone would fail the
+ * non-colour-cue rule (§2.4), and the strike is the honest picture of "this one
+ * is crossed off" besides. These sort below the possible ones already (the
+ * engine orders them), so the strike-through band sits at the bottom.
+ */
+.kk-combos__item--ruled-out {
+  color: var(--text-muted);
+  text-decoration: line-through;
 }

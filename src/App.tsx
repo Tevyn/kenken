@@ -135,6 +135,9 @@ function App() {
     [game.state.values],
   );
 
+  /* Combinations lists the selected cell's cage, so it needs a selection. */
+  const canCombine = game.state.selected != null;
+
   /* Restarting an untouched board would do nothing but add an undo entry. */
   const canRestart = useMemo(
     () =>
@@ -290,9 +293,11 @@ function App() {
             onOpenChange: handleHintOpenChange,
             text: hintText,
             canCheck,
+            canCombine,
             onCorrectness: game.checkBoard,
             onTip: game.showHint,
             onNumber: game.placeNumber,
+            onCombinations: game.combinationsFor,
           }}
         />
       </div>

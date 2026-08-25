@@ -93,9 +93,11 @@ function TestGame() {
           },
           text: hintText,
           canCheck: game.state.values.some((value) => value != null),
+          canCombine: game.state.selected != null,
           onCorrectness: game.checkBoard,
           onTip: game.showHint,
           onNumber: game.placeNumber,
+          onCombinations: game.combinationsFor,
         }}
       />
     </div>

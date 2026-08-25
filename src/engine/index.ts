@@ -12,6 +12,7 @@
  *   candidates.ts  reporting-oriented candidate bookkeeping for the hint engine
  *   unitSums.ts    the N(N+1)/2 innie/outie deductions
  *   hints.ts       the hint ladder: find, explain, highlight, apply
+ *   combinations.ts  per-cage combination listing for the Combinations panel
  */
 
 import type { CellIndex, Grid, Puzzle } from './types';
@@ -51,6 +52,8 @@ export type {
 } from './hints';
 export { unitTotal } from './unitSums';
 export type { UnitSumInnie, UnitSumOutie } from './unitSums';
+export { cageCombinations } from './combinations';
+export type { CageCombination } from './combinations';
 
 /**
  * Find solutions to a puzzle's cage constraints (ignores `puzzle.solution`).

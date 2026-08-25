@@ -20,9 +20,11 @@ function baseProps(mode: Mode = 'value') {
       onOpenChange: vi.fn(),
       text: null,
       canCheck: true,
+      canCombine: true,
       onCorrectness: vi.fn(() => 0),
       onTip: vi.fn(),
       onNumber: vi.fn(() => true),
+      onCombinations: vi.fn(() => ({ cageLabel: '2÷', lines: [] })),
     },
   };
 }

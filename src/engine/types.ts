@@ -94,6 +94,20 @@ export function cageLabel(cage: Cage): string {
 }
 
 /**
+ * One cage combination written out as arithmetic, e.g. `"1 + 2"`, `"8 ÷ 4"`, or
+ * just `"3"` for a single-cell cage.
+ *
+ * `digits` is expected ascending; subtraction and division are printed
+ * larger-operand-first so the expression evaluates to the cage's target, the way
+ * a solver would read them off the grid (`4 − 1`, not `1 − 4`).
+ */
+export function combinationText(op: Op, digits: readonly number[]): string {
+  if (op === '=') return String(digits[0]);
+  const ordered = op === '-' || op === '/' ? [...digits].reverse() : digits;
+  return ordered.join(` ${OP_GLYPH[op]} `);
+}
+
+/**
  * The cell a cage's label should be drawn in: its top-left-most cell.
  *
  * `Cage.cells` is documented as sorted ascending, so this is normally

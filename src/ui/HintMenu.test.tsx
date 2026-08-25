@@ -12,9 +12,11 @@ function HintMenuHarness(props: Partial<Omit<HintMenuProps, 'open' | 'onOpenChan
     <HintMenu
       text={null}
       canCheck
+      canCombine
       onCorrectness={() => 0}
       onTip={() => {}}
       onNumber={() => true}
+      onCombinations={() => ({ cageLabel: '2÷', lines: [] })}
       {...props}
       open={open}
       onOpenChange={setOpen}
@@ -26,7 +28,7 @@ const trigger = () => screen.getByRole('button', { name: 'Hint' });
 const choice = (name: string) => screen.getByRole('button', { name });
 
 describe('HintMenu', () => {
-  it('opens on the three choices, focused on the first', async () => {
+  it('opens on the four choices, focused on the first', async () => {
     const user = userEvent.setup();
     render(<HintMenuHarness />);
 
@@ -34,7 +36,7 @@ describe('HintMenu', () => {
     await user.click(trigger());
 
     expect(screen.getByRole('dialog')).toHaveAccessibleName('Hint');
-    for (const name of ['Correctness', 'Tip', 'Number']) {
+    for (const name of ['Correctness', 'Tip', 'Number', 'Combinations']) {
       expect(choice(name)).toBeInTheDocument();
     }
     expect(choice('Correctness')).toHaveFocus();
@@ -160,8 +162,78 @@ describe('HintMenu', () => {
     expect(screen.getByText('Every step is already taken')).toBeInTheDocument();
   });
 
+  /* Like Tip: the list has something to show, so it replaces the choices with
+     it rather than closing. There is nothing to write on the board. */
+  it('Combinations lists the cage, possible ones first, in the same panel', async () => {
+    const user = userEvent.setup();
+    const onCombinations = vi.fn(() => ({
+      cageLabel: '2÷',
+      lines: [
+        { text: '2 ÷ 1', possible: true },
+        { text: '4 ÷ 2', possible: true },
+        { text: '6 ÷ 3', possible: false },
+      ],
+    }));
+    render(<HintMenuHarness onCombinations={onCombinations} />);
+
+    await user.click(trigger());
+    await user.click(choice('Combinations'));
+
+    expect(onCombinations).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByText('Ways to make 2÷')).toBeInTheDocument();
+    expect(screen.getByText('2 ÷ 1')).toBeInTheDocument();
+    expect(screen.getByText('4 ÷ 2')).toBeInTheDocument();
+    // The list took the panel over; the choices are gone.
+    expect(screen.queryByRole('button', { name: 'Combinations' })).not.toBeInTheDocument();
+  });
+
+  /* Ruled-out combinations carry a spoken tail, so the state never rests on the
+     strike-through colour alone. */
+  it('marks a ruled-out combination for assistive tech', async () => {
+    const user = userEvent.setup();
+    const onCombinations = vi.fn(() => ({
+      cageLabel: '2÷',
+      lines: [
+        { text: '2 ÷ 1', possible: true },
+        { text: '6 ÷ 3', possible: false },
+      ],
+    }));
+    render(<HintMenuHarness onCombinations={onCombinations} />);
+
+    await user.click(trigger());
+    await user.click(choice('Combinations'));
+
+    expect(screen.getByText('6 ÷ 3, ruled out')).toBeInTheDocument();
+  });
+
+  /* No selection, no cage to list. §4.2.1: the choice loses its ink. */
+  it('disables Combinations when nothing is selected', async () => {
+    const user = userEvent.setup();
+    const onCombinations = vi.fn(() => null);
+    render(<HintMenuHarness canCombine={false} onCombinations={onCombinations} />);
+
+    await user.click(trigger());
+    expect(choice('Combinations')).toBeDisabled();
+
+    await user.click(choice('Combinations'));
+    expect(onCombinations).not.toHaveBeenCalled();
+    expect(choice('Combinations')).toBeInTheDocument();
+  });
+
+  /* A cage too big to enumerate says so rather than showing an empty list. */
+  it('falls back to a note when there are too many combinations', async () => {
+    const user = userEvent.setup();
+    render(<HintMenuHarness onCombinations={() => ({ cageLabel: '20+', lines: null })} />);
+
+    await user.click(trigger());
+    await user.click(choice('Combinations'));
+
+    expect(screen.getByText('Too many combinations to list')).toBeInTheDocument();
+  });
+
   /* The popover unmounts its children on close, which is the whole reset. */
-  it('reopening starts back at the three choices', async () => {
+  it('reopening starts back at the choices', async () => {
     const user = userEvent.setup();
     render(<HintMenuHarness text="This cell has to be 2" />);
 

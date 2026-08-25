@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
-import { checkCorrectness, findHint, findNextNumber } from '../engine';
+import {
+  cageCombinations,
+  cageLabel,
+  checkCorrectness,
+  combinationText,
+  findHint,
+  findNextNumber,
+} from '../engine';
 import type { CellIndex, Puzzle } from '../engine/types';
 import type { Direction, GameAction, Mode } from './state';
 import { createInitialState, gameReducer, hintHighlight } from './state';
@@ -32,6 +39,22 @@ export interface UseGameOptions {
    * game has no business reaching up to open it.
    */
   onRequestHint?: () => void;
+}
+
+/** One line of the Combinations panel: an arithmetic expression, still allowed or not. */
+export interface CombinationLine {
+  /** The combination written out, e.g. `"8 ÷ 4"`. */
+  text: string;
+  /** False when the board has ruled this combination out. */
+  possible: boolean;
+}
+
+/** What the Combinations choice shows for the selected cell's cage. */
+export interface CombinationsView {
+  /** The cage's label, e.g. `"2÷"`, naming which cage the list is for. */
+  cageLabel: string;
+  /** Every combination, possible first; `null` when there are too many to list. */
+  lines: CombinationLine[] | null;
 }
 
 function directionForKey(key: string): Direction | null {
@@ -165,6 +188,32 @@ export function useGame(initialPuzzle: Puzzle, options?: UseGameOptions) {
     return true;
   }, [hintOptions]);
 
+  /**
+   * The panel's Combinations choice: every digit set the selected cell's cage
+   * could hold, with the ones the board rules out marked. Read from `stateRef`
+   * on the press like the other choices, and null when nothing is selected — the
+   * choice is disabled then, so the panel never actually calls it in that state.
+   */
+  const combinationsFor = useCallback((): CombinationsView | null => {
+    const current = stateRef.current;
+    const selected = current.selected;
+    if (selected == null) return null;
+    const { puzzle, values } = current;
+    const cage = puzzle.cages.find((c) => c.cells.includes(selected));
+    if (!cage) return null;
+    const combos = cageCombinations(puzzle, values, cage);
+    return {
+      cageLabel: cageLabel(cage),
+      lines:
+        combos === null
+          ? null
+          : combos.map((c) => ({
+              text: combinationText(cage.op, c.digits),
+              possible: c.possible,
+            })),
+    };
+  }, []);
+
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       // Before anything else, and before any preventDefault: while suspended the
@@ -277,6 +326,7 @@ export function useGame(initialPuzzle: Puzzle, options?: UseGameOptions) {
       showHint,
       checkBoard,
       placeNumber,
+      combinationsFor,
       canUndo,
       canRedo,
       highlight,
@@ -298,6 +348,7 @@ export function useGame(initialPuzzle: Puzzle, options?: UseGameOptions) {
       showHint,
       checkBoard,
       placeNumber,
+      combinationsFor,
       canUndo,
       canRedo,
       highlight,
