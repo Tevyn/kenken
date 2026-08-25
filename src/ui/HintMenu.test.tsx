@@ -98,13 +98,14 @@ describe('HintMenu', () => {
     expect(choice('Correctness')).toBeInTheDocument();
   });
 
-  /* A disabled button is not a tab stop, so entry focus falls to the next one. */
-  it('opens focused on Tip when Correctness is disabled', async () => {
+  /* A disabled button is not a tab stop, so entry focus falls to the next one -
+     Combinations, which sits second in the row. */
+  it('opens focused on Combinations when Correctness is disabled', async () => {
     const user = userEvent.setup();
     render(<HintMenuHarness canCheck={false} />);
 
     await user.click(trigger());
-    expect(choice('Tip')).toHaveFocus();
+    expect(choice('Combinations')).toHaveFocus();
   });
 
   it('Tip replaces the choices with the sentence, in the same panel', async () => {
@@ -126,7 +127,7 @@ describe('HintMenu', () => {
    * focus falls back to the body and the panel loses its keyboard flow - and
    * landing on the sentence is also what reads it out.
    */
-  it('focus follows the sentence in, and the close button is still reachable', async () => {
+  it('focus follows the sentence in, and Escape is the way back out', async () => {
     const user = userEvent.setup();
     render(<HintMenuHarness text="Only 1 can go here in row 4" />);
 
@@ -134,8 +135,9 @@ describe('HintMenu', () => {
     await user.click(choice('Tip'));
     expect(screen.getByText('Only 1 can go here in row 4')).toHaveFocus();
 
-    await user.tab();
-    expect(screen.getByRole('button', { name: 'Close Hint' })).toHaveFocus();
+    // The tip screen has no focusable control of its own, so Escape closes it.
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('Number writes its digit and closes', async () => {
@@ -241,19 +243,10 @@ describe('HintMenu', () => {
     await user.click(choice('Tip'));
     expect(screen.getByText('This cell has to be 2')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Close Hint' }));
+    await user.keyboard('{Escape}');
     await user.click(trigger());
 
     expect(choice('Tip')).toBeInTheDocument();
     expect(screen.queryByText('This cell has to be 2')).not.toBeInTheDocument();
-  });
-
-  /* One × per panel, supplied by `Popover` - the old banner's own dismiss is gone. */
-  it('carries exactly one way out', async () => {
-    const user = userEvent.setup();
-    render(<HintMenuHarness />);
-
-    await user.click(trigger());
-    expect(screen.getAllByRole('button', { name: /^Close/ })).toHaveLength(1);
   });
 });

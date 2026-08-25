@@ -27,6 +27,37 @@
   min-width: min(17rem, calc(100vw - 56px));
 }
 
+/*
+ * The panel's title, centred over the tiles. Unlike the other panels' section
+ * labels — small grey text that names a group under it — this titles the whole
+ * flow, so it is larger and darker (near the app's own H1 weight) and reads as
+ * a dialog title. The same on both steps; the step is told by the meta line.
+ */
+.kk-newgame__header {
+  text-align: center;
+}
+
+.kk-newgame__title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text-h);
+}
+
+/*
+ * The chosen size on step two, in the header's puzzle-meta line (§6.1): grey,
+ * small, under the title. Rendered on step one too but left empty, so `min-height`
+ * holds the row and the title and tiles do not shift as the wizard advances.
+ */
+.kk-newgame__meta {
+  margin: var(--sp-1) 0 0;
+  min-height: 1.2em;
+  font-size: 13px;
+  line-height: 1.2;
+  color: var(--text-muted);
+}
+
 .kk-newgame__options {
   display: grid;
   /* 4 + 3 across two rows: no lone button with half a panel beside it. */

@@ -1,10 +1,29 @@
-import { useCallback, useEffect, useRef } from 'react';
-import type { KeyboardEvent as ReactKeyboardEvent, ReactNode, RefObject } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type {
+  AnimationEvent as ReactAnimationEvent,
+  KeyboardEvent as ReactKeyboardEvent,
+  ReactNode,
+  RefObject,
+} from 'react';
 import './Popover.css';
 
 /** Anything that can hold focus inside a panel, in DOM order. */
 const FOCUSABLE =
   'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])';
+
+/**
+ * Whether an exit animation will actually run: motion is allowed, and there is
+ * a real browser to run it in. Where it won't — a reader who asked for less
+ * motion, or a test environment (jsdom has no `matchMedia`) — the closing panel
+ * unmounts at once instead of waiting for an `animationend` that never comes.
+ */
+function exitAnimates(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
+}
 
 export interface PopoverPanelProps {
   open: boolean;
@@ -20,6 +39,15 @@ export interface PopoverPanelProps {
    * focus back when the panel closes.
    */
   anchorRef?: RefObject<HTMLElement | null>;
+  /**
+   * Keep the panel mounted through an exit animation. Off by default: a panel
+   * just disappears on close. When on, the panel stays in the DOM after `open`
+   * goes false and carries `data-state="closing"` until its own CSS animation
+   * ends, then unmounts — so the stylesheet can slide it out. `data-state` is
+   * `"open"` the rest of the time, which is also what the entry animation runs
+   * on. Only the hint sheet uses this (HintMenu.css).
+   */
+  animated?: boolean;
   children: ReactNode;
 }
 
@@ -40,9 +68,51 @@ export function PopoverPanel({
   label,
   labelledBy,
   anchorRef,
+  animated = false,
   children,
 }: PopoverPanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  /*
+   * Whether the panel is in the DOM, which lags `open` on the way out only when
+   * an exit animation has to finish first. Mount is immediate — the render-phase
+   * update below lands before this commit paints, so the entry-focus effect
+   * still finds the panel on the same commit `open` turned true. A non-animated
+   * panel ignores this entirely and keys off `open`.
+   */
+  const [rendered, setRendered] = useState(open);
+  if (animated && open && !rendered) setRendered(true);
+  /*
+   * Linger past the close only for a slide-out that will actually run. Where it
+   * won't — a reader who asked for less motion, or a test with no `matchMedia`
+   * — the panel is gone the moment `open` is, derived right here rather than
+   * chased down through an effect.
+   */
+  const show = animated ? open || (rendered && exitAnimates()) : open;
+
+  /*
+   * The panel's own slide-out is what unmounts it. A child's animation ending,
+   * or the slide-in ending, must not — hence the target check and the `!open`
+   * guard, which also means a reopen mid-close simply cancels the unmount.
+   */
+  const handleAnimationEnd = useCallback(
+    (event: ReactAnimationEvent<HTMLDivElement>) => {
+      if (event.target !== panelRef.current) return;
+      if (!open) setRendered(false);
+    },
+    [open],
+  );
+
+  /*
+   * A safety net for the slide-out. `animationend` above is the exact unmount;
+   * this only matters if that event never arrives — a backgrounded tab, say —
+   * so the invisible shield can't be left sitting over the page for good. It
+   * arms only while a panel is actually mid-slide-out.
+   */
+  useEffect(() => {
+    if (!animated || open || !rendered || !exitAnimates()) return;
+    const timer = window.setTimeout(() => setRendered(false), 400);
+    return () => window.clearTimeout(timer);
+  }, [animated, open, rendered]);
   const wasOpen = useRef(false);
   /** Where focus was when the panel opened; the fallback when there is no anchor. */
   const returnTo = useRef<HTMLElement | null>(null);
@@ -83,9 +153,15 @@ export function PopoverPanel({
        * before this one. Focus on anything but `<body>` therefore means someone
        * else already owns it, and taking it back would yank the player out of
        * the panel that just opened.
+       *
+       * The exception is focus still inside *this* panel: an animated panel
+       * outlives its own close by the length of the slide-out (see `rendered`),
+       * so the option that had focus is still here and still holds it. That is
+       * focus the close orphaned — the panel is leaving — so it is reclaimed
+       * too, ahead of the unmount that would otherwise drop it on `<body>`.
        */
       const active = document.activeElement;
-      if (active === null || active === document.body) {
+      if (active === null || active === document.body || panelRef.current?.contains(active)) {
         /*
          * The anchor first, because it outlives the panel. The remembered
          * element is the fallback for an anchorless panel, and it can be gone
@@ -163,7 +239,7 @@ export function PopoverPanel({
     }
   }, []);
 
-  if (!open) return null;
+  if (!show) return null;
 
   return (
     <>
@@ -183,7 +259,9 @@ export function PopoverPanel({
         aria-modal="true"
         aria-label={labelledBy ? undefined : label}
         aria-labelledby={labelledBy}
+        data-state={open ? 'open' : 'closing'}
         onKeyDown={onPanelKeyDown}
+        onAnimationEnd={handleAnimationEnd}
       >
         {children}
       </div>
@@ -230,6 +308,8 @@ export interface PopoverProps {
   className?: string;
   /** Keyboard shortcut that opens this panel, advertised on the trigger. */
   triggerKeyShortcuts?: string;
+  /** Keep the panel mounted for a CSS exit animation. See `PopoverPanel`. */
+  animated?: boolean;
   children: ReactNode;
 }
 
@@ -241,9 +321,10 @@ export interface PopoverProps {
  * enough that dangling one from a corner left it lopsided, so the choice is
  * now put where the player is already looking and the option is gone.
  *
- * Every panel opened this way also carries the same close button in its
- * corner. Escape and a press outside both close it, but neither is visible;
- * the × is the way out that can be seen, in the same place every time.
+ * There is deliberately no close button. Every panel is dismissed the same two
+ * ways — Escape, or a press outside — so a visible × was a third way that only
+ * these trigger-opened panels had, and the tap-out is discoverable enough on a
+ * surface that floats over a shielded page.
  */
 export function Popover({
   label,
@@ -255,6 +336,7 @@ export function Popover({
   triggerClassName,
   className,
   triggerKeyShortcuts,
+  animated = false,
   children,
 }: PopoverProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -289,35 +371,9 @@ export function Popover({
         label={label}
         labelledBy={panelLabelledBy}
         anchorRef={triggerRef}
+        animated={animated}
       >
         {children}
-
-        {/*
-          Permanent chrome: every panel opened by a trigger gets one whether or
-          not it asked, so the way out of a popover is in the same corner every
-          time. Escape and a press outside the panel do the same thing, but a
-          player using a pointer has to guess that either exists.
-
-          It is deliberately the *last* focusable thing in the panel. The open
-          effect falls back to `focusable[0]` when nothing is marked current,
-          and a close button ahead of the content would make that fallback "the
-          way out" — the panel would open with the player's finger on the exit.
-          Last also keeps it clear of the panels whose entry focus lands on a
-          current option they still reach first.
-
-          `PopoverPanel` itself does not add one: a panel with no trigger is
-          not always a popover. The solved dialog is the case in point — it
-          offers the move that follows instead, and a dismiss button beside it
-          would make leaving look like a decision.
-        */}
-        <button
-          type="button"
-          className="kk-control kk-popover__close"
-          aria-label={`Close ${label}`}
-          onClick={handleClose}
-        >
-          ×
-        </button>
       </PopoverPanel>
     </div>
   );

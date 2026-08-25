@@ -1,13 +1,8 @@
 /*
  * The popover root is one of the action row's four grid cells, so it stretches
  * like the three bare buttons beside it instead of hugging its own trigger.
- *
- * It is also `relative`, which is what makes the panel below possible: this is
- * the one panel in the app that hangs off its trigger rather than sitting in
- * the middle of the page, so it needs a containing block that *is* the trigger.
  */
 .kk-hint-menu {
-  position: relative;
   display: flex;
 }
 
@@ -16,90 +11,80 @@
 }
 
 /*
- * Up and to the left, which is the only direction left. The controls are
- * anchored to the bottom of the viewport (STYLE_GUIDE.md §1.1), so a panel
- * hanging below the trigger hangs off the screen; the trigger is the last of
- * four, so one opening rightward runs past the content column. Its bottom edge
- * stays level with the row it belongs to and it grows upward, covering Undo,
- * Redo and Notes - which are unusable while a modal panel is open anyway. The
- * trigger itself stays visible beside it, which is the point: a panel that
- * covers the button that opened it hides the way back out.
+ * A bottom sheet: flush to the bottom of the screen, the width of the content
+ * column, sliding up into place. The other panels drop from the top (Popover.css);
+ * this one rises from the bottom, next to the controls it belongs with, and
+ * covers Undo/Redo/Notes/the digits - all unusable while a modal is open anyway.
  *
- * `absolute`, against the trigger's own cell, rather than the `fixed` every
- * other panel uses. `fixed` resolves against `.kk-app` (see Popover.css), so
- * `right: 100%` there means the left edge of the *page*, not of the button -
- * and with the centred rule's `left: 50%` also in play the box was
- * over-constrained, `right` was dropped, and the panel landed centred on top
- * of its own trigger. Every part of the centred placement has to be undone
- * explicitly, `transform` included.
+ * Positioned against the viewport bottom rather than its own trigger. `fixed`
+ * resolves against `.kk-app`, whose padding box is the full viewport width
+ * (Popover.css), so the content column's side gutters have to be taken here
+ * rather than inherited: `min(30rem, 100% - 2 * --sp-4)` is exactly the width
+ * `--content` renders to for the header and keypad, and `margin-inline: auto`
+ * lands it on the same centred column. The base rule's top-pin and horizontal
+ * `transform` are both undone - `transform` is the animation's now.
  */
 .kk-hint-menu .kk-popover__panel {
-  position: absolute;
   top: auto;
-  left: auto;
   bottom: 0;
-  right: calc(100% + var(--sp-1));
-  transform: none;
-  padding: var(--sp-3);
-  /*
-   * Exactly the room to the left of the trigger: three of the row's four
-   * columns plus the two gaps between them, so the panel's left edge lands on
-   * the content column - 256px on a 375px phone, 359px once the column caps
-   * out. Anything wider would open off the left edge of the page.
-   *
-   * Stated as a width rather than a cap because shrink-to-fit measures against
-   * the containing block, and the containing block here is the trigger's own
-   * cell: left to itself the panel collapses to one word per line.
-   */
-  width: calc(0.75 * min(100cqw, 30rem) - 0.25 * var(--sp-1));
+  left: 0;
+  right: 0;
+  width: min(30rem, 100% - 2 * var(--sp-4));
+  margin-inline: auto;
   min-width: 0;
   max-width: none;
-  /*
-   * The inherited cap is `100%` of the containing block, which was the page
-   * and is now a 56px button - it would squash the panel to nothing. Measured
-   * from the viewport instead: the panel's bottom sits just above the digit
-   * row, so half the screen is far more height than the three choices or the
-   * longest tip ever need, and it still cannot reach past the top of the board.
-   */
-  max-height: 50svh;
+  /* Only the top corners round - the bottom edge sits on the screen edge. */
+  border-radius: var(--radius) var(--radius) 0 0;
+  /* Small content (three choices, or one sentence); the cap is only a ceiling. */
+  max-height: 70svh;
+  transform: none;
+  /* In on open, out on close - the close is held mounted for it (Popover.tsx),
+     and keyed by `data-state` below. */
+  animation: kk-sheet-in 0.24s ease-out;
+}
+
+.kk-hint-menu .kk-popover__panel[data-state='closing'] {
+  /* `forwards` keeps it off the bottom of the screen until `animationend`
+     unmounts it, so it does not flash back to rest for the last frame. */
+  animation: kk-sheet-out 0.2s ease-in forwards;
+}
+
+@keyframes kk-sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes kk-sheet-out {
+  to {
+    transform: translateY(100%);
+  }
 }
 
 /*
- * The close button parked in this corner is a transparent 44px touch target
- * (§4.4), so the heading's row has to be tall enough to contain it. Otherwise
- * it reaches down over the last choice and quietly eats presses meant for it.
- *
- * The same button is why the heading is indented. Its glyph is centred in that
- * 44px box, so the x floats ~16px inside the box's own edge and lands ~20px
- * from the panel's - while the heading opposite it sits on the panel's 12px
- * padding. The two are meant to read as one line and did not: the title was
- * visibly nearer its edge than the x was to its own. Every panel has this,
- * because the button is pinned at a fixed `--sp-1` whatever the panel's
- * padding is, but only here is the gap worth correcting - the `--sp-4` panels
- * are ~3px out and this one was ~7px. `--sp-2` puts the title at 21 against
- * the x's 20, and on the same line as the prose below it.
+ * No slide for a reader who asked for less motion - but a token duration, not
+ * none, so `animationend` still fires and the closing panel still unmounts
+ * (Popover.tsx keys the unmount off it; with no animation it would never close).
  */
-.kk-hint-menu .kk-popover__heading {
-  display: flex;
-  align-items: center;
-  min-height: 36px;
-  padding-left: var(--sp-2);
+@media (prefers-reduced-motion: reduce) {
+  .kk-hint-menu .kk-popover__panel,
+  .kk-hint-menu .kk-popover__panel[data-state='closing'] {
+    animation-duration: 1ms;
+  }
 }
 
 /*
- * Two by two, glyph over label, the same stack the toolbar underneath wears
- * (§4.1). Three across is what a single toolbar row wears, and the panel wore
- * it too while it held three choices; the fourth (Combinations) does not fit a
- * row this narrow - the panel is only three of the toolbar's four columns wide,
- * so a fourth tile there squeezes the labels past legibility. A 2x2 pad keeps
- * every tile as wide as it was and the longest label ("Combinations") on one
- * line.
+ * Four across, glyph over label, the same stack the toolbar underneath wears
+ * (§4.1) - the panel is an extension of that row and reads as one. Now the
+ * sheet spans the whole content column (not three of four toolbar columns, as
+ * the old left-hung panel did), a fourth tile fits the row exactly the way the
+ * four actions do underneath. First thing in the panel now the heading is gone,
+ * so it sits on the panel's own padding.
  */
 .kk-hint-menu__choices {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--sp-1);
-  margin-top: var(--sp-2);
 }
 
 /* The label is the whole width the choice gets; it must not be clipped. */
@@ -110,7 +95,7 @@
 /* The hint itself. Prose is informational, so it takes ink rather than accent
    (§4.1) - the accent in this panel belongs to the choices. */
 .kk-hint-menu__text {
-  margin: var(--sp-2) 0 0;
+  margin: 0;
   /*
    * Inset inside the panel's own padding, on the three sides it has to itself.
    *
@@ -139,12 +124,13 @@
  * outline is suppressed - the panel is the modal surface, not this region.
  */
 .kk-combos {
-  margin-top: var(--sp-2);
+  margin: 0;
   padding: 0 var(--sp-2);
   outline: none;
 }
 
-/* Names the cage the list is for. The same quiet grey as the panel heading. */
+/* Names the cage the list is for. Muted, so the expressions below read as the
+   content and this reads as their label. */
 .kk-combos__caption {
   margin: 0 0 var(--sp-2);
   font-size: 13px;

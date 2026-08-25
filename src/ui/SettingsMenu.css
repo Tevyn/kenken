@@ -1,11 +1,6 @@
-/* The shared heading rule lives in Popover.css as .kk-popover__heading;
-   this is only the bit that differs per popover (New Game's own header
-   wrapper supplies its spacing another way). */
-.kk-settings__heading {
-  margin: 0 0 var(--sp-3);
-}
-
-/* Theme picker. */
+/* Theme picker. The panel has no title of its own any more — Settings and
+   Theme sat too close to read as a heading over a section — so the Theme
+   legend is the first thing in the panel, on its own padding. */
 .kk-theme {
   margin: 0 0 var(--sp-4);
   padding: 0;

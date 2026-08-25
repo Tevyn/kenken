@@ -279,8 +279,8 @@ describe('Board + Keypad + useGame integration', () => {
 
     // The highlight lives and dies with the open panel: closing it takes the
     // board's half of the hint away too, so nothing lingers that the player
-    // then has to clear by hand.
-    await user.click(screen.getByRole('button', { name: 'Close Hint' }));
+    // then has to clear by hand. No close button any more — Escape is the way out.
+    await user.keyboard('{Escape}');
     expect(cells[14].className).not.toContain('kk-cell--hint-focus');
     expect(cells[0].className).not.toContain('kk-cell--hint-dim');
   });
@@ -292,7 +292,7 @@ describe('Board + Keypad + useGame integration', () => {
 
     await user.click(hintButton());
     await user.click(screen.getByRole('button', { name: 'Tip' }));
-    await user.click(screen.getByRole('button', { name: 'Close Hint' }));
+    await user.keyboard('{Escape}');
 
     // No highlight is left over the grid, and an ordinary edit lands as usual.
     await user.click(cells[0]);
@@ -522,7 +522,7 @@ describe('Board + Keypad + useGame integration', () => {
      * ends up with focus - on the size being played, as always.
      */
     expect(screen.queryByRole('dialog', { name: 'Solved' })).not.toBeInTheDocument();
-    expect(screen.getByRole('dialog', { name: 'Size' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'New game' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '4 by 4' })).toHaveFocus();
   });
 
@@ -634,7 +634,7 @@ describe('Board + Keypad + useGame integration', () => {
       expect(valueOf(cells[0])).toBe('1');
 
       await user.keyboard('h');
-      expect(screen.getByRole('dialog')).toHaveAccessibleName(/Size/);
+      expect(screen.getByRole('dialog')).toHaveAccessibleName('New game');
       expect(hintButton()).toHaveAttribute('aria-expanded', 'false');
 
       await user.keyboard('{Backspace}');

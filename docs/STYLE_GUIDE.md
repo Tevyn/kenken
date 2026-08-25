@@ -104,22 +104,24 @@ the third option, a flow element that grows from nothing.
 The current stylesheet uses 4/8/10/12/14/18/20 with no system. Every one of
 those must resolve to a step above.
 
-### 1.6 Radius scale
+### 1.6 Radius
 
-Three tiers only.
+One radius, everywhere anything is rounded at all.
 
-| Token    | Value | Applies to                          |
-| -------- | ----- | ----------------------------------- |
-| `--r-sm` | 6px   | Inline chips, marks, small controls |
-| `--r-md` | 10px  | Keys, buttons, triggers             |
-| `--r-lg` | 14px  | Large cards                         |
+| Token      | Value | Applies to                                         |
+| ---------- | ----- | -------------------------------------------------- |
+| `--radius` | 6px   | Controls (keys, buttons, triggers), popover panels |
+
+A single slight round, held to the same value across the app so no rounded
+thing reads as rounded to a different degree than its neighbour.
 
 The board is **square-cornered** and takes no radius. A rounded grid reads as a
-card that contains a puzzle; the board is the puzzle.
+card that contains a puzzle; the board is the puzzle. **Popover panels are
+cards floating over it**, so they take `--radius` — all four corners, except the
+hint bottom sheet, which rounds only its top two where it meets the page.
 
-**Popover panels are square-cornered too, for the same reason** (§3). Nothing
-in the app currently claims `--r-lg`; it stays in the scale as the step a card
-would take, not as a licence to round a panel.
+A full round — the OFF/ON pills, the switch knob — is a _shape_, not a corner
+round, and sets its own value (`999px`, `50%`) rather than answering to this.
 
 ---
 
@@ -270,13 +272,13 @@ A "recessed" treatment must use `--surface-sunken`. Painting a well in `--bg`
 paints nothing — the action row's strip did exactly that in both themes and was
 invisible.
 
-**A popover panel is the board, moved.** Same surface, same square corners, and
-the board's own line around it. It is not a card with a look of its own: the
-page has exactly one object in it, and a panel is another instance of that
-object rather than a second visual language. What this replaces — a rounded,
-tinted surface with a hairline border and a lit top edge — was that second
-language, and it made a menu read as chrome floating over the puzzle instead of
-as part of it.
+**A popover panel wears the board's surface** and the board's own line around
+it — the same near-black-on-surface, not a tinted material of its own. What this
+replaces — a tinted surface with a lit top edge — read as chrome floating over
+the puzzle rather than as part of the same app. Its corners take `--radius`, the
+one round the app uses everywhere it rounds anything (§1.6): the board stays
+square because it _is_ the puzzle, but a panel floats over the board as a card,
+and rounds like one.
 
 **The line is the gridline, not the frame.** 1px in `--cell-border` — what
 Cell.css draws between two cells — and not `--frame` in `--cell-border-heavy`,
@@ -296,18 +298,19 @@ A transparent press shield still spans the page under an open panel. It paints
 nothing; it exists so a press aimed outside the panel closes it and stops there,
 rather than also selecting the cell under the finger.
 
-Panels are **centred**, never hung off their trigger. All three — New game,
-Settings and Hint — are wide enough that anchoring one to a corner left it
-lopsided, and centring puts the choice where the player is already looking.
+**The header panels pin to a fixed spot near the top of the page**, not to their
+trigger and not to the middle. New game and Settings both open there, at the same
+offset whatever their height, so advancing the wizard (short step to tall step)
+doesn't jerk the panel around. The solved dialog is the exception — it has no
+trigger and centres over the finished board. The **Hint** panel is a bottom
+sheet: it rises from the bottom edge, the width of the content column, next to
+the controls it belongs with, and slides back down on close.
 
-**A panel opened by a trigger carries a close button**, in the same corner every
-time, and it is the last stop in the panel's Tab cycle rather than the first —
-entry focus belongs on the content, not on the way out. Escape and a press
-outside do the same job, but neither is visible, and a player using a pointer
-should not have to guess. It stays small: an escape hatch is never the loudest
-thing on the panel (§10.3). A panel with no trigger is not always a popover and
-does not get one automatically — the solved dialog offers the move that follows
-instead, and a dismiss button beside it would make leaving look like a decision.
+**There is no close button.** Every panel is dismissed the same two ways — Escape,
+or a press outside onto the shield — so a visible × was a third way only the
+trigger-opened panels ever had. On a surface floating over a shielded page the
+tap-out is discoverable enough, and dropping the × keeps entry focus on the
+panel's content rather than parking a way-out control in the corner.
 
 ---
 

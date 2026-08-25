@@ -134,9 +134,16 @@
   --sp-5: 24px; /* between groups */
   --sp-6: 32px; /* between zones */
 
-  --r-sm: 6px; /* inline chips, marks */
-  --r-md: 10px; /* keys, buttons, triggers */
-  --r-lg: 14px; /* large cards (the board and the popovers are square) */
+  /*
+   * One radius, held wherever anything is rounded at all: the controls, the
+   * popover panels, and the hint sheet's top edge. A slight round - a step under
+   * the 10px the controls used to carry - and the same value everywhere, so
+   * nothing reads as rounded to a different degree than its neighbour. The board
+   * stays square-cornered (it *is* the puzzle, not a card holding one), and the
+   * pills and the switch knob set their own shape (999px, 50%) - a full round is
+   * not "a corner round" and does not answer to this.
+   */
+  --radius: 6px;
 
   /*
    * The width every zone lines up on. The header, the board and the controls
@@ -274,7 +281,7 @@ button {
   min-height: 44px;
   padding: var(--sp-2);
   border: 0;
-  border-radius: var(--r-md);
+  border-radius: var(--radius);
   background: transparent;
   font-family: inherit;
   font-size: 15px;

@@ -16,12 +16,16 @@
 }
 
 /*
- * Every panel is the same object as the board: square corners, the board's own
- * surface, and the board's own line around it. The line is the *gridline*, not
- * the frame - 1px in `--cell-border`, exactly what Cell.css draws between two
- * cells. The frame weight (`--frame`, up to 4px at 30rem) is right around a
- * whole grid and far too heavy around a panel: it read as a slab of ink with
- * the content trapped inside it.
+ * Every panel wears the board's own surface and the board's own line around it.
+ * The line is the *gridline*, not the frame - 1px in `--cell-border`, exactly
+ * what Cell.css draws between two cells. The frame weight (`--frame`, up to 4px
+ * at 30rem) is right around a whole grid and far too heavy around a panel: it
+ * read as a slab of ink with the content trapped inside it.
+ *
+ * Corners take `--radius`, the one round the app holds everywhere it rounds
+ * anything. The board stays square because it *is* the puzzle; a panel is a
+ * card floating over it, so it rounds like every other card-like control. The
+ * hint sheet rounds only its top two, where it meets the page (HintMenu.css).
  *
  * Depth is now the shadow's job alone (index.css, `--shadow-popover`). The
  * panel used to sit on a dimmed page, which is a fine way to say "modal" and a
@@ -34,18 +38,39 @@
  * which makes it the containing block for fixed descendants. `.kk-app` spans
  * the viewport, so the two coincide - but the shield is sized the same way
  * rather than assuming otherwise.
+ *
+ * Pinned a fixed distance from the top rather than centred, so a header popover
+ * opens in the same spot whatever its content is tall enough to need. Settings
+ * is short and the new-game wizard's first step is two rows of tiles taller,
+ * and centring dropped the wizard ~34px down the page on the very tap that
+ * advances it - the panel re-centred around its new, shorter self.
+ *
+ * `--popover-top` lands the panel just below where the play zone begins - the
+ * top of the puzzle grid's region. That edge is layout-stable: the app's top
+ * padding (`--sp-5`), the header (~56px, a single row of controls), and the
+ * gap to the play zone (`--sp-5`) sum to ~104px whatever the viewport height,
+ * because none of them grow with it - only the play zone does, downward. The
+ * one value feeds both `top` and `max-height`, so the panel can't run off the
+ * bottom of a short viewport as the offset is tuned.
+ *
+ * Two panels opt out. WinDialog re-centres (WinDialog.css): it has no trigger
+ * and floats over the finished board, so the middle of the page is where it
+ * belongs. The hint panel replaces this positioning wholesale (HintMenu.css),
+ * hanging off its own trigger.
  */
 .kk-popover__panel {
+  --popover-top: 116px;
   position: fixed;
-  top: 50%;
+  top: var(--popover-top);
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translateX(-50%);
   z-index: 20;
   /* Roomy enough for the seven-option size grid, never wider than the screen. */
   min-width: min(15rem, calc(100vw - var(--sp-5)));
   max-width: min(22rem, calc(100vw - var(--sp-5)));
-  /* A short viewport must scroll the panel rather than hide the bottom of it. */
-  max-height: calc(100% - 2 * var(--sp-5));
+  /* A short viewport must scroll the panel rather than hide the bottom of it:
+     cap the height at everything below the pin, less an `--sp-5` bottom margin. */
+  max-height: calc(100% - var(--popover-top) - var(--sp-5));
   overflow-y: auto;
   padding: var(--sp-4);
   /*
@@ -58,12 +83,11 @@
    * control. The heading has no such slack - it is bare text hard against the
    * padding - so the fix belongs on the side that has too much.
    *
-   * The hint panel overrides `padding` outright and is unaffected; it solves
-   * the same problem from the other end, giving its heading a row tall enough
-   * to hold the close button (HintMenu.css).
+   * The hint panel overrides `padding` outright and is unaffected (HintMenu.css).
    */
   padding-bottom: var(--sp-3);
   border: 1px solid var(--cell-border);
+  border-radius: var(--radius);
   background: var(--cell-bg);
   color: var(--text);
   /* The only thing lifting the panel off the page now, in both themes. */
@@ -85,38 +109,15 @@
 }
 
 /*
- * The way out, in the same corner of every panel. A bare control like any
- * other (STYLE_GUIDE.md §4.1 — accent ink, no border, no fill at rest), and
- * small: an escape hatch must not be the loudest thing on the panel (§10.3).
- *
- * Taken out of flow rather than given a row of its own: a panel has empty
- * space beside its heading, and none to spare for a strip that only holds a
- * dismiss. The panel is already `position: fixed`, so it is the containing
- * block without needing a `position: relative` of its own.
- */
-.kk-popover__close {
-  position: absolute;
-  top: var(--sp-1);
-  right: var(--sp-1);
-  /* §4.4: the 44px floor is the box, not the glyph. `.kk-control` has the
-     height; the padding it would use for width would push the × off-centre. */
-  min-width: 44px;
-  padding: 0;
-  font-size: 20px;
-  line-height: 1;
-}
-
-/*
- * Every panel's section heading, and the same line as the header's puzzle meta
+ * A panel's section label, and the same line as the header's puzzle meta
  * (STYLE_GUIDE.md §6.1): grey, 13px, sentence case. It used to be uppercase and
- * letter-spaced, which made a label louder than the choices under it.
+ * letter-spaced, which made a label louder than the choices under it. Now used
+ * only for the settings panel's Theme legend — the section labels that titled
+ * each panel are gone, and New Game's own title is larger and centred
+ * (NewGameMenu.css).
  */
 .kk-popover__heading {
   margin: 0;
-  /* Clears the close button parked above it, so a heading that grows (the
-     wizard's second step restates the chosen size) wraps instead of running
-     under the ×. */
-  padding-right: var(--sp-5);
   font-size: 13px;
   font-weight: 500;
   line-height: 1.2;

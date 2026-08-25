@@ -4,9 +4,6 @@ import { CombinationsIcon, CorrectnessIcon, HintIcon, NumberIcon, TipIcon } from
 import { Popover } from './Popover';
 import './HintMenu.css';
 
-/* The panel is named by its own heading, which both screens keep. */
-const HEADING_ID = 'kk-hint-menu-heading';
-
 interface ChoicesProps {
   text: string | null;
   canCheck: boolean;
@@ -40,11 +37,12 @@ function verdictText(wrong: number): string {
 }
 
 /**
- * The panel's contents: three choices, or the sentence one of them produced.
+ * The panel's contents: four choices, or whatever one of them produced — a
+ * sentence, or the cage's combination list.
  *
  * Its own component so which screen is showing lives and dies with the open
  * panel — the popover unmounts its children on close, so reopening always
- * starts back at the three choices with nothing to reset.
+ * starts back at the four choices with nothing to reset.
  */
 function HintChoices({
   text,
@@ -78,18 +76,10 @@ function HintChoices({
 
   return (
     <>
-      <h2 className="kk-popover__heading" id={HEADING_ID}>
-        Hint
-      </h2>
-
       {screen.kind === 'combinations' ? (
         <CombinationList view={screen.view} setContent={setContent} />
       ) : screen.kind !== 'choices' ? (
-        <p
-          className="kk-hint-menu__text"
-          ref={(element) => setContent(element)}
-          tabIndex={-1}
-        >
+        <p className="kk-hint-menu__text" ref={(element) => setContent(element)} tabIndex={-1}>
           {screen.kind === 'own' ? screen.text : text}
         </p>
       ) : (
@@ -114,6 +104,27 @@ function HintChoices({
           >
             <CorrectnessIcon size={22} />
             <span className="kk-control__label">Correctness</span>
+          </button>
+          {/*
+            Combinations lists the digit sets the selected cell's cage could
+            hold, so it needs a cage to talk about. Disabled with no selection,
+            for the same reason Correctness is disabled on an empty board: the
+            choice loses its ink rather than gaining chrome (§4.2.1). It stays
+            open and shows its list, the way Tip stays open and shows its
+            sentence — there is nothing to write on the board, so nothing to get
+            out of the way of.
+          */}
+          <button
+            type="button"
+            className="kk-control kk-control--stack kk-hint-menu__choice"
+            disabled={!canCombine}
+            onClick={() => {
+              const view = onCombinations();
+              if (view) setScreen({ kind: 'combinations', view });
+            }}
+          >
+            <CombinationsIcon size={22} />
+            <span className="kk-control__label">Combinations</span>
           </button>
           <button
             type="button"
@@ -141,27 +152,6 @@ function HintChoices({
           >
             <NumberIcon size={22} />
             <span className="kk-control__label">Number</span>
-          </button>
-          {/*
-            Combinations lists the digit sets the selected cell's cage could
-            hold, so it needs a cage to talk about. Disabled with no selection,
-            for the same reason Correctness is disabled on an empty board: the
-            choice loses its ink rather than gaining chrome (§4.2.1). It stays
-            open and shows its list, the way Tip stays open and shows its
-            sentence — there is nothing to write on the board, so nothing to get
-            out of the way of.
-          */}
-          <button
-            type="button"
-            className="kk-control kk-control--stack kk-hint-menu__choice"
-            disabled={!canCombine}
-            onClick={() => {
-              const view = onCombinations();
-              if (view) setScreen({ kind: 'combinations', view });
-            }}
-          >
-            <CombinationsIcon size={22} />
-            <span className="kk-control__label">Combinations</span>
           </button>
         </div>
       )}
@@ -198,9 +188,7 @@ function CombinationList({
             <li
               key={line.text}
               className={
-                line.possible
-                  ? 'kk-combos__item'
-                  : 'kk-combos__item kk-combos__item--ruled-out'
+                line.possible ? 'kk-combos__item' : 'kk-combos__item kk-combos__item--ruled-out'
               }
             >
               <span aria-hidden={!line.possible || undefined}>{line.text}</span>
@@ -237,15 +225,13 @@ export interface HintMenuProps {
  *
  * One press, four choices — the button no longer renames itself, because
  * nothing is ever armed behind it. What replaced the old second press is the
- * Number choice, which writes a digit outright; Combinations is the fourth,
+ * Number choice, which writes a digit outright; Combinations is the second,
  * listing the ways the selected cell's cage could be filled.
  *
- * The panel hangs off the button's left rather than below it: the controls are
- * anchored to the bottom of the viewport (STYLE_GUIDE.md §1.1), so downward is
- * off the screen, and the button is the last of four, so rightward is off the
- * edge. It lands over Undo, Redo and Notes, which are unusable while a modal
- * panel is open anyway — and beside, not on top of, the Hint button itself,
- * which stays where the player left it.
+ * The panel is a bottom sheet (`animated`, styled in HintMenu.css): it rises
+ * from the bottom of the viewport, the width of the content column, over the
+ * controls it belongs with — Undo, Redo, Notes and the digit row, all unusable
+ * while a modal panel is open anyway.
  */
 export function HintMenu({
   open,
@@ -261,8 +247,8 @@ export function HintMenu({
   return (
     <Popover
       label="Hint"
-      panelLabelledBy={HEADING_ID}
       className="kk-hint-menu"
+      animated
       trigger={
         <>
           <HintIcon size={22} />

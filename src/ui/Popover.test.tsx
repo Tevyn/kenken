@@ -25,55 +25,36 @@ function PopoverHarness({
 }
 
 const trigger = () => screen.getByRole('button', { name: 'Settings' });
-const closeButton = () => screen.getByRole('button', { name: 'Close Settings' });
 
 describe('Popover', () => {
-  it('carries a close button', async () => {
+  /*
+   * There is no close button: every panel is dismissed by Escape or a press
+   * outside, and both are covered here and in Controls.test. This asserts the
+   * absence so a stray × cannot creep back into the chrome unnoticed.
+   */
+  it('carries no close button', async () => {
     const user = userEvent.setup();
     render(<PopoverHarness />);
 
-    expect(screen.queryByRole('button', { name: 'Close Settings' })).not.toBeInTheDocument();
-
     await user.click(trigger());
-    expect(closeButton()).toBeInTheDocument();
-    expect(screen.getByRole('dialog')).toContainElement(closeButton());
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Close/ })).not.toBeInTheDocument();
   });
 
-  it('the close button closes the panel', async () => {
+  it('Escape closes the panel and hands focus back to the trigger', async () => {
     const user = userEvent.setup();
     render(<PopoverHarness />);
 
     await user.click(trigger());
     expect(screen.getByRole('dialog')).toBeInTheDocument();
 
-    await user.click(closeButton());
+    await user.keyboard('{Escape}');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(trigger()).toHaveAttribute('aria-expanded', 'false');
-  });
-
-  /*
-   * The press has to land as an inside press: the outside-click path
-   * deliberately suppresses the focus restore, and it would strand focus on
-   * the body for a player who pressed the panel's own button.
-   */
-  it('closing the panel with it returns focus to the trigger', async () => {
-    const user = userEvent.setup();
-    render(<PopoverHarness />);
-
-    await user.click(trigger());
-    await user.click(closeButton());
     expect(trigger()).toHaveFocus();
   });
 
-  it('names the panel it closes rather than saying only "close"', async () => {
-    const user = userEvent.setup();
-    render(<PopoverHarness label="New game" />);
-
-    await user.click(screen.getByRole('button', { name: 'New game' }));
-    expect(screen.getByRole('button', { name: 'Close New game' })).toBeInTheDocument();
-  });
-
-  it('opens focused on the panel content, never on the way out of it', async () => {
+  it('opens focused on the panel content', async () => {
     const user = userEvent.setup();
     render(<PopoverHarness />);
 
@@ -96,7 +77,13 @@ describe('Popover', () => {
     expect(screen.getByRole('button', { name: 'Current' })).toHaveFocus();
   });
 
-  it('takes entry focus itself when it is the only control in the panel', async () => {
+  /*
+   * A panel with nothing focusable — the hint panel's tip screen is the real
+   * case — has no entry target, so focus stays on the trigger rather than
+   * falling to the body. Escape is then the only way back out, which the
+   * tap-out model already relies on.
+   */
+  it('leaves focus on the trigger when the panel has nothing focusable', async () => {
     const user = userEvent.setup();
     render(
       <PopoverHarness>
@@ -105,10 +92,11 @@ describe('Popover', () => {
     );
 
     await user.click(trigger());
-    expect(closeButton()).toHaveFocus();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(trigger()).toHaveFocus();
   });
 
-  it('joins the Tab cycle as its last stop, and the cycle still wraps', async () => {
+  it('keeps Tab inside the panel, and the cycle wraps', async () => {
     const user = userEvent.setup();
     render(
       <div>
@@ -123,15 +111,12 @@ describe('Popover', () => {
     await user.tab();
     expect(screen.getByRole('button', { name: 'Second' })).toHaveFocus();
 
-    await user.tab();
-    expect(closeButton()).toHaveFocus();
-
     // Off the end of the panel is the top of the panel, not the page behind it.
     await user.tab();
     expect(first).toHaveFocus();
 
     await user.tab({ shift: true });
-    expect(closeButton()).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Second' })).toHaveFocus();
 
     expect(screen.getByRole('button', { name: 'outside' })).not.toHaveFocus();
   });

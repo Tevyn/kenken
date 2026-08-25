@@ -145,16 +145,17 @@ describe('NewGameMenu tiles', () => {
       }
     });
 
-    it('restates the chosen size in the heading, spelled for speech', async () => {
+    it('restates the chosen size in the meta line below the title, spelled for speech', async () => {
       const user = userEvent.setup();
       render(<WizardHarness size={4} />);
       await openWizard(user);
       await user.click(sizeButton(9));
 
-      const heading = screen.getByRole('heading', { name: /9 by 9.*Difficulty/ });
-      expect(heading).toHaveTextContent('9×9');
-      expect(heading.querySelector('[aria-hidden="true"]')).toHaveTextContent('9×9');
-      expect(heading.querySelector('.kk-sr-only')).toHaveTextContent('9 by 9');
+      // The title stays "New game"; the size moves to the meta line under it.
+      expect(screen.getByRole('heading', { name: 'New game' })).toBeInTheDocument();
+      const meta = screen.getByText('9 by 9').closest('.kk-newgame__meta') as HTMLElement;
+      expect(meta.querySelector('[aria-hidden="true"]')).toHaveTextContent('9×9');
+      expect(meta.querySelector('.kk-sr-only')).toHaveTextContent('9 by 9');
     });
 
     it('gives each option a cage one cell bigger than the last', async () => {

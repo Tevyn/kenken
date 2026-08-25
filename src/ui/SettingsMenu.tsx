@@ -56,7 +56,6 @@ export function SettingsMenu({
   return (
     <Popover
       label="Settings"
-      panelLabelledBy="kk-settings-heading"
       trigger={
         <>
           <MenuIcon size={22} />
@@ -67,10 +66,6 @@ export function SettingsMenu({
       open={open}
       onOpenChange={onOpenChange}
     >
-      <h2 className="kk-popover__heading kk-settings__heading" id="kk-settings-heading">
-        Settings
-      </h2>
-
       {/*
         Three bare choices over a real radio group: arrow-key navigation,
         roving focus and the "3 of 3" announcement all come from the inputs,
