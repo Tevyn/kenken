@@ -87,7 +87,10 @@ function TestGame() {
         canRedo={game.canRedo}
         hint={{
           open: openMenu === 'hint',
-          onOpenChange: (open) => setOpenMenu(open ? 'hint' : null),
+          onOpenChange: (open) => {
+            setOpenMenu(open ? 'hint' : null);
+            if (!open) game.dismissHint();
+          },
           text: hintText,
           canCheck: game.state.values.some((value) => value != null),
           onCorrectness: game.checkBoard,
@@ -255,7 +258,7 @@ describe('Board + Keypad + useGame integration', () => {
     expect(valueOf(cells[14])).toBe('2');
   });
 
-  it('highlights the hint’s cells and dims the rest, and keeps them after the panel closes', async () => {
+  it('highlights the hint’s cells and dims the rest, and clears them when the panel closes', async () => {
     const user = userEvent.setup();
     render(<TestGame />);
     const cells = screen.getAllByRole('gridcell');
@@ -272,13 +275,15 @@ describe('Board + Keypad + useGame integration', () => {
     expect(cells[0].className).toContain('kk-cell--hint-dim');
     expect(cells[0].className).not.toContain('kk-cell--hint-focus');
 
-    // Closing the panel leaves the board's half of the hint alone: reading the
-    // sentence and then studying the grid is one thought, not two.
+    // The highlight lives and dies with the open panel: closing it takes the
+    // board's half of the hint away too, so nothing lingers that the player
+    // then has to clear by hand. No close button any more — Escape is the way out.
     await user.keyboard('{Escape}');
-    expect(cells[14].className).toContain('kk-cell--hint-focus');
+    expect(cells[14].className).not.toContain('kk-cell--hint-focus');
+    expect(cells[0].className).not.toContain('kk-cell--hint-dim');
   });
 
-  it('a hint on the board is invalidated as soon as the player edits the grid', async () => {
+  it('leaves the board fully live once the panel has closed', async () => {
     const user = userEvent.setup();
     render(<TestGame />);
     const cells = screen.getAllByRole('gridcell');
@@ -287,15 +292,16 @@ describe('Board + Keypad + useGame integration', () => {
     await user.click(screen.getByRole('button', { name: 'Tip' }));
     await user.keyboard('{Escape}');
 
+    // No highlight is left over the grid, and an ordinary edit lands as usual.
     await user.click(cells[0]);
     await user.keyboard('1');
 
-    expect(cells[14].className).not.toContain('kk-cell--hint-focus');
     expect(cells[0].className).not.toContain('kk-cell--hint-dim');
+    expect(valueOf(cells[0])).toBe('1');
     expect(valueOf(cells[14])).toBeNull();
   });
 
-  it('H opens the panel, and Escape backs out of it a layer at a time', async () => {
+  it('H opens the panel, and Escape closes it, taking any highlight with it', async () => {
     const user = userEvent.setup();
     render(<TestGame />);
     const cells = screen.getAllByRole('gridcell');
@@ -310,11 +316,12 @@ describe('Board + Keypad + useGame integration', () => {
     // Reopening starts back at the three choices, whatever the last one was.
     await user.keyboard('h');
     await user.click(screen.getByRole('button', { name: 'Tip' }));
-    await user.keyboard('{Escape}');
     expect(cells[14].className).toContain('kk-cell--hint-focus');
 
-    // Only now, with no panel to close, does Escape reach the board.
+    // One Escape now does both jobs: the panel closes and its highlight goes
+    // with it, so there is no leftover for a second press to clear.
     await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(cells[14].className).not.toContain('kk-cell--hint-focus');
     expect(valueOf(cells[14])).toBeNull();
   });

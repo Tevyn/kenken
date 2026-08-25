@@ -106,6 +106,8 @@ export function useGame(initialPuzzle: Puzzle, options?: UseGameOptions) {
   const redo = useCallback(() => dispatch({ type: 'REDO' }), []);
   const reset = useCallback(() => dispatch({ type: 'RESET' }), []);
   const newPuzzle = useCallback((puzzle: Puzzle) => dispatch({ type: 'NEW_PUZZLE', puzzle }), []);
+  /** Drop whatever the hint panel was explaining, and the highlight it drew. */
+  const dismissHint = useCallback(() => dispatch({ type: 'DISMISS_HINT' }), []);
 
   /** Options every ladder call shares: bias toward the cursor, skip what was just applied. */
   const hintOptions = useCallback(() => {
@@ -213,12 +215,6 @@ export function useGame(initialPuzzle: Puzzle, options?: UseGameOptions) {
         return;
       }
 
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        dispatch({ type: 'DISMISS_HINT' });
-        return;
-      }
-
       if (/^[1-9]$/.test(event.key)) {
         event.preventDefault();
         dispatch({ type: 'DIGIT', value: Number(event.key) });
@@ -277,6 +273,7 @@ export function useGame(initialPuzzle: Puzzle, options?: UseGameOptions) {
       redo,
       reset,
       newPuzzle,
+      dismissHint,
       showHint,
       checkBoard,
       placeNumber,
@@ -297,6 +294,7 @@ export function useGame(initialPuzzle: Puzzle, options?: UseGameOptions) {
       redo,
       reset,
       newPuzzle,
+      dismissHint,
       showHint,
       checkBoard,
       placeNumber,

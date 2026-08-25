@@ -203,14 +203,6 @@ describe('useGame hints', () => {
     expect(focusAfterSelecting(15)).toContain(15);
   });
 
-  it('Escape drops the hint left on the board once the panel has closed', () => {
-    const { result } = renderHook(() => useGame(SAMPLE_PUZZLE));
-    act(() => result.current.showHint());
-    pressKey('Escape');
-    expect(result.current.state.hint).toEqual({ kind: 'idle' });
-    expect(result.current.state.values[14]).toBeNull();
-  });
-
   it('placeNumber writes one digit, in one undo step', () => {
     const { result } = renderHook(() => useGame(SAMPLE_PUZZLE));
 

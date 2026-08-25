@@ -708,14 +708,28 @@ anything.
 | choose Tip                          | any                 | `shown` or `message` | run `findHint`                                                                                                                  |
 | choose Number                       | any                 | `idle`, or `message` | run `findNextNumber`; on a hit `APPLY_HINT` writes the one cell, on a miss show what `findHint` says instead                    |
 | choose Correctness                  | any                 | `idle`               | the check speaks about the whole board, so it takes it over; the panel writes its own sentence and does not consult `HintPhase` |
-| `SELECT` / `MOVE`                   | `shown`             | `shown`              | unchanged — moving the cursor to look at the highlight must not destroy it                                                      |
+| close the panel                     | `shown` / `message` | `idle`               | closing drops the phase, so the highlight lives and dies with the open panel                                                    |
 | `DIGIT` / `ERASE` / `UNDO` / `REDO` | any                 | `idle`               | the board changed; the hint is stale                                                                                            |
 | `NEW_PUZZLE` / `RESET`              | any                 | `idle`               | also clear `recent`                                                                                                             |
-| Escape with no panel open           | `shown` / `message` | `idle`               | —                                                                                                                               |
 
-Closing the panel deliberately leaves the phase alone. Reading the sentence and
-then studying the highlight is one thought, not two, and the panel sits over the
-action row rather than the board precisely so both are on screen at once.
+Closing the panel drops the phase with it: the board's highlight is tied to the
+open panel, not left behind for the player to clear by hand. It goes however the
+panel closes — the close button, Escape, a press outside it, or opening another
+trigger — because all of those funnel through the one `onOpenChange(false)` that
+also fires `DISMISS_HINT`.
+
+This replaces an earlier design in which the highlight outlived the panel until
+the next edit, on the theory that reading the sentence and then studying the
+grid was one thought. In practice a Tip that asked for nothing left a highlight
+the player could not dismiss without entering a digit or knowing that a second
+Escape would clear it — so the phase now ends where the panel does.
+
+The reducer still clears a `shown` phase on any action that changes the grid —
+`DIGIT`, `ERASE`, `UNDO`, `REDO`, `RESET`, `NEW_PUZZLE` — while leaving it be on
+`SELECT` / `MOVE`. That is the state machine keeping its own invariant ("a grid
+change invalidates a stale hint"), not a reaction to the panel: it holds however
+the reducer is driven, so it stays even though the panel-close path now clears
+the phase before any such action can reach it in the running app.
 
 ### 7.2 What "apply" writes
 
