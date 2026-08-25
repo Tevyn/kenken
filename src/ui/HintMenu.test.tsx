@@ -183,7 +183,7 @@ describe('HintMenu', () => {
 
     expect(onCombinations).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByText('Ways to make 2÷')).toBeInTheDocument();
+    expect(screen.getByText('Combinations for 2÷')).toBeInTheDocument();
     expect(screen.getByText('2 ÷ 1')).toBeInTheDocument();
     expect(screen.getByText('4 ÷ 2')).toBeInTheDocument();
     // The list took the panel over; the choices are gone.
@@ -207,6 +207,31 @@ describe('HintMenu', () => {
     await user.click(choice('Combinations'));
 
     expect(screen.getByText('6 ÷ 3, ruled out')).toBeInTheDocument();
+  });
+
+  /* Two grids, so a struck combination never shares a row with a possible one. */
+  it('puts the ruled-out combinations in their own grid, after the possible ones', async () => {
+    const user = userEvent.setup();
+    const onCombinations = vi.fn(() => ({
+      cageLabel: '2÷',
+      lines: [
+        { text: '2 ÷ 1', possible: true },
+        { text: '4 ÷ 2', possible: true },
+        { text: '6 ÷ 3', possible: false },
+        { text: '8 ÷ 4', possible: false },
+      ],
+    }));
+    const { container } = render(<HintMenuHarness onCombinations={onCombinations} />);
+
+    await user.click(trigger());
+    await user.click(choice('Combinations'));
+
+    const grids = container.querySelectorAll('.kk-combos__list');
+    expect(grids).toHaveLength(2);
+    // First grid is all possible, second is all ruled-out.
+    expect(grids[0].querySelectorAll('.kk-combos__item')).toHaveLength(2);
+    expect(grids[0].querySelectorAll('.kk-combos__item--ruled-out')).toHaveLength(0);
+    expect(grids[1].querySelectorAll('.kk-combos__item--ruled-out')).toHaveLength(2);
   });
 
   /* No selection, no cage to list. §4.2.1: the choice loses its ink. */

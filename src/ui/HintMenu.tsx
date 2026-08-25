@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { CombinationsView } from '../game/useGame';
+import type { CombinationLine, CombinationsView } from '../game/useGame';
 import { CombinationsIcon, CorrectnessIcon, HintIcon, NumberIcon, TipIcon } from './icons';
 import { Popover } from './Popover';
 import './HintMenu.css';
@@ -169,6 +169,10 @@ function HintChoices({
  * sentence, so pressing the choice does not orphan focus on the body. Ruled-out
  * lines carry both a strike-through and a spoken "(ruled out)" tail, so the
  * distinction never rests on colour alone (STYLE_GUIDE.md §2.4).
+ *
+ * The possible and ruled-out combinations are two separate grids so the struck
+ * ones always begin a fresh row: no row mixes the two, and each grid restarts
+ * the per-column alignment (HintMenu.css) from its own first cell.
  */
 function CombinationList({
   view,
@@ -179,25 +183,36 @@ function CombinationList({
 }) {
   return (
     <div className="kk-combos" ref={setContent} tabIndex={-1}>
-      <p className="kk-combos__caption">Ways to make {view.cageLabel}</p>
+      <p className="kk-combos__caption">Combinations for {view.cageLabel}</p>
       {view.lines === null ? (
         <p className="kk-combos__note">Too many combinations to list</p>
       ) : (
-        <ul className="kk-combos__list">
-          {view.lines.map((line) => (
-            <li
-              key={line.text}
-              className={
-                line.possible ? 'kk-combos__item' : 'kk-combos__item kk-combos__item--ruled-out'
-              }
-            >
-              <span aria-hidden={!line.possible || undefined}>{line.text}</span>
-              {!line.possible && <span className="kk-sr-only">{line.text}, ruled out</span>}
-            </li>
-          ))}
-        </ul>
+        <>
+          <CombinationGrid lines={view.lines.filter((line) => line.possible)} />
+          <CombinationGrid lines={view.lines.filter((line) => !line.possible)} />
+        </>
       )}
     </div>
+  );
+}
+
+/** One grid of combinations, all possible or all ruled out. Renders nothing when empty. */
+function CombinationGrid({ lines }: { lines: CombinationLine[] }) {
+  if (lines.length === 0) return null;
+  return (
+    <ul className="kk-combos__list">
+      {lines.map((line) => (
+        <li
+          key={line.text}
+          className={
+            line.possible ? 'kk-combos__item' : 'kk-combos__item kk-combos__item--ruled-out'
+          }
+        >
+          <span aria-hidden={!line.possible || undefined}>{line.text}</span>
+          {!line.possible && <span className="kk-sr-only">{line.text}, ruled out</span>}
+        </li>
+      ))}
+    </ul>
   );
 }
 

@@ -299,32 +299,35 @@ export function NumberIcon(props: IconProps) {
 }
 
 /**
- * Combinations: a short stacked list, a leading tick-mark bullet on each row.
+ * Combinations: the four cage operators — plus, minus, times, divide — set in a
+ * 2x2 block, no gridlines around them.
  *
- * The choice enumerates the ways a cage could be filled and sorts the ones the
- * board still allows above the ones it has ruled out — so the glyph is a *list
- * of options being sifted*, not the board (that is `NumberIcon`) and not a
- * sentence (that is `TipIcon`'s bubble). Three rows read as "several", which is
- * the whole point: a combinations list is never one line.
+ * The choice lists the digit sets a cage could hold, and a cage's operator is
+ * the whole question a combination answers ("what makes a 2÷?"). So the glyph is
+ * the operators themselves, not a generic list — and four marks in a square read
+ * as "a table of options" without drawing a board, which is `NumberIcon`'s job.
  *
- * The bullets are short ticks rather than dots or squares. A dot column reads as
- * the pencil-mark keypad, and a checkbox column claims each row is toggleable,
- * which it is not; a small rising tick says "an entry in a checklist" without
- * promising interaction. They sit ~4 units clear of the text lines so the two
- * do not fuse into one bar at a 1.83px stroke and 22px render — the same trap
- * `TipIcon` and the grid dividers call out. The rows are held to the right two
- * thirds for the same reason the bullets are kept short: a full-width rule
- * beside a full-height tick closes the gap between them at render size.
+ * Each operator keeps to its own quadrant, centred and spaced so none touches
+ * the next at a 1.83px stroke and 22px render. Divide's two dots are the one
+ * filled mark, small solid discs the way `NumberIcon`'s cell is filled: a
+ * stroked ring that small silts shut. Deliberately no frame or dividers - the
+ * gridlines are what would make this read as the board again.
  */
 export function CombinationsIcon(props: IconProps) {
   return (
     <IconBase {...props}>
-      <path d="M3 6.5 4.5 8 7 5" />
-      <path d="M3 12.5 4.5 14 7 11" />
-      <path d="M3 18.5 4.5 20 7 17" />
-      <line x1="11" y1="6" x2="21" y2="6" />
-      <line x1="11" y1="12" x2="21" y2="12" />
-      <line x1="11" y1="18" x2="21" y2="18" />
+      {/* plus, top-left */}
+      <path d="M4 7h6" />
+      <path d="M7 4v6" />
+      {/* minus, top-right */}
+      <path d="M14 7h6" />
+      {/* times, bottom-left */}
+      <path d="m4.7 14.7 4.6 4.6" />
+      <path d="m9.3 14.7-4.6 4.6" />
+      {/* divide, bottom-right */}
+      <path d="M14 17h6" />
+      <circle cx="17" cy="13.9" r="1.05" fill="currentColor" stroke="none" />
+      <circle cx="17" cy="20.1" r="1.05" fill="currentColor" stroke="none" />
     </IconBase>
   );
 }

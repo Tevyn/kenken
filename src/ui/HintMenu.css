@@ -35,7 +35,15 @@
   max-width: none;
   /* Only the top corners round - the bottom edge sits on the screen edge. */
   border-radius: var(--radius) var(--radius) 0 0;
-  /* Small content (three choices, or one sentence); the cap is only a ceiling. */
+  /*
+   * Never shorter than the choices screen it opens on, so a two-line tip or a
+   * short combination list does not collapse the sheet to a skinny strip that
+   * jumps every time the screen changes. This is that screen's own height: one
+   * `.kk-control--stack` row (56px) inside the panel's top (`--sp-4`) and bottom
+   * (`--sp-3`) padding, plus the 1px border top and bottom.
+   */
+  min-height: calc(56px + var(--sp-4) + var(--sp-3) + 2px);
+  /* Small content (a row of choices, or one sentence); the cap is only a ceiling. */
   max-height: 70svh;
   transform: none;
   /* In on open, out on close - the close is held mounted for it (Popover.tsx),
@@ -75,16 +83,23 @@
 
 /*
  * Four across, glyph over label, the same stack the toolbar underneath wears
- * (§4.1) - the panel is an extension of that row and reads as one. Now the
- * sheet spans the whole content column (not three of four toolbar columns, as
- * the old left-hung panel did), a fourth tile fits the row exactly the way the
- * four actions do underneath. First thing in the panel now the heading is gone,
- * so it sits on the panel's own padding.
+ * (§4.1) - the panel is an extension of that row and reads as one, so the four
+ * choices are meant to sit directly over the four actions (Undo, Redo, Notes,
+ * Hint) with the same spacing.
+ *
+ * They line up because the sheet's border box is the content column - the same
+ * width the action row spans - so the only thing insetting the choices is the
+ * panel's own side padding. The negative inline margin pulls the row back out
+ * to the panel edges, cancelling that padding, which leaves four `1fr` columns
+ * on a `--sp-1` gap over four `1fr` columns on a `--sp-1` gap: the same grid,
+ * edge to edge. The panel keeps its padding for the tip and combination screens
+ * (prose wants the inset the tiles do not).
  */
 .kk-hint-menu__choices {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--sp-1);
+  margin-inline: calc(-1 * var(--sp-4));
 }
 
 /* The label is the whole width the choice gets; it must not be clipped. */
@@ -144,25 +159,46 @@
   color: var(--text-muted);
 }
 
+/*
+ * Three across, wrapping onto further rows - a cage rarely has more than a
+ * handful of combinations, so three columns keep even the busiest list to two
+ * or three short rows rather than one long scroll. Row-major flow keeps the
+ * engine's order (possible first, ruled-out last) reading left to right, top to
+ * bottom.
+ */
 .kk-combos__list {
   list-style: none;
   margin: 0 0 var(--sp-2);
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-1);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-1) var(--sp-3);
 }
 
-/*
- * One combination. Lining figures so the operands line up column-wise down the
- * list - a ragged "2 ÷ 1 / 4 ÷ 2" reads worse than a tidy one, and the digits
- * are the content here.
- */
+/* One combination. Lining figures keep the digits an even width. */
 .kk-combos__item {
   font-size: 16px;
   line-height: 1.3;
   color: var(--text-h);
   font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Each column pulls to its own edge - left column left, middle centred, right
+ * column right - so the block sits flush against both sides of the list rather
+ * than floating as three centred stripes. Row-major flow means column N is
+ * every third item starting at N: 3n+1, 3n+2, 3n.
+ */
+.kk-combos__item:nth-child(3n + 1) {
+  text-align: left;
+}
+
+.kk-combos__item:nth-child(3n + 2) {
+  text-align: center;
+}
+
+.kk-combos__item:nth-child(3n) {
+  text-align: right;
 }
 
 /*
