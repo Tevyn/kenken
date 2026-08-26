@@ -1,15 +1,29 @@
 /*
- * The rules panel. The same board surface every popover wears (Popover.css);
- * only the title and the step list differ.
+ * The rules panel — a swipeable carousel. The same board surface every popover
+ * wears (Popover.css); the title, the dots, and the sliding track are all this
+ * file adds.
  */
 
 .kk-howto {
   /*
-   * A touch wider than the panel's floor: five sentences want a comfortable
-   * measure, not the 15rem the size grid sets. Still capped by the panel's own
+   * A definite width, not just a floor: the carousel's pages are each 100% of
+   * it, so it has to resolve to something for them to snap against. Comfortable
+   * for a picture over a sentence, and still capped by the panel's own
    * `max-width`, so it never runs past the screen.
    */
-  min-width: min(18rem, calc(100vw - 56px));
+  width: min(19rem, calc(100vw - 56px));
+  /*
+   * The height of the picture band, shared so the flanking arrows can centre on
+   * the illustration rather than on the whole page (which the caption makes
+   * taller, and by a different amount on each page).
+   */
+  --howto-figure-h: 132px;
+  /*
+   * Roughly how long the track's smooth scroll takes to settle. The last page's
+   * Next→"New 3×3" crossfade is timed against it: Next fades out over this span
+   * as the slide runs, then the starter fades in once the slide has landed.
+   */
+  --howto-slide: 175ms;
 }
 
 /*
@@ -27,26 +41,267 @@
 }
 
 /*
- * A real ordered list, so the steps are numbered and announced as a list. The
- * marker sits in the accent — the one place a number is ink rather than a
- * player-entered value — and the padding leaves room for two-digit markers
- * without the text reflowing.
+ * The page indicator, and the page control both: each dot both counts a page
+ * and, pressed, jumps to it. A generous invisible hit box around a small ink
+ * dot — the swipe is the primary gesture, so the dots stay quiet — with the
+ * current one in the accent, the app's one colour for "this is the choice".
  */
-.kk-howto__steps {
+.kk-howto__dots {
+  display: flex;
+  justify-content: center;
+  gap: var(--sp-1);
+  margin: 0 0 var(--sp-3);
+}
+
+.kk-howto__dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.kk-howto__dot::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border-strong);
+  transition:
+    background-color 0.12s ease,
+    transform 0.12s ease;
+}
+
+.kk-howto__dot[aria-current='true']::before {
+  background: var(--accent);
+  transform: scale(1.2);
+}
+
+/*
+ * Holds the sliding rail and the two arrows that flank it. The arrows are
+ * absolutely positioned against this box, so they never consume the track's
+ * width — the pages stay a clean 100%, and the scroll maths that reads the
+ * current page off the offset stays exact.
+ */
+.kk-howto__viewport {
+  position: relative;
+}
+
+/*
+ * Previous / next, and on the last page the "New 3×3" button that takes the
+ * next arrow's place. Pinned to the sides and centred on the picture band (not
+ * the page, whose caption pulls the middle down), so they sit in the whitespace
+ * either side of every illustration rather than over it. Bare accent ink like
+ * every control; the icon alone on the arrows, icon-over-label on the starter.
+ */
+.kk-howto__nav {
+  position: absolute;
+  top: calc(var(--howto-figure-h) / 2);
+  transform: translateY(-50%);
+  z-index: 1;
+}
+
+.kk-howto__nav--prev {
+  left: 0;
+}
+
+.kk-howto__nav--next {
+  right: 0;
+}
+
+/*
+ * The Back arrow is only absent in spirit on the first page — it stays mounted
+ * and fades out over the slide, then back in on the way off, so it no longer
+ * pops as the page changes. Same symmetric fade the Next arrow gets below.
+ */
+.kk-howto__prev {
+  opacity: 1;
+  transition: opacity var(--howto-slide) ease;
+}
+
+.kk-howto__viewport--first .kk-howto__prev {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/*
+ * The last page's Next arrow and its "New 3×3" replacement share the one "next"
+ * slot, stacked, and crossfade between them so the swap no longer flickers
+ * mid-slide. Leaving a page for the last: the arrow fades out over the slide's
+ * length (no delay — it goes as the track moves), and the starter waits out that
+ * same span before a quick fade in, so it only appears once the slide has
+ * landed. Reversing the move plays it backwards. `pointer-events` follows the
+ * fade so only the shown control is clickable; `aria-hidden` in the markup keeps
+ * the hidden one off the keyboard and out of the a11y tree.
+ */
+.kk-howto__next {
+  opacity: 1;
+  transition: opacity var(--howto-slide) ease;
+}
+
+.kk-howto__viewport--last .kk-howto__next {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* The starter's label is the one place a size is drawn rather than played. */
+.kk-howto__start {
+  font-size: 12px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.kk-howto__viewport--last .kk-howto__start {
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 0.15s ease var(--howto-slide);
+}
+
+/* No slide to track, so no crossfade to time against it — swap at once. */
+@media (prefers-reduced-motion: reduce) {
+  .kk-howto__prev,
+  .kk-howto__next,
+  .kk-howto__start,
+  .kk-howto__viewport--last .kk-howto__start {
+    transition: none;
+  }
+}
+
+/*
+ * The sliding rail. A horizontal scroller that snaps each page to centre, so a
+ * swipe or a trackpad flick lands cleanly on one rule at a time. Its scrollbar
+ * is hidden — the dots already say where you are — and `overscroll-behavior`
+ * keeps a swipe past the last page from turning into a browser back-gesture.
+ * `align-items: stretch` (the flex default) gives every page the height of the
+ * tallest, so the panel doesn't resize as you move between them.
+ */
+.kk-howto__track {
+  display: flex;
   margin: 0;
-  padding-left: var(--sp-5);
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.kk-howto__track::-webkit-scrollbar {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kk-howto__track {
+    scroll-behavior: auto;
+  }
+}
+
+.kk-howto__page {
+  flex: 0 0 100%;
+  scroll-snap-align: center;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: 0 var(--sp-1);
+  box-sizing: border-box;
+}
+
+/*
+ * A fixed slab for the picture, so the caption below it sits at the same height
+ * on every page and the words don't jump as you swipe. The illustrations differ
+ * in size — a 3x3 square, a lone cell, a side-by-side pair — and this centres
+ * each within a common box.
+ */
+.kk-howto__figure {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--howto-figure-h);
+}
+
+/* The two-board “either ordering works” figure: the pair, with a quiet = between. */
+.kk-howto__pair {
+  display: flex;
+  align-items: center;
   gap: var(--sp-3);
 }
 
-.kk-howto__step {
+.kk-howto__pair-sep {
+  font-size: 15px;
+  color: var(--text-muted);
+}
+
+.kk-howto__caption {
+  margin: 0;
+  padding: 0 var(--sp-2);
+  text-align: center;
   font-size: 14px;
   line-height: 1.45;
   color: var(--text);
 }
 
-.kk-howto__step::marker {
-  color: var(--accent);
+/*
+ * The mini-board. The real board's lines at a fixed small scale (Cell.css and
+ * Board.css are the source): a hairline `--cell-border` within a cage, the
+ * heavy `--cell-border-heavy` between cages and around the whole thing, cage
+ * labels in `--text-muted`. Square-cornered, because it *is* a puzzle grid.
+ */
+.kk-mini {
+  display: grid;
+  grid-template-columns: repeat(var(--mini-cols), var(--mini-cell));
+  --mini-cell: 40px;
+  background: var(--cell-bg);
+  border: 2px solid var(--cell-border-heavy);
+  overflow: hidden;
+}
+
+.kk-mini__cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--mini-cell);
+  height: var(--mini-cell);
+}
+
+.kk-mini__cell--thin-r {
+  border-right: 1px solid var(--cell-border);
+}
+.kk-mini__cell--thin-b {
+  border-bottom: 1px solid var(--cell-border);
+}
+.kk-mini__cell--cage-r {
+  border-right: 2px solid var(--cell-border-heavy);
+}
+.kk-mini__cell--cage-b {
+  border-bottom: 2px solid var(--cell-border-heavy);
+}
+
+/* Draws the eye to the cells a rule is about — the same tint a selected cage wears. */
+.kk-mini__cell--tint {
+  background: var(--cell-cage);
+}
+
+.kk-mini__label {
+  position: absolute;
+  top: 2px;
+  left: 3px;
+  font-size: calc(var(--mini-cell) * 0.26);
   font-weight: 600;
+  line-height: 1;
+  color: var(--text-muted);
+}
+
+.kk-mini__value {
+  font-size: calc(var(--mini-cell) * 0.5);
+  font-weight: 500;
+  line-height: 1;
+  color: var(--text);
 }

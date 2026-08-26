@@ -132,6 +132,7 @@ export function Cover({
         <HowToPlayMenu
           open={openMenu === 'how-to-play'}
           onOpenChange={handleHowToPlayOpenChange}
+          onStartGame={handleStartGame}
           trigger="How to play"
           triggerClassName="kk-cover__action"
         />

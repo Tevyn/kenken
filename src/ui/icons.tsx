@@ -241,6 +241,30 @@ export function RestartIcon(props: IconProps) {
 }
 
 /**
+ * Chevron left / right: a single bare angle bracket, Lucide's `chevron-left`
+ * and `chevron-right` verbatim. They flank the How-to-play carousel as its
+ * previous/next controls, where a plain chevron is the universal "step through
+ * pages" glyph — lighter than the swept `NewGameIcon` loop and unmistakable as
+ * pure direction, with no arrow *shaft* to read as "undo" the way the
+ * corner-hooks do.
+ */
+export function ChevronLeftIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="m15 18-6-6 6-6" />
+    </IconBase>
+  );
+}
+
+export function ChevronRightIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="m9 18 6-6-6-6" />
+    </IconBase>
+  );
+}
+
+/**
  * Correctness: a tick and a cross, side by side — the marks a teacher puts
  * down the margin of a page. It is the pairing that carries the meaning: a
  * lone tick is the universal "done / you win" glyph, and this control is
