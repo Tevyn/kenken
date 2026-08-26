@@ -1,0 +1,52 @@
+/*
+ * The rules panel. The same board surface every popover wears (Popover.css);
+ * only the title and the step list differ.
+ */
+
+.kk-howto {
+  /*
+   * A touch wider than the panel's floor: five sentences want a comfortable
+   * measure, not the 15rem the size grid sets. Still capped by the panel's own
+   * `max-width`, so it never runs past the screen.
+   */
+  min-width: min(18rem, calc(100vw - 56px));
+}
+
+/*
+ * Titled like the new-game wizard, and for the same reason: this names a whole
+ * panel rather than a group within one, so it takes the larger, darker dialog
+ * title rather than the small grey section label.
+ */
+.kk-howto__title {
+  margin: 0 0 var(--sp-3);
+  text-align: center;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text-h);
+}
+
+/*
+ * A real ordered list, so the steps are numbered and announced as a list. The
+ * marker sits in the accent — the one place a number is ink rather than a
+ * player-entered value — and the padding leaves room for two-digit markers
+ * without the text reflowing.
+ */
+.kk-howto__steps {
+  margin: 0;
+  padding-left: var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.kk-howto__step {
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.kk-howto__step::marker {
+  color: var(--accent);
+  font-weight: 600;
+}

@@ -276,7 +276,7 @@ export function PopoverPanel({
  * for the same reason: an open panel owns the keyboard, so whoever owns the
  * board's shortcuts has to know one is open.
  */
-export type OpenMenu = 'new-game' | 'settings' | 'hint' | null;
+export type OpenMenu = 'new-game' | 'settings' | 'how-to-play' | 'hint' | null;
 
 export interface PopoverProps {
   /** Accessible name for the trigger button. */

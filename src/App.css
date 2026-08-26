@@ -40,7 +40,11 @@
   margin-inline: auto;
 }
 
-/* A real app header: title on the left, the controls on the right, one row. */
+/*
+ * A real app header, one row: the way back on the left, the puzzle meta holding
+ * the middle, the toolbar on the right. The wordmark that used to lead the left
+ * has moved to the cover (Cover.css).
+ */
 .kk-app__header {
   display: flex;
   align-items: center;
@@ -48,34 +52,27 @@
   gap: var(--sp-3);
 }
 
-/* Wordmark over the puzzle meta, as one block on the header's left. */
-.kk-app__identity {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-1);
-}
-
 /*
- * Understated on purpose: grey, small, sentence case. It is the answer to
- * "what am I playing", not a status readout - the game is untimed and unscored
- * (STYLE_GUIDE.md §6.1), so this is the only state the header carries.
+ * The answer to "what am I playing", not a status readout - the game is untimed
+ * and unscored (STYLE_GUIDE.md §6.1), so this is the only state the header
+ * carries. It takes `--text`, the same ink as a digit placed in a cell
+ * (Cell.css `.kk-cell__value`): full strength rather than the muted grey it
+ * used to wear, so it reads as the board's own numbers do rather than as a
+ * quiet caption.
+ *
+ * `flex: 1` centres it in the space the menu control and the toolbar leave, so
+ * it sits between the two rather than crowding either. `min-width: 0` lets it
+ * shrink instead of shoving the toolbar off a narrow screen.
  */
 .kk-app__meta {
+  flex: 1;
+  min-width: 0;
   margin: 0;
-  font-size: 13px;
+  text-align: center;
+  font-size: 24px;
   font-weight: 500;
   line-height: 1.2;
-  color: var(--text-muted);
-}
-
-.kk-app__title {
-  margin: 0;
-  /*
-   * Down from clamp(22px, 5.5vw, 30px). It was the largest text on the page
-   * and the least useful information on it (STYLE_GUIDE.md §7).
-   */
-  font-size: 20px;
-  letter-spacing: -0.4px;
+  color: var(--text);
 }
 
 /*

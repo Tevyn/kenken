@@ -156,14 +156,34 @@ function emptyValues(size: number): Grid {
   return new Array<number | null>(size * size).fill(null);
 }
 
-export function createInitialState(puzzle: Puzzle, autoClearMarks = true): GameState {
+/**
+ * A board to start from instead of an empty grid: the values and marks a
+ * resumed game restores. Length-checked here rather than trusted, so a stale or
+ * mismatched save degrades to an empty board rather than a broken one.
+ */
+export interface BoardSeed {
+  values: Grid;
+  marks: Marks;
+}
+
+export function createInitialState(
+  puzzle: Puzzle,
+  autoClearMarks = true,
+  seed?: BoardSeed,
+): GameState {
+  const cells = puzzle.size * puzzle.size;
+  const seeded = seed != null && seed.values.length === cells && seed.marks.length === cells;
+  const values = seeded ? seed.values.slice() : emptyValues(puzzle.size);
+  const marks = seeded ? seed.marks.map((cell) => [...cell]) : emptyMarks(puzzle.size);
   return {
     puzzle,
-    values: emptyValues(puzzle.size),
-    marks: emptyMarks(puzzle.size),
+    values,
+    marks,
     selected: null,
     mode: 'value',
-    status: 'playing',
+    // A resumed board could already be complete; honour that rather than
+    // reopening a solved puzzle as if it were mid-play.
+    status: isGridSolved(puzzle, values) ? 'solved' : 'playing',
     past: [],
     future: [],
     hint: IDLE_HINT,

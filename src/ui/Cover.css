@@ -1,0 +1,95 @@
+/*
+ * The title screen: brand over a stack of choices, both centred in the page.
+ *
+ * `container-type: inline-size` for the same reason `.kk-app` sets it — it makes
+ * the cover the containing block for the popovers' `position: fixed` panels, so
+ * a wizard opened from here pins against the cover rather than escaping to the
+ * viewport. The cover spans the viewport, so the two coincide.
+ */
+.kk-cover {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-6);
+  min-height: 100%;
+  padding: var(--sp-6) var(--sp-4);
+  container-type: inline-size;
+}
+
+.kk-cover__brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-4);
+}
+
+/*
+ * The logo is `DifficultyIcon`, whose lines are `currentColor`; painting the
+ * wrapper in the accent is what makes the frame and the tinted cage read as the
+ * app's own ink, the same blue the board draws with.
+ */
+.kk-cover__logo {
+  color: var(--accent);
+}
+
+/*
+ * The wordmark, and the one place the app prints its name large. The header
+ * used to carry a 20px title and gave it up for the back button; this is where
+ * that name lives now, so it takes the size a title screen wants.
+ */
+.kk-cover__title {
+  margin: 0;
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: var(--text-h);
+}
+
+.kk-cover__error {
+  margin: 0;
+}
+
+/*
+ * The four choices, a full-width column capped at a comfortable button width.
+ * Each is a bare `.kk-control` — accent ink, no chrome — so the cover speaks
+ * the same visual language as the board it leads to. Two of the four are
+ * popover triggers, wrapped in `.kk-popover`; that wrapper is inline-flex by
+ * default, so it is stretched to the column width here or its button would hug
+ * its text and break the alignment.
+ */
+.kk-cover__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--sp-2);
+  width: min(100%, 18rem);
+}
+
+.kk-cover__actions .kk-popover {
+  display: flex;
+  width: 100%;
+}
+
+/*
+ * A larger tap target and a larger word than the toolbar controls: these are
+ * the page's primary calls to action, not a row of secondary tools, so they
+ * carry more presence while staying bare accent text.
+ */
+.kk-cover__action {
+  width: 100%;
+  min-width: 0;
+  min-height: 52px;
+  font-size: 17px;
+}
+
+/*
+ * "Generating…", while the cover holds still waiting for the puzzle. Grey and
+ * quiet — it reports, it does not shout — and it sits under the actions so the
+ * stack does not jump when it appears.
+ */
+.kk-cover__status {
+  margin: 0;
+  font-weight: 600;
+  color: var(--text-muted);
+}

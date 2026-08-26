@@ -92,6 +92,32 @@ export function EraseIcon(props: IconProps) {
 }
 
 /**
+ * Menu: the standard hamburger — three full-width horizontal bars (Lucide
+ * `menu`). It leaves the board for the cover, which is the game's menu, so it
+ * takes the glyph every app uses for exactly that.
+ *
+ * The bars span the near-full 3..21 envelope, in both axes, that the circular
+ * `NewGameIcon`/`RestartIcon` and the `MenuIcon` sliders beside it fill: a
+ * shorter, narrower hamburger read as a smaller control than its neighbours
+ * even at the same render size, because it was the only glyph not touching its
+ * box. Same envelope, same optical size.
+ *
+ * Not to be confused with `MenuIcon` below, the *settings* trigger: that one
+ * deliberately became sliders-with-toggles ("options"), precisely so the two
+ * would not collide. These bars are unbroken and evenly spaced, the toggles are
+ * gone, and the two read as different things at the 22px the header renders.
+ */
+export function HamburgerIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <line x1="3" y1="5" x2="21" y2="5" />
+      <line x1="3" y1="12" x2="21" y2="12" />
+      <line x1="3" y1="19" x2="21" y2="19" />
+    </IconBase>
+  );
+}
+
+/**
  * Undo: a compact corner-hook, arrowhead trailing into a curl that drops
  * into a vertical tail. Structurally this is Lucide's `corner-up-left`
  * shape (not a full swept rotate-arrow) — it stays legible as one

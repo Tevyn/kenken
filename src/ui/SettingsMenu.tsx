@@ -1,4 +1,4 @@
-import type { ChangeEvent, ComponentType } from 'react';
+import type { ChangeEvent, ComponentType, ReactNode } from 'react';
 import type { Theme } from '../game/preferences';
 import { THEMES } from '../game/preferences';
 import type { IconProps } from './icons';
@@ -15,6 +15,13 @@ export interface SettingsMenuProps {
   onThemeChange: (theme: Theme) => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /**
+   * Override the trigger's contents. The header wants the stacked glyph-over-
+   * label control; the cover wants a plain text button. Same panel either way.
+   */
+  trigger?: ReactNode;
+  /** Class on the trigger button, paired with `trigger`. Defaults to the stacked control. */
+  triggerClassName?: string;
 }
 
 const THEME_LABELS: Record<Theme, string> = {
@@ -44,6 +51,8 @@ export function SettingsMenu({
   onThemeChange,
   open,
   onOpenChange,
+  trigger,
+  triggerClassName = 'kk-control--stack',
 }: SettingsMenuProps) {
   function handleAutoClearMarksChange(event: ChangeEvent<HTMLInputElement>) {
     onAutoClearMarksChange(event.target.checked);
@@ -57,12 +66,14 @@ export function SettingsMenu({
     <Popover
       label="Settings"
       trigger={
-        <>
-          <MenuIcon size={22} />
-          <span className="kk-control__label">Settings</span>
-        </>
+        trigger ?? (
+          <>
+            <MenuIcon size={22} />
+            <span className="kk-control__label">Settings</span>
+          </>
+        )
       }
-      triggerClassName="kk-control--stack"
+      triggerClassName={triggerClassName}
       open={open}
       onOpenChange={onOpenChange}
     >

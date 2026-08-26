@@ -8,7 +8,7 @@ import {
   findNextNumber,
 } from '../engine';
 import type { CellIndex, Puzzle } from '../engine/types';
-import type { Direction, GameAction, Mode } from './state';
+import type { BoardSeed, Direction, GameAction, Mode } from './state';
 import { createInitialState, gameReducer, hintHighlight } from './state';
 
 const EDITABLE_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT']);
@@ -39,6 +39,12 @@ export interface UseGameOptions {
    * game has no business reaching up to open it.
    */
   onRequestHint?: () => void;
+  /**
+   * A board to resume instead of an empty one — the values and marks a saved
+   * game restores. Read once, at mount, like `autoClearMarks`: the reducer's
+   * state is the only record of the board from then on.
+   */
+  seed?: BoardSeed;
 }
 
 /** One line of the Combinations panel: an arithmetic expression, still allowed or not. */
@@ -97,7 +103,7 @@ export function useGame(initialPuzzle: Puzzle, options?: UseGameOptions) {
   const initialAutoClearMarks = options?.autoClearMarks ?? true;
   const suspended = options?.suspended ?? false;
   const [state, dispatch] = useReducer(gameReducer, initialPuzzle, (puzzle: Puzzle) =>
-    createInitialState(puzzle, initialAutoClearMarks),
+    createInitialState(puzzle, initialAutoClearMarks, options?.seed),
   );
 
   // The panel's three choices all have to read the live grid but must stay

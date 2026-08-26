@@ -158,6 +158,14 @@ export interface NewGameMenuProps {
   onOpenChange: (open: boolean) => void;
   /** True while a puzzle is generating; the trigger can't start another. */
   disabled?: boolean;
+  /**
+   * Override the trigger's contents. The header wants the stacked glyph-over-
+   * label control; the cover wants a plain text button. Same panel either way —
+   * only the button that opens it changes.
+   */
+  trigger?: ReactNode;
+  /** Class on the trigger button, paired with `trigger`. Defaults to the stacked control. */
+  triggerClassName?: string;
 }
 
 /**
@@ -175,18 +183,22 @@ export function NewGameMenu({
   open,
   onOpenChange,
   disabled = false,
+  trigger,
+  triggerClassName = 'kk-control--stack',
 }: NewGameMenuProps) {
   return (
     <Popover
       label="New game"
       panelLabelledBy={HEADING_ID}
       trigger={
-        <>
-          <NewGameIcon size={22} />
-          <span className="kk-control__label">New game</span>
-        </>
+        trigger ?? (
+          <>
+            <NewGameIcon size={22} />
+            <span className="kk-control__label">New game</span>
+          </>
+        )
       }
-      triggerClassName="kk-control--stack"
+      triggerClassName={triggerClassName}
       open={open}
       onOpenChange={onOpenChange}
       disabled={disabled}

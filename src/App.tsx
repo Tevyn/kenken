@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Difficulty, Puzzle } from './engine/types';
 import { createErrorChecker, generatePuzzle } from './engine';
 import { SAMPLE_PUZZLE } from './fixtures/samplePuzzle';
@@ -10,17 +10,46 @@ import {
   saveAutoClearMarks,
   saveTheme,
 } from './game/preferences';
+import { loadSession, saveSession } from './game/session';
 import { useGame } from './game/useGame';
 import { Board } from './ui/Board';
 import { Controls } from './ui/Controls';
+import { Cover } from './ui/Cover';
+import { HamburgerIcon } from './ui/icons';
 import { Keypad } from './ui/Keypad';
 import type { OpenMenu } from './ui/Popover';
 import { WinDialog } from './ui/WinDialog';
 import './App.css';
 
+/** Which screen is on: the title/cover page, or the board itself. */
+type Screen = 'cover' | 'game';
+
 function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  /*
+   * Always open on the cover (a settled product decision), and only ever leave
+   * it deliberately — Continue, or a committed new game.
+   */
+  const [screen, setScreen] = useState<Screen>('cover');
+
+  /*
+   * The game saved from a previous visit, read once at mount. It seeds the
+   * reducer below, so Continue restores the board with nothing to re-hydrate;
+   * it is also the answer to "is there anything to continue" on first launch,
+   * before the player has started anything this session.
+   */
+  const [savedSession] = useState(loadSession);
+
+  /*
+   * Whether a game is in play this session — set by Continue and by a committed
+   * new game. It is the other half of "can you continue": once you have started
+   * or resumed a game, going back to the cover must leave Continue live, even
+   * though `savedSession` was captured before any of that.
+   */
+  const [sessionActive, setSessionActive] = useState(false);
+  const canContinue = sessionActive || savedSession != null;
   /*
    * Which popover is open lives here, not with any of them: an open panel is
    * modal enough to own the keyboard, so the game's shortcuts have to know
@@ -60,9 +89,22 @@ function App() {
     saveTheme(next);
   }, []);
 
-  const game = useGame(SAMPLE_PUZZLE, {
+  /*
+   * The reducer starts from the saved game when there is one, so Continue is
+   * just a screen change — the board is already in memory, exactly as it was
+   * left. With nothing saved it starts from the sample fixture, which the cover
+   * keeps hidden until the player picks a real game.
+   */
+  const game = useGame(savedSession?.puzzle ?? SAMPLE_PUZZLE, {
     autoClearMarks: initialAutoClearMarks,
-    suspended: openMenu !== null || winOpen,
+    seed: savedSession ? { values: savedSession.values, marks: savedSession.marks } : undefined,
+    /*
+     * The board's keyboard is the game's alone, so it stays suspended while the
+     * cover is up: a digit pressed on the title screen must not edit the game
+     * hidden behind it. On the game screen the usual rule applies — an open
+     * popover or the solved dialog takes the keyboard too.
+     */
+    suspended: screen !== 'game' || openMenu !== null || winOpen,
     onRequestHint: openHint,
   });
 
@@ -182,12 +224,57 @@ function App() {
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Failed to generate puzzle.');
         }
-        if (next) newPuzzle(next);
+        if (next) {
+          newPuzzle(next);
+          // The one place a game begins: from here the autosave effect owns the
+          // record, and Continue has something to return to. Also the moment the
+          // cover hands off to the board — a no-op when already on it.
+          setSessionActive(true);
+          setScreen('game');
+        }
         setLoading(false);
       }, 0);
     },
     [newPuzzle],
   );
+
+  /*
+   * Resume the game already in memory — the board is either the seeded save or
+   * whatever was last played this session, so there is nothing to load, only a
+   * screen to change. The cover only offers this when `canContinue`.
+   */
+  const handleContinue = useCallback(() => {
+    setError(null);
+    setSessionActive(true);
+    setScreen('game');
+  }, []);
+
+  /*
+   * Back to the cover, without disturbing the game: the board stays in memory
+   * and stays saved, so Continue brings it straight back. Any open popover is
+   * closed on the way out so the cover opens clean.
+   */
+  const handleBack = useCallback(() => {
+    setOpenMenu(null);
+    setError(null);
+    setScreen('cover');
+  }, []);
+
+  /*
+   * Autosave, board only (no undo history — a settled decision): the game is
+   * written on every change to the puzzle, values or marks, but only once it is
+   * actually in play. The sample fixture behind the cover must never masquerade
+   * as a saved game, so nothing is written until Continue or a new game sets
+   * `sessionActive`.
+   */
+  useEffect(() => {
+    if (!sessionActive) return;
+    saveSession({
+      puzzle: game.state.puzzle,
+      values: game.state.values,
+      marks: game.state.marks,
+    });
+  }, [sessionActive, game.state.puzzle, game.state.values, game.state.marks]);
 
   /*
    * Generating never unmounts the game. Replacing it with one line of text
@@ -203,28 +290,68 @@ function App() {
 
   const busyClass = loading ? 'kk-is-busy' : '';
 
+  /*
+   * The cover shares the app's popover machinery — its New game and Settings are
+   * the very same panels the header opens, only with a cover-styled trigger — so
+   * it reads the same `openMenu` slot and generation state. It never mounts
+   * alongside the game, so the two instances of those menus never collide.
+   */
+  if (screen === 'cover') {
+    return (
+      <Cover
+        canContinue={canContinue}
+        onContinue={handleContinue}
+        size={game.state.puzzle.size}
+        difficulty={game.state.puzzle.difficulty}
+        onStartGame={handleStartGame}
+        autoClearMarks={game.state.autoClearMarks}
+        onAutoClearMarksChange={handleAutoClearMarksChange}
+        theme={theme}
+        onThemeChange={handleThemeChange}
+        openMenu={openMenu}
+        onOpenMenuChange={setOpenMenu}
+        loading={loading}
+        error={error}
+      />
+    );
+  }
+
   return (
     <div className="kk-app">
       <header className="kk-app__header">
-        <div className="kk-app__identity">
-          <h1 className="kk-app__title">KenKen</h1>
-          {/*
-            What you are playing, stated once and quietly. Nothing on screen
-            said it before - not the size, not the difficulty - and the wizard
-            is the only other place either appears.
+        {/*
+          The wordmark that used to sit here has moved to the cover; the board's
+          header leads with the way back to it instead. The cover is the game's
+          menu, so the control is a hamburger labelled "Menu" — a bare stacked
+          control like every other in the app, so it reads as one of the app's
+          controls rather than browser chrome.
+        */}
+        <button
+          type="button"
+          className="kk-control kk-control--stack kk-app__back"
+          onClick={handleBack}
+        >
+          <HamburgerIcon size={22} />
+          <span className="kk-control__label">Menu</span>
+        </button>
 
-            The visible form is split from the announced one because "9×9"
-            reads as "nine times nine" aloud.
-          */}
-          <p className="kk-app__meta">
-            <span aria-hidden="true">
-              {game.state.puzzle.size}×{game.state.puzzle.size} {difficultyLabel}
-            </span>
-            <span className="kk-sr-only">
-              {`Playing ${game.state.puzzle.size} by ${game.state.puzzle.size}, ${game.state.puzzle.difficulty}`}
-            </span>
-          </p>
-        </div>
+        {/*
+          What you are playing, stated once and quietly. Centred between the back
+          control and the toolbar now that the wordmark no longer anchors the
+          left — the header's one piece of state, holding the middle.
+
+          The visible form is split from the announced one because "9×9" reads as
+          "nine times nine" aloud.
+        */}
+        <p className="kk-app__meta">
+          <span aria-hidden="true">
+            {game.state.puzzle.size}×{game.state.puzzle.size} {difficultyLabel}
+          </span>
+          <span className="kk-sr-only">
+            {`Playing ${game.state.puzzle.size} by ${game.state.puzzle.size}, ${game.state.puzzle.difficulty}`}
+          </span>
+        </p>
+
         <Controls
           size={game.state.puzzle.size}
           difficulty={game.state.puzzle.difficulty}
