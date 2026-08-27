@@ -53,10 +53,9 @@
  * one value feeds both `top` and `max-height`, so the panel can't run off the
  * bottom of a short viewport as the offset is tuned.
  *
- * Two panels opt out. WinDialog re-centres (WinDialog.css): it has no trigger
- * and floats over the finished board, so the middle of the page is where it
- * belongs. The hint panel replaces this positioning wholesale (HintMenu.css),
- * hanging off its own trigger.
+ * One panel opts out: the hint panel replaces this positioning wholesale
+ * (HintMenu.css), hanging off its own trigger. The success screen is not a
+ * popover at all — it fills the page as its own layer (WinOverlay.css).
  */
 .kk-popover__panel {
   --popover-top: 116px;

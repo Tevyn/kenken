@@ -13,12 +13,13 @@ import {
 import { loadSession, saveSession } from './game/session';
 import { useGame } from './game/useGame';
 import { Board } from './ui/Board';
+import { puzzleFinishSweepMs, useCompletionGlow } from './ui/completionGlow';
 import { Controls } from './ui/Controls';
 import { Cover } from './ui/Cover';
 import { HamburgerIcon } from './ui/icons';
 import { Keypad } from './ui/Keypad';
 import type { OpenMenu } from './ui/Popover';
-import { WinDialog } from './ui/WinDialog';
+import { WinOverlay } from './ui/WinOverlay';
 import './App.css';
 
 /** Which screen is on: the title/cover page, or the board itself. */
@@ -69,7 +70,14 @@ function App() {
    */
   const [solvedSeen, setSolvedSeen] = useState(false);
   const [winDismissed, setWinDismissed] = useState(false);
-  const winOpen = solvedSeen && !winDismissed;
+  /*
+   * The overlay does not arrive the instant the grid is solved: the finishing
+   * move fires the whole-board glow, and the success screen waits for that sweep
+   * to play out before it fades in over the board. `winReady` is that gate,
+   * flipped by a timer below once the sweep is done.
+   */
+  const [winReady, setWinReady] = useState(false);
+  const winOpen = solvedSeen && winReady && !winDismissed;
 
   const openHint = useCallback(() => setOpenMenu('hint'), []);
 
@@ -102,9 +110,12 @@ function App() {
      * The board's keyboard is the game's alone, so it stays suspended while the
      * cover is up: a digit pressed on the title screen must not edit the game
      * hidden behind it. On the game screen the usual rule applies — an open
-     * popover or the solved dialog takes the keyboard too.
+     * popover takes the keyboard too, as does a solve: from the moment the grid
+     * is finished until the win is acknowledged the board is frozen, so a stray
+     * keystroke can't un-solve it out from under the finish animation or the
+     * overlay that follows.
      */
-    suspended: screen !== 'game' || openMenu !== null || winOpen,
+    suspended: screen !== 'game' || openMenu !== null || (solvedSeen && !winDismissed),
     onRequestHint: openHint,
   });
 
@@ -156,19 +167,33 @@ function App() {
   if (solved !== solvedSeen) {
     setSolvedSeen(solved);
     setWinDismissed(false);
+    // Every solve starts the reveal clock from zero, and unsolving stops it: the
+    // gate is armed here and flipped open by the timer below once the sweep ends.
+    setWinReady(false);
   }
 
-  const handleWinDismiss = useCallback(() => setWinDismissed(true), []);
-
   /*
-   * "New game" from the solved dialog opens the wizard rather than starting
-   * something itself: the size and the difficulty are still choices, and the
-   * wizard is the one place that asks for them.
+   * Hold the success overlay back until the board's finish sweep has run, then
+   * let it fade in. The wait is the sweep's own length (shorter under reduced
+   * motion, where the ripple collapses to a single bloom); unsolving the grid
+   * before it elapses — an undo on the winning move — cancels the reveal, since
+   * the effect re-runs with `solvedSeen` false and clears the pending timer.
    */
-  const handleWinNewGame = useCallback(() => {
-    setWinDismissed(true);
-    setOpenMenu('new-game');
-  }, []);
+  const puzzleSize = game.state.puzzle.size;
+  useEffect(() => {
+    if (!solvedSeen) return;
+    const reduced =
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const timer = window.setTimeout(
+      () => setWinReady(true),
+      puzzleFinishSweepMs(puzzleSize, reduced),
+    );
+    return () => window.clearTimeout(timer);
+  }, [solvedSeen, puzzleSize]);
+
+  const handleWinDismiss = useCallback(() => setWinDismissed(true), []);
 
   /* Nothing filled in is nothing for the check to judge. Marks are not entries,
      so they do not count: `checkCorrectness` only ever looks at values. */
@@ -203,6 +228,14 @@ function App() {
   const errors = useMemo(() => checkErrors(game.state.values), [checkErrors, game.state.values]);
 
   /*
+   * The completion glow: a bloom that ripples through a cage, row, column, or
+   * the whole grid the moment it is finished with no red digit in it. Derived
+   * from the same board state and error/verdict marks the Board already draws —
+   * it starts and clears itself, and never enters the reducer.
+   */
+  const glow = useCompletionGlow(game.state.puzzle, game.state.values, errors, game.state.verdict);
+
+  /*
    * The one commit point for a new game: the wizard collects both choices and
    * hands them over together, so nothing regenerates while the player is still
    * deciding.
@@ -217,6 +250,9 @@ function App() {
       setError(null);
       // Flip the loading flag, then let the browser paint before the (possibly ~1s)
       // synchronous generation work, so the UI doesn't appear to freeze.
+      // Starting a game leaves no win to acknowledge: drop any open success
+      // screen now, so it never lingers over the board about to be generated.
+      setWinDismissed(true);
       setTimeout(() => {
         let next: Puzzle | null = null;
         try {
@@ -236,6 +272,17 @@ function App() {
       }, 0);
     },
     [newPuzzle],
+  );
+
+  /*
+   * "New game" on the success screen: a fresh puzzle of the very shape just
+   * solved, generated straight away. The wizard is skipped — both choices are
+   * already made — so this is the header's start path with the current size and
+   * difficulty handed back to it.
+   */
+  const handleWinNewGame = useCallback(
+    () => handleStartGame(game.state.puzzle.size, game.state.puzzle.difficulty),
+    [handleStartGame, game.state.puzzle.size, game.state.puzzle.difficulty],
   );
 
   /*
@@ -390,6 +437,7 @@ function App() {
               highlight={game.highlight}
               verdict={game.state.verdict}
               placed={game.state.placed}
+              glow={glow}
               onSelect={game.select}
             />
           </div>
@@ -430,10 +478,18 @@ function App() {
       </div>
 
       {/*
-        Floats over everything rather than sitting in a zone, so finishing the
-        puzzle doesn't move the board or the keypad.
+        Fills the page over everything rather than sitting in a zone, so
+        finishing the puzzle doesn't move the board or the keypad. It waits for
+        the board's finish sweep, then fades in. Its two moves are the header's
+        own: Menu returns to the cover, New game starts a fresh puzzle of the
+        same shape.
       */}
-      <WinDialog visible={winOpen} onDismiss={handleWinDismiss} onNewGame={handleWinNewGame} />
+      <WinOverlay
+        visible={winOpen}
+        onMenu={handleBack}
+        onNewGame={handleWinNewGame}
+        onDismiss={handleWinDismiss}
+      />
     </div>
   );
 }

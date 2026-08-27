@@ -151,6 +151,31 @@ describe('Board', () => {
     const { container } = renderBoard({ errors });
     expect(container.querySelector('.kk-board__errors')).toHaveTextContent('1 cell conflicts');
   });
+
+  it('draws the completion glow layer with a per-cell delay on exactly the rippling cells', () => {
+    const glow = {
+      delays: new Map([
+        [0, 0],
+        [1, 60],
+      ]),
+      token: 7,
+    };
+    const { container } = renderBoard({ glow });
+
+    const layers = container.querySelectorAll('.kk-cell__glow');
+    expect(layers).toHaveLength(2);
+
+    const cells = container.querySelectorAll('.kk-cell');
+    expect(cells[0].querySelector('.kk-cell__glow')).toHaveStyle({ '--kk-glow-delay': '0ms' });
+    expect(cells[1].querySelector('.kk-cell__glow')).toHaveStyle({ '--kk-glow-delay': '60ms' });
+    // A cell not in the ripple carries no glow layer.
+    expect(cells[2].querySelector('.kk-cell__glow')).toBeNull();
+  });
+
+  it('renders no glow layer when nothing is completing', () => {
+    const { container } = renderBoard();
+    expect(container.querySelectorAll('.kk-cell__glow')).toHaveLength(0);
+  });
 });
 
 /** A highlight with every channel in use, so precedence can be checked at once. */

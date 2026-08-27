@@ -1,0 +1,108 @@
+/*
+ * The success screen fills the page and dims it — the one place the app dims
+ * anything. A popover shield paints nothing, because the player is still reading
+ * the board behind it; here the game is over, so the finished grid is left to
+ * show faintly through a mostly-opaque wash rather than to compete with the
+ * congratulation over it.
+ *
+ * `position: fixed` resolves against `.kk-app`, exactly as the popover shield's
+ * does (Popover.css): `container-type` on that element makes it the containing
+ * block, and it spans the viewport. Sat below the popover layer (shield 19,
+ * panel 20) so the new-game wizard opens over the top of this, and above the
+ * board and keypad so it covers them.
+ */
+.kk-win {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-5) var(--sp-4);
+  background: color-mix(in oklab, var(--surface) 92%, transparent);
+  animation: kk-win-fade 0.32s ease both;
+}
+
+@keyframes kk-win-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/*
+ * The content sits in the same column the board, header and keypad line up on
+ * (`--content`), so the win screen reads as part of the app rather than a layer
+ * bolted over it. `position: relative` anchors the corner close button.
+ */
+.kk-win__panel {
+  position: relative;
+  width: var(--content);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-5);
+  text-align: center;
+}
+
+/* Focus lands here on open to announce the win; it is not itself a control. */
+.kk-win__panel:focus {
+  outline: none;
+}
+
+/*
+ * The corner way out. Pinned to the top rather than floating beside the heading,
+ * so it reads as "close this screen" from a fixed, expected spot however tall the
+ * content is. `position: fixed` resolves against `.kk-app` (its `container-type`
+ * makes it the containing block, exactly as the popover layer relies on), which
+ * spans the viewport. Its `right`, though, tracks the content column's edge — not
+ * the viewport's — so on wide desktops it sits over the board's top-right corner
+ * rather than drifting off into the empty gutter. The gutter on each side is
+ * `(100% − var(--content)) / 2`, i.e. `50% − var(--content) / 2`; inset the
+ * button one `--sp-3` further in from there. It stays inside the dialog in the
+ * DOM, so it is part of the modal for assistive tech.
+ */
+.kk-win__close {
+  position: fixed;
+  top: var(--sp-3);
+  right: calc(50% - var(--content) / 2 + var(--sp-3));
+  /* An icon-only tap target: no text to space from, so drop the control's gap. */
+  gap: 0;
+  color: var(--text-muted);
+}
+
+/*
+ * The news, and the loudest thing on the screen. It takes the accent — the ink
+ * of everything you can act on — at a heading's weight and a hero's size, so it
+ * leads the two actions under it without a fill (STYLE_GUIDE.md §4).
+ */
+.kk-win__title {
+  margin: 0;
+  font-size: clamp(28px, 9cqw, 40px);
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--accent);
+}
+
+/*
+ * The two moves that follow, side by side with Menu on the left — the header's
+ * own glyph-over-label controls (`kk-control--stack`), reused verbatim, so the
+ * success screen speaks the same shorthand as the toolbar.
+ */
+.kk-win__actions {
+  display: flex;
+  justify-content: center;
+  gap: var(--sp-4);
+}
+
+/*
+ * The fade is an entrance flourish, not information: a reader who asked for less
+ * motion gets the screen at once, fully drawn.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .kk-win {
+    animation: none;
+  }
+}

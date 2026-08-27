@@ -858,3 +858,21 @@ export function ThemeSystemIcon(props: IconProps) {
     </IconBase>
   );
 }
+
+/**
+ * Close: a plain X, Lucide's `x` verbatim.
+ *
+ * The app's popovers deliberately carry no close button (Popover.tsx) — they
+ * dismiss on Escape or an outside press, and a visible × would be a third way
+ * only some of them had. The success overlay is the one place it earns its
+ * keep: it fills the screen rather than floating as a card, so "press outside"
+ * has no obvious outside to aim at, and a corner × is the discoverable way out.
+ */
+export function CloseIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M18 6 6 18" />
+      <path d="m6 6 12 12" />
+    </IconBase>
+  );
+}

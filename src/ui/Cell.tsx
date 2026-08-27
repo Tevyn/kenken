@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import type { CellIndex } from '../engine/types';
 import './Cell.css';
 
@@ -43,6 +44,13 @@ export interface CellProps {
   showCageLabel: boolean;
   /** Space-separated edge classes from `edgeClassNames` (see `cageBorders.ts`). */
   edgeClassName: string;
+  /**
+   * This cell's start delay, in ms, in the completion glow currently rippling
+   * across the board (see `completionGlow.ts`); absent when nothing is glowing.
+   */
+  glowDelay?: number;
+  /** Bumped per ripple, so a fresh completion restarts the bloom mid-fade. */
+  glowToken?: number;
   onSelect: (index: CellIndex) => void;
 }
 
@@ -66,6 +74,8 @@ export function Cell({
   cageLabelText,
   showCageLabel,
   edgeClassName,
+  glowDelay,
+  glowToken,
   onSelect,
 }: CellProps) {
   const classNames = ['kk-cell'];
@@ -111,6 +121,19 @@ export function Cell({
       className={classNames.join(' ')}
       onClick={() => onSelect(index)}
     >
+      {/*
+        The completion bloom, on its own layer beneath the value and the label
+        (see Cell.css). Keyed on the ripple's token so a new completion mounts a
+        fresh element and the animation restarts rather than freezing mid-fade.
+      */}
+      {glowDelay != null && (
+        <span
+          key={glowToken}
+          className="kk-cell__glow"
+          aria-hidden="true"
+          style={{ '--kk-glow-delay': `${glowDelay}ms` } as CSSProperties}
+        />
+      )}
       {showCageLabel && <span className="kk-cell__cage-label">{cageLabelText}</span>}
       {value != null ? (
         <span className="kk-cell__value">{value}</span>

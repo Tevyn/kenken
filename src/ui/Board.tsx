@@ -7,6 +7,8 @@ import type { HintHighlight } from '../engine/hints';
 import { edgeClassNames, computeCellEdges } from './cageBorders';
 import { Cell } from './Cell';
 import type { HintRole } from './Cell';
+import type { CompletionGlow } from './completionGlow';
+import { GLOW_DURATION_MS, GLOW_INTENSITY } from './completionGlow';
 import type { Marks, Verdict } from '../game/state';
 import './Board.css';
 
@@ -35,6 +37,12 @@ export interface BoardProps {
   verdict?: Verdict;
   /** Cells the panel's Number choice filled in. */
   placed?: readonly CellIndex[];
+  /**
+   * The completion bloom currently rippling across the board, or `null`. Purely
+   * derived and self-expiring (see `completionGlow.ts`); nothing about it is
+   * stored in the reducer.
+   */
+  glow?: CompletionGlow | null;
   onSelect: (index: CellIndex) => void;
 }
 
@@ -64,6 +72,7 @@ export function Board({
   highlight,
   verdict = NO_VERDICT,
   placed = NOTHING_PLACED,
+  glow = null,
   onSelect,
 }: BoardProps) {
   const { size } = puzzle;
@@ -142,7 +151,15 @@ export function Board({
         aria-label={`${size} by ${size} KenKen puzzle`}
         aria-rowcount={size}
         aria-colcount={size}
-        style={{ '--size': size } as CSSProperties}
+        style={
+          {
+            '--size': size,
+            // One source of truth for the glow's duration and intensity: the
+            // constants in completionGlow.ts, handed to Cell.css as variables.
+            '--kk-glow-dur': `${GLOW_DURATION_MS}ms`,
+            '--kk-glow-intensity': GLOW_INTENSITY,
+          } as CSSProperties
+        }
       >
         {Array.from({ length: cellCount }, (_, index) => {
           const row = rowOf(index, size);
@@ -176,6 +193,8 @@ export function Board({
               cageLabelText={cageLabelByCell[index]}
               showCageLabel={anchorLabels.has(index)}
               edgeClassName={edgeClassNames(edges)}
+              glowDelay={glow?.delays.get(index)}
+              glowToken={glow?.token}
               onSelect={onSelect}
             />
           );

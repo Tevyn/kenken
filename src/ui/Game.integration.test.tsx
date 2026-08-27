@@ -10,7 +10,7 @@ import { Board } from './Board';
 import { Controls } from './Controls';
 import { Keypad } from './Keypad';
 import type { OpenMenu } from './Popover';
-import { WinDialog } from './WinDialog';
+import { WinOverlay } from './WinOverlay';
 
 /** A minimal wiring of useGame + Board + Keypad, standing in for App.tsx's game view. */
 function TestGame() {
@@ -19,8 +19,9 @@ function TestGame() {
   // panels, the keypad's included, share the one slot.
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
   const [theme, setTheme] = useState<Theme>('system');
-  // The solved dialog is modal too, so it suspends the board's keyboard the
-  // same way an open popover does. Same two-flag arrangement as App.
+  // The success screen is modal too, so it suspends the board's keyboard the
+  // same way an open popover does. Same two-flag arrangement as App, minus App's
+  // reveal delay — this harness exercises the board and hand-off, not the timing.
   const [solvedSeen, setSolvedSeen] = useState(false);
   const [winDismissed, setWinDismissed] = useState(false);
   const winOpen = solvedSeen && !winDismissed;
@@ -67,13 +68,11 @@ function TestGame() {
         placed={game.state.placed}
         onSelect={game.select}
       />
-      <WinDialog
+      <WinOverlay
         visible={winOpen}
+        onMenu={() => {}}
+        onNewGame={() => {}}
         onDismiss={() => setWinDismissed(true)}
-        onNewGame={() => {
-          setWinDismissed(true);
-          setOpenMenu('new-game');
-        }}
       />
       <Keypad
         size={game.state.puzzle.size}
@@ -481,7 +480,7 @@ describe('Board + Keypad + useGame integration', () => {
     });
   });
 
-  it('shows the solved dialog once the whole solution is entered, and lets it be dismissed', async () => {
+  it('shows the success screen once the whole solution is entered, and lets it be dismissed', async () => {
     const user = userEvent.setup();
     render(<TestGame />);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -492,38 +491,15 @@ describe('Board + Keypad + useGame integration', () => {
       await user.keyboard(String(SAMPLE_PUZZLE.solution[i]));
     }
 
-    expect(screen.getByRole('dialog', { name: 'Solved' })).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent(/nice work/i);
+    const overlay = screen.getByRole('dialog', { name: 'Nice solve!' });
+    // The success screen offers the header's own two moves — Menu and New game.
+    expect(within(overlay).getByRole('button', { name: 'Menu' })).toBeInTheDocument();
+    expect(within(overlay).getByRole('button', { name: 'New game' })).toBeInTheDocument();
 
     // Dismissing leaves the finished board on screen and hands the keyboard back.
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(valueOf(cells[0])).toBe(String(SAMPLE_PUZZLE.solution[0]));
-  });
-
-  it('the solved dialog hands off to the new-game wizard, focus and all', async () => {
-    const user = userEvent.setup();
-    render(<TestGame />);
-
-    const cells = screen.getAllByRole('gridcell');
-    for (let i = 0; i < SAMPLE_PUZZLE.solution.length; i++) {
-      await user.click(cells[i]);
-      await user.keyboard(String(SAMPLE_PUZZLE.solution[i]));
-    }
-
-    // Two buttons wear the label at this moment - the header trigger and the
-    // dialog's own. Only the dialog is reachable, so only it is asked.
-    const solvedDialog = screen.getByRole('dialog', { name: 'Solved' });
-    await user.click(within(solvedDialog).getByRole('button', { name: 'New game' }));
-
-    /*
-     * One panel closes as the other opens. The button that was pressed goes
-     * with the closing panel, so the arriving wizard has to be the one that
-     * ends up with focus - on the size being played, as always.
-     */
-    expect(screen.queryByRole('dialog', { name: 'Solved' })).not.toBeInTheDocument();
-    expect(screen.getByRole('dialog', { name: 'New game' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '4 by 4' })).toHaveFocus();
   });
 
   it('restart empties the board, and undo brings it back', async () => {
