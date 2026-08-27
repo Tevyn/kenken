@@ -25,3 +25,6 @@ dist-ssr
 
 .vercel
 .env*
+
+# Android (Capacitor native project lives on the android-capacitor branch)
+android/
