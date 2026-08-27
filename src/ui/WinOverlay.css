@@ -22,12 +22,12 @@
   /*
    * How opaque the wash is splits by theme — the same reason `--hint-dim-opacity`
    * does (index.css): over a dark page a given opacity separates the board from
-   * the message less, so dark dims harder (96%) while light can sit lighter (75%)
+   * the message less, so dark dims harder (96%) while light can sit lighter (85%)
    * and still read. `light-dark()` picks by the used `color-scheme`, exactly as
    * `--surface` itself does; the mix is a colour, so it is a valid arm of the pair.
    */
   background: light-dark(
-    color-mix(in oklab, var(--surface) 75%, transparent),
+    color-mix(in oklab, var(--surface) 85%, transparent),
     color-mix(in oklab, var(--surface) 96%, transparent)
   );
   animation: kk-win-fade 0.32s ease both;
