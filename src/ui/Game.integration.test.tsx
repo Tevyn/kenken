@@ -343,10 +343,14 @@ describe('Board + Keypad + useGame integration', () => {
     expect(valueOf(cells[0])).toBe('2');
   });
 
-  /* Nothing to place is still an answer, and the panel owes the player one. */
-  it('Number stays open and says why when there is no number to place', async () => {
+  /*
+   * The mistake stalls the ladder, but Number owes the player a number, so it
+   * reveals a correct one from the solution and closes over it rather than
+   * explaining the mistake the way Tip does. The wrong entry is left untouched.
+   */
+  it('Number reveals a solution digit when the ladder is stuck, and closes', async () => {
     const user = userEvent.setup();
-    const { container } = render(<TestGame />);
+    render(<TestGame />);
     const cells = screen.getAllByRole('gridcell');
 
     await user.click(cells[0]);
@@ -354,9 +358,11 @@ describe('Board + Keypad + useGame integration', () => {
     await user.click(hintButton());
     await user.click(screen.getByRole('button', { name: 'Number' }));
 
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(hintText(container)).toHaveTextContent(/doesn’t fit|doesn't fit/);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(valueOf(cells[0])).toBe('2');
+    const placed = cells.filter((cell) => cell.className.includes('kk-cell--placed'));
+    expect(placed).toHaveLength(1);
+    expect(valueOf(placed[0])).not.toBeNull();
   });
 
   describe('the correctness check', () => {

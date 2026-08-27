@@ -15,7 +15,7 @@ function HintMenuHarness(props: Partial<Omit<HintMenuProps, 'open' | 'onOpenChan
       canCombine
       onCorrectness={() => 0}
       onTip={() => {}}
-      onNumber={() => true}
+      onNumber={() => {}}
       onCombinations={() => ({ cageLabel: '2÷', lines: [] })}
       {...props}
       open={open}
@@ -142,7 +142,7 @@ describe('HintMenu', () => {
 
   it('Number writes its digit and closes', async () => {
     const user = userEvent.setup();
-    const onNumber = vi.fn(() => true);
+    const onNumber = vi.fn();
     render(<HintMenuHarness onNumber={onNumber} />);
 
     await user.click(trigger());
@@ -152,16 +152,20 @@ describe('HintMenu', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  /* Nothing to place is still an answer, and swallowing the press is not. */
-  it('Number with nothing to place stays open and says so', async () => {
+  /*
+   * Number always places a digit — the ladder's own, or a revealed one — so the
+   * panel just closes over it. It never falls back to the Tip-style screen the
+   * way it once did when the ladder had nothing to place.
+   */
+  it('Number closes the panel with no explanation, whatever the ladder found', async () => {
     const user = userEvent.setup();
-    render(<HintMenuHarness onNumber={() => false} text="Every step is already taken" />);
+    render(<HintMenuHarness onNumber={() => {}} text="a tip nobody asked for" />);
 
     await user.click(trigger());
     await user.click(choice('Number'));
 
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByText('Every step is already taken')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByText('a tip nobody asked for')).not.toBeInTheDocument();
   });
 
   /* Like Tip: the list has something to show, so it replaces the choices with

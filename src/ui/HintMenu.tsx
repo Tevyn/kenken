@@ -10,7 +10,7 @@ interface ChoicesProps {
   canCombine: boolean;
   onCorrectness: () => number;
   onTip: () => void;
-  onNumber: () => boolean;
+  onNumber: () => void;
   onCombinations: () => CombinationsView | null;
   onClose: () => void;
 }
@@ -138,16 +138,17 @@ function HintChoices({
             <span className="kk-control__label">Tip</span>
           </button>
           {/*
-            A number that could not be found is still an answer, and the ladder
-            has one — a mistake, a dead end, a finished grid. So the panel stays
-            open and says it rather than swallowing the press.
+            Number always writes a digit and closes — the one the ladder reasons
+            out, or a revealed one when it cannot, but a digit either way. So
+            there is no explanation to stay open for: the press gets out of the
+            way of the number it just placed.
           */}
           <button
             type="button"
             className="kk-control kk-control--stack kk-hint-menu__choice"
             onClick={() => {
-              if (onNumber()) onClose();
-              else setScreen({ kind: 'game' });
+              onNumber();
+              onClose();
             }}
           >
             <NumberIcon size={22} />
@@ -229,8 +230,8 @@ export interface HintMenuProps {
   onCorrectness: () => number;
   /** Explain the easiest step available, in words and on the board. */
   onTip: () => void;
-  /** Write the next digit. Reports false when there was none to write. */
-  onNumber: () => boolean;
+  /** Write a digit — the ladder's next, or a revealed one when it is stuck. */
+  onNumber: () => void;
   /** List the selected cell's cage combinations. Null when nothing is selected. */
   onCombinations: () => CombinationsView | null;
 }

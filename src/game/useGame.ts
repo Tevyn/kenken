@@ -6,6 +6,7 @@ import {
   combinationText,
   findHint,
   findNextNumber,
+  revealHint,
 } from '../engine';
 import type { CellIndex, Puzzle } from '../engine/types';
 import type { BoardSeed, Direction, GameAction, Mode } from './state';
@@ -171,26 +172,25 @@ export function useGame(initialPuzzle: Puzzle, options?: UseGameOptions) {
   }, []);
 
   /**
-   * The panel's Number choice: write the next digit the ladder would reach.
-   *
-   * Reports whether it wrote one, because the panel has to decide between
-   * getting out of the way and staying open to explain itself. Nothing to place
-   * means the ladder had something else to say — a mistake, a dead end, a
-   * finished grid — so that is what goes on screen instead of silence.
+   * The panel's Number choice: write a digit, always. First the next one the
+   * ladder can reason out; when it is stuck — a mistake on the board, a dead
+   * end, a search past its cap — a correct one straight from the solution
+   * instead, because a player who asked for a number is owed a number, not the
+   * explanation the ladder happens to have. Only a wholly filled grid has none
+   * to give, and reports so with `false`.
    */
   const placeNumber = useCallback((): boolean => {
     const current = stateRef.current;
     const options = hintOptions();
     const next = findNextNumber(current.puzzle, current.values, current.marks, options);
-    if (!next) {
-      dispatch({
-        type: 'REQUEST_HINT',
-        result: findHint(current.puzzle, current.values, current.marks, options),
-      });
-      return false;
-    }
     // `visible` is only ever read by the eliminate branch, and this is a placement.
-    dispatch({ type: 'APPLY_HINT', apply: { kind: 'place', cells: [next] }, visible: [] });
+    if (next) {
+      dispatch({ type: 'APPLY_HINT', apply: { kind: 'place', cells: [next] }, visible: [] });
+      return true;
+    }
+    if (!current.values.some((value) => value === null)) return false;
+    const reveal = revealHint(current.puzzle, current.values, { near: current.selected });
+    dispatch({ type: 'APPLY_HINT', apply: reveal.apply, visible: [] });
     return true;
   }, [hintOptions]);
 

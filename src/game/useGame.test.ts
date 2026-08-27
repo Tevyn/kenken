@@ -239,23 +239,29 @@ describe('useGame hints', () => {
     }
   });
 
-  /* Owed an answer either way — the ladder's own verdict is why there is none. */
-  it('placeNumber reports failure and says what it found instead', () => {
+  /*
+   * A mistake on the board stalls the ladder, so it can reason out no next
+   * number. The player is owed one anyway, so it comes straight from the
+   * solution — a revealed cell, not the mistake explanation the ladder holds.
+   */
+  it('placeNumber reveals a solution digit when the ladder is stuck', () => {
     const { result } = renderHook(() => useGame(SAMPLE_PUZZLE));
 
     // Cell 0 is 1 in the solution, and 2 is legal in its cage, so only the
-    // solution-aware mistake check notices.
+    // solution-aware mistake check notices — nothing deducible follows.
     act(() => result.current.select(0));
     act(() => result.current.enterDigit(2));
 
-    let wrote = true;
+    let wrote = false;
     act(() => {
       wrote = result.current.placeNumber();
     });
-    expect(wrote).toBe(false);
-    expect(result.current.state.hint.kind).toBe('message');
+    expect(wrote).toBe(true);
+    // The mistake stands; a fresh correct digit was revealed into an empty cell.
     expect(result.current.state.values[0]).toBe(2);
-    expect(result.current.state.placed).toEqual([]);
+    expect(result.current.state.placed).toHaveLength(1);
+    const revealed = result.current.state.placed[0];
+    expect(result.current.state.values[revealed]).toBe(SAMPLE_PUZZLE.solution[revealed]);
   });
 });
 

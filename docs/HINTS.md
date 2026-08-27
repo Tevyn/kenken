@@ -675,9 +675,10 @@ than pressing the same button twice to get more of it.
 All three answer in the same place — the choices are replaced by a sentence in
 the panel that was already open. Correctness writes its own (`Everything is
 correct`, or a count of what is not), because its answer is about the board
-rather than about a deduction and no engine string covers it. Only Number can
-close the panel, and only when it actually placed a digit: there is then nothing
-left to say that the board is not already showing.
+rather than about a deduction and no engine string covers it. Only Number closes
+the panel, and it always does: it always places a digit — the ladder's next, or
+a revealed one when the ladder is stuck — so there is nothing left to say that
+the board is not already showing.
 
 Correctness is disabled while the grid is empty. There is nothing to judge, and
 per STYLE_GUIDE.md §4.2.1 the choice loses its ink rather than gaining chrome.
@@ -706,7 +707,7 @@ anything.
 | Event                               | From                | To                   | Effect                                                                                                                          |
 | ----------------------------------- | ------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | choose Tip                          | any                 | `shown` or `message` | run `findHint`                                                                                                                  |
-| choose Number                       | any                 | `idle`, or `message` | run `findNextNumber`; on a hit `APPLY_HINT` writes the one cell, on a miss show what `findHint` says instead                    |
+| choose Number                       | any                 | `idle`               | run `findNextNumber`; on a hit `APPLY_HINT` writes the one cell, on a miss `revealHint` writes one from `puzzle.solution` instead |
 | choose Correctness                  | any                 | `idle`               | the check speaks about the whole board, so it takes it over; the panel writes its own sentence and does not consult `HintPhase` |
 | close the panel                     | `shown` / `message` | `idle`               | closing drops the phase, so the highlight lives and dies with the open panel                                                    |
 | `DIGIT` / `ERASE` / `UNDO` / `REDO` | any                 | `idle`               | the board changed; the hint is stale                                                                                            |
@@ -855,10 +856,10 @@ secondary: "No forced step"
 ```
 
 The panel offers no escape hatch of its own here: **Number is the escape
-hatch**, and it is one choice away on the screen the player just came from.
-`revealHint` (§4) stays on the engine's surface for a caller that wants a
-solution-fed placement without the ladder, but nothing in the UI calls it — the
-banner button that used to is gone with the banner.
+hatch**, and it is one choice away on the screen the player just came from. When
+`findNextNumber` comes back empty, the Number choice calls `revealHint` (§4)
+itself and writes the solution-fed digit — so a stuck ladder is never a dead end
+for the player, only for the engine.
 
 **Honesty note for the implementer:** because the generator guarantees a unique
 solution, `kind: 'stuck'` does _not_ prove the puzzle needs guessing — it
@@ -879,7 +880,8 @@ secondary: "Solved"
 
 Nothing disables the Hint button on a solved grid — Correctness is still a
 reasonable thing to ask for, and answers `Everything is correct` — so this
-string is what Tip and Number say once there is nothing left to work out.
+string is what Tip says once there is nothing left to work out. Number has no
+empty cell to fill on a full grid, so it places nothing and simply closes.
 
 ---
 
