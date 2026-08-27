@@ -19,7 +19,7 @@
   align-items: center;
   justify-content: center;
   padding: var(--sp-5) var(--sp-4);
-  background: color-mix(in oklab, var(--surface) 92%, transparent);
+  background: color-mix(in oklab, var(--surface) 96%, transparent);
   animation: kk-win-fade 0.32s ease both;
 }
 
