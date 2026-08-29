@@ -188,14 +188,30 @@
   color: var(--text);
 }
 
+/*
+ * Pencil marks live in a static grid so a digit never moves: three columns
+ * wide, one row per three digits (so a 3x3 fills one row, a 6x6 two, a 9x9
+ * three), with digit d always at column (d-1) % 3 of row floor((d-1) / 3).
+ * `Cell` renders a slot for every digit 1..size — blank when unmarked — so the
+ * shape is fixed by the grid size, not by which marks happen to be written.
+ *
+ * The top band is reserved for the cage label and operator, so the first note
+ * row can never collide with it (the whole point of this layout). Its height is
+ * the label's own footprint — the label's top offset plus a hair of gap, plus
+ * the same `max(9px, …)` height the label is drawn at — so it clears at every
+ * cell size, including the 26px floor where the 9px minimum makes the label
+ * proportionally tallest. The note rows then split the remaining height evenly
+ * (`grid-auto-rows: 1fr`), filling the space beneath the operator.
+ */
 .kk-cell__marks {
   position: relative;
   z-index: 1;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
+  grid-auto-rows: 1fr;
   width: 100%;
   height: 100%;
-  padding: calc(var(--cell) * 0.14) calc(var(--cell) * 0.06) 0;
+  padding: calc(var(--cell) * 0.08 + max(9px, calc(var(--cell) * 0.22))) calc(var(--cell) * 0.06) 0;
   box-sizing: border-box;
 }
 
