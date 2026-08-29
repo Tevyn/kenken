@@ -306,12 +306,15 @@ button {
 /*
  * Disabled removes the ink and nothing else — same silhouette, no chrome
  * gained. `--text-muted` rather than a blanket opacity, which dropped icon
- * strokes under the 3:1 graphical-object floor.
+ * strokes under the 3:1 graphical-object floor. The cursor stays the base arrow
+ * rather than a `not-allowed` sign: the muted ink already says the control is
+ * off, and the no-entry glyph just reads as harsh over a key the player is
+ * meant to leave alone.
  */
 .kk-control:disabled,
 .kk-control[aria-disabled='true'] {
   color: var(--text-muted);
-  cursor: not-allowed;
+  cursor: default;
 }
 
 .kk-control[aria-disabled='true'] {

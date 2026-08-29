@@ -16,6 +16,13 @@ export interface KeypadProps {
   canUndo: boolean;
   canRedo: boolean;
   /**
+   * Digits with all N of their copies cleanly placed — nowhere left to put
+   * another, so their keys go inactive. Derived state, computed by the owner
+   * (see `completedDigits`); the pad only reads it. Disables the key in both
+   * modes: a retired digit is no more a valid pencil mark than a valid entry.
+   */
+  completedDigits?: ReadonlySet<number>;
+  /**
    * Everything the hint popover needs, passed through untouched. Grouped
    * because it is one control's worth of wiring and the keypad only hosts it:
    * the panel reads the grid and writes to it, which is the owner's business
@@ -23,6 +30,8 @@ export interface KeypadProps {
    */
   hint: HintMenuProps;
 }
+
+const EMPTY_DIGITS: ReadonlySet<number> = new Set();
 
 /**
  * The action row plus the on-screen digit pad, so the game is fully playable
@@ -51,6 +60,7 @@ export function Keypad({
   onRedo,
   canUndo,
   canRedo,
+  completedDigits = EMPTY_DIGITS,
   hint,
 }: KeypadProps) {
   const digits = Array.from({ length: size }, (_, i) => i + 1);
@@ -119,17 +129,25 @@ export function Keypad({
         aria-label="Digits"
         style={{ '--keys': size + 1 } as CSSProperties}
       >
-        {digits.map((digit) => (
-          <button
-            key={digit}
-            type="button"
-            className="kk-control kk-keypad__digit"
-            onClick={() => onDigit(digit)}
-            aria-label={`Enter ${digit}`}
-          >
-            {digit}
-          </button>
-        ))}
+        {digits.map((digit) => {
+          // Every copy of this digit is cleanly placed, so it has nowhere left
+          // to go: the key retires. Native `disabled` also takes it off the tab
+          // order and out of the accessible name, which is exactly right — there
+          // is nothing to announce or reach for.
+          const done = completedDigits.has(digit);
+          return (
+            <button
+              key={digit}
+              type="button"
+              className="kk-control kk-keypad__digit"
+              onClick={() => onDigit(digit)}
+              disabled={done}
+              aria-label={`Enter ${digit}`}
+            >
+              {digit}
+            </button>
+          );
+        })}
         {/*
           A knowing exception to §4.2's "every icon action carries a visible
           text label". Erase is a digit-row key, and an eraser on a digit pad

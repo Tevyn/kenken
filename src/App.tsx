@@ -12,6 +12,7 @@ import {
   saveAutoFillSingleCages,
   saveTheme,
 } from './game/preferences';
+import { completedDigits } from './game/completedDigits';
 import { loadSession, saveSession } from './game/session';
 import { hasProgress } from './game/state';
 import { useGame } from './game/useGame';
@@ -246,6 +247,14 @@ function App() {
    */
   const glow = useCompletionGlow(game.state.puzzle, game.state.values, errors, game.state.verdict);
 
+  // Digits with every copy cleanly placed retire their keypad key. Derived from
+  // the same board state and red marks the Board draws, so it stays in step with
+  // them; like `errors`, it never enters the reducer.
+  const doneDigits = useMemo(
+    () => completedDigits(game.state.puzzle, game.state.values, errors, game.state.verdict),
+    [game.state.puzzle, game.state.values, errors, game.state.verdict],
+  );
+
   /*
    * The one commit point for a new game: the wizard collects both choices and
    * hands them over together, so nothing regenerates while the player is still
@@ -478,6 +487,7 @@ function App() {
           onRedo={game.redo}
           canUndo={game.canUndo}
           canRedo={game.canRedo}
+          completedDigits={doneDigits}
           hint={{
             open: openMenu === 'hint',
             onOpenChange: handleHintOpenChange,

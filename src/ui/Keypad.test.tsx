@@ -156,6 +156,42 @@ describe('Keypad', () => {
     expect(screen.getByRole('button', { name: 'Redo' })).toBeEnabled();
   });
 
+  /*
+   * A digit whose copies are all cleanly placed has nowhere left to go, so its
+   * key retires — in either mode, since it is no more a valid pencil mark than
+   * an entry. Everything else on the row stays live.
+   */
+  it('disables the keys named in completedDigits and leaves the rest active', () => {
+    const { rerender } = render(
+      <Keypad {...baseProps()} completedDigits={new Set([2, 4])} />,
+    );
+    expect(screen.getByRole('button', { name: 'Enter 2' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Enter 4' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Enter 1' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Enter 3' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Erase' })).toBeEnabled();
+
+    // Same retirement in Notes mode.
+    rerender(<Keypad {...baseProps('mark')} completedDigits={new Set([2, 4])} />);
+    expect(screen.getByRole('button', { name: 'Enter 2' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Enter 1' })).toBeEnabled();
+  });
+
+  it('a retired digit does not call onDigit when clicked', async () => {
+    const user = userEvent.setup();
+    const props = baseProps();
+    render(<Keypad {...props} completedDigits={new Set([3])} />);
+    await user.click(screen.getByRole('button', { name: 'Enter 3' }));
+    expect(props.onDigit).not.toHaveBeenCalled();
+  });
+
+  it('leaves every key active when completedDigits is omitted', () => {
+    render(<Keypad {...baseProps()} />);
+    for (const name of ['Enter 1', 'Enter 2', 'Enter 3', 'Enter 4']) {
+      expect(screen.getByRole('button', { name })).toBeEnabled();
+    }
+  });
+
   it('undo and redo call their callbacks', async () => {
     const user = userEvent.setup();
     const props = baseProps();
