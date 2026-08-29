@@ -1,21 +1,26 @@
-/* Theme picker. The panel has no title of its own any more — Settings and
-   Theme sat too close to read as a heading over a section — so the Theme
-   legend is the first thing in the panel, on its own padding. */
+/* Theme picker. One row like the switches below it: the label on the left,
+   the three choices on the right. */
 .kk-theme {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
   margin: 0 0 var(--sp-4);
   padding: 0;
   border: 0;
 }
 
-/* Type comes from `.kk-popover__heading`; only the box is local. */
+/* Matches the switch labels below it (`.kk-switch__text`) so every setting
+   in the panel reads at the same weight. */
 .kk-theme__legend {
-  padding: 0;
-  margin: 0 0 var(--sp-2);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text);
 }
 
 .kk-theme__options {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  display: flex;
   gap: var(--sp-1);
 }
 
@@ -27,8 +32,7 @@
  */
 .kk-theme__option {
   position: relative;
-  width: 100%;
-  min-width: 0;
+  flex: none;
 }
 
 /*

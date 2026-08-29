@@ -103,10 +103,15 @@ export function SettingsMenu({
         The current one is marked with an underline rather than a filled pill -
         a fill would read as chrome, and the accent now means ink (§4).
       */}
-      <fieldset className="kk-theme">
-        {/* A section label, so it takes the panel heading's line rather than a
-            louder one of its own — the choices under it carry the weight. */}
-        <legend className="kk-popover__heading kk-theme__legend">Theme</legend>
+      {/* A `role="group"` div rather than a fieldset: a <legend> is never a
+          flex item, so it cannot share the row with the choices — this labels
+          the same radio group and lays the label out on the left. */}
+      <div className="kk-theme" role="group" aria-labelledby="kk-theme-label">
+        {/* Label sits on the left of the row, the choices on the right, so
+            Theme reads as one more setting in the list rather than a heading. */}
+        <span className="kk-theme__legend" id="kk-theme-label">
+          Theme
+        </span>
         <div className="kk-theme__options">
           {THEMES.map((option) => {
             const Icon = THEME_ICONS[option];
@@ -132,7 +137,7 @@ export function SettingsMenu({
             );
           })}
         </div>
-      </fieldset>
+      </div>
 
       <div className="kk-settings__setting">
         {/*
