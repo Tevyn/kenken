@@ -23,6 +23,8 @@ export interface CoverProps {
   onAutoClearMarksChange: (enabled: boolean) => void;
   autoFillSingleCages: boolean;
   onAutoFillSingleCagesChange: (enabled: boolean) => void;
+  highlightWrongNotes: boolean;
+  onHighlightWrongNotesChange: (enabled: boolean) => void;
   theme: Theme;
   onThemeChange: (theme: Theme) => void;
   /** The shared open-popover slot, owned by the app. */
@@ -58,6 +60,8 @@ export function Cover({
   onAutoClearMarksChange,
   autoFillSingleCages,
   onAutoFillSingleCagesChange,
+  highlightWrongNotes,
+  onHighlightWrongNotesChange,
   theme,
   onThemeChange,
   openMenu,
@@ -146,6 +150,8 @@ export function Cover({
           onAutoClearMarksChange={onAutoClearMarksChange}
           autoFillSingleCages={autoFillSingleCages}
           onAutoFillSingleCagesChange={onAutoFillSingleCagesChange}
+          highlightWrongNotes={highlightWrongNotes}
+          onHighlightWrongNotesChange={onHighlightWrongNotesChange}
           theme={theme}
           onThemeChange={onThemeChange}
           open={openMenu === 'settings'}

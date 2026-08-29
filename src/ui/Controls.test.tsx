@@ -26,6 +26,8 @@ function baseProps() {
     onAutoClearMarksChange: vi.fn(),
     autoFillSingleCages: false,
     onAutoFillSingleCagesChange: vi.fn(),
+    highlightWrongNotes: false,
+    onHighlightWrongNotesChange: vi.fn(),
     theme: 'system' as const,
     onThemeChange: vi.fn(),
   };
@@ -213,6 +215,19 @@ describe('Controls', () => {
 
       await user.click(toggle);
       expect(props.onAutoFillSingleCagesChange).toHaveBeenCalledWith(true);
+    });
+
+    it('the highlight-wrong-notes switch reflects the preference and fires its callback', async () => {
+      const user = userEvent.setup();
+      const props = baseProps();
+      render(<ControlsHarness {...props} highlightWrongNotes={false} />);
+
+      await user.click(settingsButton());
+      const toggle = screen.getByRole('switch', { name: 'Highlight wrong notes' });
+      expect(toggle).not.toBeChecked();
+
+      await user.click(toggle);
+      expect(props.onHighlightWrongNotesChange).toHaveBeenCalledWith(true);
     });
 
     it('the theme picker offers all three choices with the current one selected', async () => {

@@ -24,6 +24,9 @@ export interface ControlsProps {
   /** Whether the one-cell "freebie" cages are filled in for the player. */
   autoFillSingleCages: boolean;
   onAutoFillSingleCagesChange: (enabled: boolean) => void;
+  /** Whether notes that cannot go where they are written are reddened. */
+  highlightWrongNotes: boolean;
+  onHighlightWrongNotesChange: (enabled: boolean) => void;
   /** Which palette to paint, or `system` to follow the OS. */
   theme: Theme;
   onThemeChange: (theme: Theme) => void;
@@ -58,6 +61,8 @@ export function Controls({
   onAutoClearMarksChange,
   autoFillSingleCages,
   onAutoFillSingleCagesChange,
+  highlightWrongNotes,
+  onHighlightWrongNotesChange,
   theme,
   onThemeChange,
   openMenu,
@@ -119,6 +124,8 @@ export function Controls({
         onAutoClearMarksChange={onAutoClearMarksChange}
         autoFillSingleCages={autoFillSingleCages}
         onAutoFillSingleCagesChange={onAutoFillSingleCagesChange}
+        highlightWrongNotes={highlightWrongNotes}
+        onHighlightWrongNotesChange={onHighlightWrongNotesChange}
         theme={theme}
         onThemeChange={onThemeChange}
         open={openMenu === 'settings'}

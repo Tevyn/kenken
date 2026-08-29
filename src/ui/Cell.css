@@ -287,3 +287,13 @@
   text-decoration: line-through;
   text-decoration-thickness: max(1px, calc(var(--cell) * 0.025));
 }
+
+/*
+ * A pencil digit that cannot go where it is written — a peer in the same row or
+ * column already holds it. Recoloured to `--danger`, the board's one word for
+ * "wrong" (STYLE_GUIDE §2.1), and nothing else: the same text channel the value
+ * conflict uses, so a wrong note reads the same way a wrong value does.
+ */
+.kk-cell__mark--wrong {
+  color: var(--danger);
+}

@@ -54,6 +54,8 @@ function TestGame() {
         onAutoClearMarksChange={game.setAutoClearMarks}
         autoFillSingleCages={game.state.autoFillSingleCages}
         onAutoFillSingleCagesChange={game.setAutoFillSingleCages}
+        highlightWrongNotes={false}
+        onHighlightWrongNotesChange={() => {}}
         theme={theme}
         onThemeChange={setTheme}
         openMenu={openMenu}

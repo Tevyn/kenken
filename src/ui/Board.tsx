@@ -38,6 +38,12 @@ export interface BoardProps {
   /** Cells the panel's Number choice filled in. */
   placed?: readonly CellIndex[];
   /**
+   * Per-cell pencil digits that cannot go where they are written (a row/column
+   * peer already holds them), drawn red. Derived like `errors`; absent when the
+   * highlight-wrong-notes setting is off.
+   */
+  wrongNotes?: readonly (readonly number[])[];
+  /**
    * The completion bloom currently rippling across the board, or `null`. Purely
    * derived and self-expiring (see `completionGlow.ts`); nothing about it is
    * stored in the reducer.
@@ -72,6 +78,7 @@ export function Board({
   highlight,
   verdict = NO_VERDICT,
   placed = NOTHING_PLACED,
+  wrongNotes,
   glow = null,
   onSelect,
 }: BoardProps) {
@@ -189,6 +196,7 @@ export function Board({
               isPlaced={placedCells.has(index)}
               hintRole={hint?.role}
               strikeDigits={hint?.strike}
+              wrongDigits={wrongNotes?.[index]}
               hintCageEdges={hint?.cageEdges}
               cageLabelText={cageLabelByCell[index]}
               showCageLabel={anchorLabels.has(index)}

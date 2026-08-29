@@ -13,6 +13,9 @@ export interface SettingsMenuProps {
   /** Whether the one-cell "freebie" cages are filled in for the player. */
   autoFillSingleCages: boolean;
   onAutoFillSingleCagesChange: (enabled: boolean) => void;
+  /** Whether notes that cannot go where they are written are reddened. */
+  highlightWrongNotes: boolean;
+  onHighlightWrongNotesChange: (enabled: boolean) => void;
   /** Which palette to paint, or `system` to follow the OS. */
   theme: Theme;
   onThemeChange: (theme: Theme) => void;
@@ -52,6 +55,8 @@ export function SettingsMenu({
   onAutoClearMarksChange,
   autoFillSingleCages,
   onAutoFillSingleCagesChange,
+  highlightWrongNotes,
+  onHighlightWrongNotesChange,
   theme,
   onThemeChange,
   open,
@@ -65,6 +70,10 @@ export function SettingsMenu({
 
   function handleAutoFillSingleCagesChange(event: ChangeEvent<HTMLInputElement>) {
     onAutoFillSingleCagesChange(event.target.checked);
+  }
+
+  function handleHighlightWrongNotesChange(event: ChangeEvent<HTMLInputElement>) {
+    onHighlightWrongNotesChange(event.target.checked);
   }
 
   function handleThemeChange(event: ChangeEvent<HTMLInputElement>) {
@@ -159,6 +168,25 @@ export function SettingsMenu({
             role="switch"
             checked={autoFillSingleCages}
             onChange={handleAutoFillSingleCagesChange}
+          />
+          <span className="kk-switch__track" aria-hidden="true">
+            <span className="kk-switch__knob" />
+          </span>
+        </label>
+      </div>
+
+      <div className="kk-settings__setting">
+        {/* Same switch, for the red note highlight: on, a pencil mark for a digit
+            a row or column peer already holds is drawn red. */}
+        <label className="kk-switch" htmlFor="kk-highlight-wrong-notes">
+          <span className="kk-switch__text">Highlight wrong notes</span>
+          <input
+            id="kk-highlight-wrong-notes"
+            className="kk-switch__input"
+            type="checkbox"
+            role="switch"
+            checked={highlightWrongNotes}
+            onChange={handleHighlightWrongNotesChange}
           />
           <span className="kk-switch__track" aria-hidden="true">
             <span className="kk-switch__knob" />

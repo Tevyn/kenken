@@ -4,6 +4,9 @@ const AUTO_CLEAR_MARKS_KEY = 'kenken:autoClearMarks';
 /** localStorage key for the auto-fill-single-cell-cages preference. */
 const AUTO_FILL_SINGLE_CAGES_KEY = 'kenken:autoFillSingleCages';
 
+/** localStorage key for the highlight-wrong-notes preference. */
+const HIGHLIGHT_WRONG_NOTES_KEY = 'kenken:highlightWrongNotes';
+
 /** localStorage key for the colour-theme preference. */
 const THEME_KEY = 'kenken:theme';
 
@@ -99,6 +102,30 @@ export function loadAutoFillSingleCages(): boolean {
 export function saveAutoFillSingleCages(enabled: boolean): void {
   try {
     localStorage.setItem(AUTO_FILL_SINGLE_CAGES_KEY, String(enabled));
+  } catch {
+    // Storage unavailable or full - the preference just won't persist this time.
+  }
+}
+
+/**
+ * Read the persisted highlight-wrong-notes preference, defaulting to `false`.
+ *
+ * Off by default, like auto-fill: reddening a note the player wrote is the app
+ * pointing out a mistake they did not ask it to check, so it is opt-in. Same
+ * storage caveats — any failure falls back to the default.
+ */
+export function loadHighlightWrongNotes(): boolean {
+  try {
+    return localStorage.getItem(HIGHLIGHT_WRONG_NOTES_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+/** Persist the highlight-wrong-notes preference. A storage failure drops the write. */
+export function saveHighlightWrongNotes(enabled: boolean): void {
+  try {
+    localStorage.setItem(HIGHLIGHT_WRONG_NOTES_KEY, String(enabled));
   } catch {
     // Storage unavailable or full - the preference just won't persist this time.
   }

@@ -36,6 +36,11 @@ export interface CellProps {
   hintRole?: HintRole;
   /** Pencil digits this hint rules out, drawn struck through. */
   strikeDigits?: readonly number[];
+  /**
+   * Pencil digits that cannot go here — a peer in the same row or column already
+   * holds them — drawn red. Empty unless the highlight-wrong-notes setting is on.
+   */
+  wrongDigits?: readonly number[];
   /** Accent-outline classes for a highlighted cage's outer edges, from `Board`. */
   hintCageEdges?: string;
   /** Cage label text, e.g. "12+" — always used for the accessible name. */
@@ -70,6 +75,7 @@ export function Cell({
   isPlaced = false,
   hintRole,
   strikeDigits = NO_STRIKE,
+  wrongDigits = NO_STRIKE,
   hintCageEdges,
   cageLabelText,
   showCageLabel,
@@ -141,13 +147,15 @@ export function Cell({
         <span className="kk-cell__marks" aria-hidden="true">
           {Array.from({ length: size }, (_, i) => i + 1).map((digit) => {
             const written = marks.includes(digit);
-            // Only a digit the player can actually see can be struck through.
+            // Only a digit the player can actually see can be marked up.
             const struck = written && strikeDigits.includes(digit);
+            const wrong = written && wrongDigits.includes(digit);
+            const className =
+              'kk-cell__mark' +
+              (struck ? ' kk-cell__mark--struck' : '') +
+              (wrong ? ' kk-cell__mark--wrong' : '');
             return (
-              <span
-                key={digit}
-                className={struck ? 'kk-cell__mark kk-cell__mark--struck' : 'kk-cell__mark'}
-              >
+              <span key={digit} className={className}>
                 {written ? digit : ''}
               </span>
             );

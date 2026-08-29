@@ -7,12 +7,15 @@ import {
   applyTheme,
   loadAutoClearMarks,
   loadAutoFillSingleCages,
+  loadHighlightWrongNotes,
   loadTheme,
   saveAutoClearMarks,
   saveAutoFillSingleCages,
+  saveHighlightWrongNotes,
   saveTheme,
 } from './game/preferences';
 import { completedDigits } from './game/completedDigits';
+import { wrongNotes } from './game/wrongNotes';
 import { loadSession, saveSession } from './game/session';
 import { hasProgress } from './game/state';
 import { useGame } from './game/useGame';
@@ -100,6 +103,18 @@ function App() {
     setTheme(next);
     applyTheme(next);
     saveTheme(next);
+  }, []);
+
+  /*
+   * Reddening notes that cannot go where they are written is a pure rendering
+   * choice — it changes nothing on the board and never travels through undo — so
+   * like the theme it lives here rather than in the reducer, read once at mount.
+   */
+  const [highlightWrongNotes, setHighlightWrongNotes] = useState(loadHighlightWrongNotes);
+
+  const handleHighlightWrongNotesChange = useCallback((enabled: boolean) => {
+    setHighlightWrongNotes(enabled);
+    saveHighlightWrongNotes(enabled);
   }, []);
 
   /*
@@ -256,6 +271,20 @@ function App() {
   );
 
   /*
+   * The red pencil marks, when the setting asks for them: notes for a digit a
+   * row or column peer already holds. Derived like `errors`, and skipped
+   * entirely while the setting is off so nothing is computed for a board that
+   * will not paint any.
+   */
+  const wrongNoteDigits = useMemo(
+    () =>
+      highlightWrongNotes
+        ? wrongNotes(game.state.puzzle, game.state.values, game.state.marks)
+        : undefined,
+    [highlightWrongNotes, game.state.puzzle, game.state.values, game.state.marks],
+  );
+
+  /*
    * The one commit point for a new game: the wizard collects both choices and
    * hands them over together, so nothing regenerates while the player is still
    * deciding.
@@ -375,6 +404,8 @@ function App() {
         onAutoClearMarksChange={handleAutoClearMarksChange}
         autoFillSingleCages={game.state.autoFillSingleCages}
         onAutoFillSingleCagesChange={handleAutoFillSingleCagesChange}
+        highlightWrongNotes={highlightWrongNotes}
+        onHighlightWrongNotesChange={handleHighlightWrongNotesChange}
         theme={theme}
         onThemeChange={handleThemeChange}
         openMenu={openMenu}
@@ -431,6 +462,8 @@ function App() {
           onAutoClearMarksChange={handleAutoClearMarksChange}
           autoFillSingleCages={game.state.autoFillSingleCages}
           onAutoFillSingleCagesChange={handleAutoFillSingleCagesChange}
+          highlightWrongNotes={highlightWrongNotes}
+          onHighlightWrongNotesChange={handleHighlightWrongNotesChange}
           theme={theme}
           onThemeChange={handleThemeChange}
           openMenu={openMenu}
@@ -461,6 +494,7 @@ function App() {
               highlight={game.highlight}
               verdict={game.state.verdict}
               placed={game.state.placed}
+              wrongNotes={wrongNoteDigits}
               glow={glow}
               onSelect={game.select}
             />
