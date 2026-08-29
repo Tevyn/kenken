@@ -17,6 +17,8 @@ function SettingsHarness(props: { theme?: Theme; onThemeChange?: (theme: Theme) 
     <SettingsMenu
       autoClearMarks
       onAutoClearMarksChange={vi.fn()}
+      autoFillSingleCages={false}
+      onAutoFillSingleCagesChange={vi.fn()}
       theme={props.theme ?? 'system'}
       onThemeChange={props.onThemeChange ?? vi.fn()}
       open={open}

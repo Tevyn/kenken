@@ -24,6 +24,8 @@ function baseProps() {
     canRestart: true,
     autoClearMarks: true,
     onAutoClearMarksChange: vi.fn(),
+    autoFillSingleCages: false,
+    onAutoFillSingleCagesChange: vi.fn(),
     theme: 'system' as const,
     onThemeChange: vi.fn(),
   };
@@ -198,6 +200,19 @@ describe('Controls', () => {
 
       await user.click(toggle);
       expect(props.onAutoClearMarksChange).toHaveBeenCalledWith(false);
+    });
+
+    it('the auto-fill-single-cages switch reflects the preference and fires its callback', async () => {
+      const user = userEvent.setup();
+      const props = baseProps();
+      render(<ControlsHarness {...props} autoFillSingleCages={false} />);
+
+      await user.click(settingsButton());
+      const toggle = screen.getByRole('switch', { name: 'Auto-fill single cages' });
+      expect(toggle).not.toBeChecked();
+
+      await user.click(toggle);
+      expect(props.onAutoFillSingleCagesChange).toHaveBeenCalledWith(true);
     });
 
     it('the theme picker offers all three choices with the current one selected', async () => {

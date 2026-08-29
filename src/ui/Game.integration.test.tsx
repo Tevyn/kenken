@@ -52,6 +52,8 @@ function TestGame() {
         canRestart={game.state.values.some((value) => value != null)}
         autoClearMarks={game.state.autoClearMarks}
         onAutoClearMarksChange={game.setAutoClearMarks}
+        autoFillSingleCages={game.state.autoFillSingleCages}
+        onAutoFillSingleCagesChange={game.setAutoFillSingleCages}
         theme={theme}
         onThemeChange={setTheme}
         openMenu={openMenu}

@@ -6,11 +6,14 @@ import type { Theme } from './game/preferences';
 import {
   applyTheme,
   loadAutoClearMarks,
+  loadAutoFillSingleCages,
   loadTheme,
   saveAutoClearMarks,
+  saveAutoFillSingleCages,
   saveTheme,
 } from './game/preferences';
 import { loadSession, saveSession } from './game/session';
+import { hasProgress } from './game/state';
 import { useGame } from './game/useGame';
 import { Board } from './ui/Board';
 import { puzzleFinishSweepMs, useCompletionGlow } from './ui/completionGlow';
@@ -83,6 +86,7 @@ function App() {
 
   // Lazy initialiser so storage is read once, at mount, rather than on every render.
   const [initialAutoClearMarks] = useState(loadAutoClearMarks);
+  const [initialAutoFillSingleCages] = useState(loadAutoFillSingleCages);
 
   /*
    * The theme is applied to <html> in `main.tsx`, before React mounts, so the
@@ -105,6 +109,7 @@ function App() {
    */
   const game = useGame(savedSession?.puzzle ?? SAMPLE_PUZZLE, {
     autoClearMarks: initialAutoClearMarks,
+    autoFillSingleCages: initialAutoFillSingleCages,
     seed: savedSession ? { values: savedSession.values, marks: savedSession.marks } : undefined,
     /*
      * The board's keyboard is the game's alone, so it stays suspended while the
@@ -150,6 +155,7 @@ function App() {
 
   const newPuzzle = game.newPuzzle;
   const setAutoClearMarks = game.setAutoClearMarks;
+  const setAutoFillSingleCages = game.setAutoFillSingleCages;
 
   /*
    * The dialog follows the status in both directions, and only on the change:
@@ -205,13 +211,10 @@ function App() {
   /* Combinations lists the selected cell's cage, so it needs a selection. */
   const canCombine = game.state.selected != null;
 
-  /* Restarting an untouched board would do nothing but add an undo entry. */
-  const canRestart = useMemo(
-    () =>
-      game.state.values.some((value) => value != null) ||
-      game.state.marks.some((marks) => marks.length > 0),
-    [game.state.values, game.state.marks],
-  );
+  /* Restarting an untouched board would do nothing but add an undo entry. With
+     auto-fill on the freebies are already on a fresh board, so "untouched" has
+     to mean "nothing but the freebies" — `hasProgress` draws that line. */
+  const canRestart = useMemo(() => hasProgress(game.state), [game.state]);
 
   const handleAutoClearMarksChange = useCallback(
     (enabled: boolean) => {
@@ -219,6 +222,14 @@ function App() {
       saveAutoClearMarks(enabled);
     },
     [setAutoClearMarks],
+  );
+
+  const handleAutoFillSingleCagesChange = useCallback(
+    (enabled: boolean) => {
+      setAutoFillSingleCages(enabled);
+      saveAutoFillSingleCages(enabled);
+    },
+    [setAutoFillSingleCages],
   );
 
   // Live error checking. The cage-combination tables are enumerated once per
@@ -353,6 +364,8 @@ function App() {
         onStartGame={handleStartGame}
         autoClearMarks={game.state.autoClearMarks}
         onAutoClearMarksChange={handleAutoClearMarksChange}
+        autoFillSingleCages={game.state.autoFillSingleCages}
+        onAutoFillSingleCagesChange={handleAutoFillSingleCagesChange}
         theme={theme}
         onThemeChange={handleThemeChange}
         openMenu={openMenu}
@@ -407,6 +420,8 @@ function App() {
           canRestart={canRestart}
           autoClearMarks={game.state.autoClearMarks}
           onAutoClearMarksChange={handleAutoClearMarksChange}
+          autoFillSingleCages={game.state.autoFillSingleCages}
+          onAutoFillSingleCagesChange={handleAutoFillSingleCagesChange}
           theme={theme}
           onThemeChange={handleThemeChange}
           openMenu={openMenu}

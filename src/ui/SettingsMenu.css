@@ -70,6 +70,12 @@
   gap: var(--sp-1);
 }
 
+/* A second switch sits directly under the first; give the pair a little air so
+   the two rows don't crowd. */
+.kk-settings__setting + .kk-settings__setting {
+  margin-top: var(--sp-2);
+}
+
 .kk-switch {
   position: relative;
   display: flex;

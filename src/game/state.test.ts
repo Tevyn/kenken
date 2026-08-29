@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Hint } from '../engine/hints';
 import { SAMPLE_PUZZLE } from '../fixtures/samplePuzzle';
 import type { GameState } from './state';
-import { createInitialState, gameReducer, hintHighlight, isGridSolved } from './state';
+import { createInitialState, gameReducer, hasProgress, hintHighlight, isGridSolved } from './state';
 
 function fresh(): GameState {
   return createInitialState(SAMPLE_PUZZLE);
@@ -273,6 +273,108 @@ describe('auto-clearing pencil marks', () => {
   });
 });
 
+describe('SET_AUTO_FILL_SINGLE_CAGES', () => {
+  // SAMPLE_PUZZLE's only one-cell cage is at cell 14, target 2.
+  const FREEBIE_CELL = 14;
+  const FREEBIE_VALUE = 2;
+
+  function turn(state: GameState, enabled: boolean): GameState {
+    return gameReducer(state, { type: 'SET_AUTO_FILL_SINGLE_CAGES', enabled });
+  }
+
+  it('is off by default', () => {
+    expect(fresh().autoFillSingleCages).toBe(false);
+    expect(fresh().values[FREEBIE_CELL]).toBeNull();
+  });
+
+  it('fills the empty one-cell cage when switched on, in one undoable step', () => {
+    const on = turn(fresh(), true);
+    expect(on.autoFillSingleCages).toBe(true);
+    expect(on.values[FREEBIE_CELL]).toBe(FREEBIE_VALUE);
+    expect(on.past).toHaveLength(1);
+
+    const undone = gameReducer(on, { type: 'UNDO' });
+    expect(undone.values[FREEBIE_CELL]).toBeNull();
+    // The preference is not board state, so undoing the fill leaves it on.
+    expect(undone.autoFillSingleCages).toBe(true);
+  });
+
+  it('clears the freebie cell own marks and sweeps peers when auto-clear is on', () => {
+    // Column peer of cell 14 (col 2) is cell 2; row peer is cell 12. Give them
+    // the freebie's digit plus something else, and the cell itself a stray mark.
+    const seeded = withMarks(fresh(), { [FREEBIE_CELL]: [1, 2], 2: [2, 3], 12: [2, 4] });
+    const on = turn(seeded, true);
+    expect(on.values[FREEBIE_CELL]).toBe(FREEBIE_VALUE);
+    expect(on.marks[FREEBIE_CELL]).toEqual([]);
+    expect(on.marks[2]).toEqual([3]);
+    expect(on.marks[12]).toEqual([4]);
+  });
+
+  it('leaves peer marks alone when auto-clear is off', () => {
+    const off = turnOff(withMarks(fresh(), { 2: [2, 3] }));
+    const on = turn(off, true);
+    expect(on.values[FREEBIE_CELL]).toBe(FREEBIE_VALUE);
+    expect(on.marks[2]).toEqual([2, 3]);
+  });
+
+  it('does not overwrite a value already in the freebie cell', () => {
+    // Player put a (wrong) digit there first; the fill must not clobber it.
+    const played = enter(fresh(), FREEBIE_CELL, 3);
+    const on = turn(played, true);
+    expect(on.values[FREEBIE_CELL]).toBe(3);
+    // Nothing left to fill, so no fresh undo entry beyond the player's own.
+    expect(on.past).toHaveLength(played.past.length);
+  });
+
+  it('adds no undo entry when the freebie cell is already filled', () => {
+    // Fill it by hand while off, then switch on: the flag flips but there is
+    // nothing left to place, so no dead undo slot is left behind.
+    const played = enter(fresh(), FREEBIE_CELL, FREEBIE_VALUE);
+    const on = turn(played, true);
+    expect(on.autoFillSingleCages).toBe(true);
+    expect(on.past).toHaveLength(played.past.length);
+  });
+
+  it('switching it off fills nothing and takes no history slot', () => {
+    const off = turn(fresh(), false);
+    expect(off.autoFillSingleCages).toBe(false);
+    expect(off.values[FREEBIE_CELL]).toBeNull();
+    expect(off.past).toHaveLength(0);
+  });
+
+  it('switching it off leaves an already-filled cell in place', () => {
+    const on = turn(fresh(), true);
+    const off = turn(on, false);
+    expect(off.autoFillSingleCages).toBe(false);
+    expect(off.values[FREEBIE_CELL]).toBe(FREEBIE_VALUE);
+  });
+
+  it('setting it to the value it already holds is a no-op', () => {
+    const off = fresh();
+    expect(turn(off, false)).toBe(off);
+    const on = turn(off, true);
+    expect(turn(on, true)).toBe(on);
+  });
+
+  it('fills at the start of the game when the preference is on', () => {
+    const state = createInitialState(SAMPLE_PUZZLE, true, undefined, true);
+    expect(state.autoFillSingleCages).toBe(true);
+    expect(state.values[FREEBIE_CELL]).toBe(FREEBIE_VALUE);
+  });
+
+  it('NEW_PUZZLE carries the setting and fills the fresh board', () => {
+    const on = turn(fresh(), true);
+    const next = gameReducer(on, { type: 'NEW_PUZZLE', puzzle: SAMPLE_PUZZLE });
+    expect(next.autoFillSingleCages).toBe(true);
+    expect(next.values[FREEBIE_CELL]).toBe(FREEBIE_VALUE);
+    expect(next.past).toHaveLength(0);
+
+    const off = gameReducer(fresh(), { type: 'NEW_PUZZLE', puzzle: SAMPLE_PUZZLE });
+    expect(off.autoFillSingleCages).toBe(false);
+    expect(off.values[FREEBIE_CELL]).toBeNull();
+  });
+});
+
 describe('ERASE', () => {
   it('clears a value', () => {
     let state = gameReducer(fresh(), { type: 'SELECT', index: 0 });
@@ -416,6 +518,46 @@ describe('RESET', () => {
 
     state = gameReducer(state, { type: 'UNDO' });
     expect(state.values[0]).toBe(1);
+  });
+
+  it('refills the freebies when auto-fill is on, in one undoable step', () => {
+    // SAMPLE_PUZZLE's only one-cell cage is at cell 14, target 2.
+    const on = gameReducer(fresh(), { type: 'SET_AUTO_FILL_SINGLE_CAGES', enabled: true });
+    let state = enter(on, 0, 1);
+    state = gameReducer(state, { type: 'RESET' });
+    expect(state.values[0]).toBeNull(); // the player's own entry is gone
+    expect(state.values[14]).toBe(2); // the freebie is back
+
+    const undone = gameReducer(state, { type: 'UNDO' });
+    expect(undone.values[0]).toBe(1);
+  });
+
+  it('empties the freebies too when auto-fill is off', () => {
+    const state = gameReducer(enter(fresh(), 14, 2), { type: 'RESET' });
+    expect(state.values[14]).toBeNull();
+  });
+});
+
+describe('hasProgress', () => {
+  it('is false on a fresh empty board and true once a cell is filled', () => {
+    expect(hasProgress(fresh())).toBe(false);
+    expect(hasProgress(enter(fresh(), 0, 1))).toBe(true);
+  });
+
+  it('is true for marks alone', () => {
+    expect(hasProgress(withMarks(fresh(), { 0: [1, 2] }))).toBe(true);
+  });
+
+  it('ignores the auto-filled freebies: a board of only freebies is still fresh', () => {
+    const on = gameReducer(fresh(), { type: 'SET_AUTO_FILL_SINGLE_CAGES', enabled: true });
+    expect(on.values[14]).toBe(2);
+    expect(hasProgress(on)).toBe(false);
+    // But a real entry on top of the freebies counts.
+    expect(hasProgress(enter(on, 0, 1))).toBe(true);
+    // As does erasing a freebie the restart would bring back.
+    expect(
+      hasProgress(gameReducer(gameReducer(on, { type: 'SELECT', index: 14 }), { type: 'ERASE' })),
+    ).toBe(true);
   });
 });
 

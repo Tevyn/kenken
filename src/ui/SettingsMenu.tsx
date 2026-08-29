@@ -10,6 +10,9 @@ export interface SettingsMenuProps {
   /** Whether entering a value also strips it from the row/column peers' notes. */
   autoClearMarks: boolean;
   onAutoClearMarksChange: (enabled: boolean) => void;
+  /** Whether the one-cell "freebie" cages are filled in for the player. */
+  autoFillSingleCages: boolean;
+  onAutoFillSingleCagesChange: (enabled: boolean) => void;
   /** Which palette to paint, or `system` to follow the OS. */
   theme: Theme;
   onThemeChange: (theme: Theme) => void;
@@ -47,6 +50,8 @@ const THEME_ICON = 26;
 export function SettingsMenu({
   autoClearMarks,
   onAutoClearMarksChange,
+  autoFillSingleCages,
+  onAutoFillSingleCagesChange,
   theme,
   onThemeChange,
   open,
@@ -56,6 +61,10 @@ export function SettingsMenu({
 }: SettingsMenuProps) {
   function handleAutoClearMarksChange(event: ChangeEvent<HTMLInputElement>) {
     onAutoClearMarksChange(event.target.checked);
+  }
+
+  function handleAutoFillSingleCagesChange(event: ChangeEvent<HTMLInputElement>) {
+    onAutoFillSingleCagesChange(event.target.checked);
   }
 
   function handleThemeChange(event: ChangeEvent<HTMLInputElement>) {
@@ -131,6 +140,25 @@ export function SettingsMenu({
             role="switch"
             checked={autoClearMarks}
             onChange={handleAutoClearMarksChange}
+          />
+          <span className="kk-switch__track" aria-hidden="true">
+            <span className="kk-switch__knob" />
+          </span>
+        </label>
+      </div>
+
+      <div className="kk-settings__setting">
+        {/* Same switch, for the one-cell "freebie" cages: on, they are filled
+            in for the player and kept filled as new games start. */}
+        <label className="kk-switch" htmlFor="kk-auto-fill-single-cages">
+          <span className="kk-switch__text">Auto-fill single cages</span>
+          <input
+            id="kk-auto-fill-single-cages"
+            className="kk-switch__input"
+            type="checkbox"
+            role="switch"
+            checked={autoFillSingleCages}
+            onChange={handleAutoFillSingleCagesChange}
           />
           <span className="kk-switch__track" aria-hidden="true">
             <span className="kk-switch__knob" />

@@ -99,6 +99,14 @@ export interface GameState {
    * itself remains on.
    */
   autoClearMarks: boolean;
+  /**
+   * Whether the one-cell "freebie" cages are filled in for the player. Like
+   * `autoClearMarks` this is a preference, not board state, so it stays out of
+   * `HistorySnapshot`: undoing the fill leaves those cells empty while the
+   * setting itself remains on. Turning it off never removes cells already
+   * filled.
+   */
+  autoFillSingleCages: boolean;
 }
 
 /** The portion of state that undo/redo travels through. Selection and mode are excluded. */
@@ -123,6 +131,7 @@ export type GameAction =
   | { type: 'SET_MODE'; mode: Mode }
   | { type: 'TOGGLE_MODE' }
   | { type: 'SET_AUTO_CLEAR_MARKS'; enabled: boolean }
+  | { type: 'SET_AUTO_FILL_SINGLE_CAGES'; enabled: boolean }
   | { type: 'UNDO' }
   | { type: 'REDO' }
   | { type: 'RESET' }
@@ -170,11 +179,16 @@ export function createInitialState(
   puzzle: Puzzle,
   autoClearMarks = true,
   seed?: BoardSeed,
+  autoFillSingleCages = false,
 ): GameState {
   const cells = puzzle.size * puzzle.size;
   const seeded = seed != null && seed.values.length === cells && seed.marks.length === cells;
   const values = seeded ? seed.values.slice() : emptyValues(puzzle.size);
   const marks = seeded ? seed.marks.map((cell) => [...cell]) : emptyMarks(puzzle.size);
+  // On at the start of the game means the freebies are already on the board when
+  // it opens — baked into the starting position rather than pushed as an
+  // undoable step, since there is no history to undo into yet.
+  if (autoFillSingleCages) fillSingleCages(puzzle, values, marks, autoClearMarks);
   return {
     puzzle,
     values,
@@ -191,6 +205,7 @@ export function createInitialState(
     placed: NOTHING_PLACED,
     recentHints: [],
     autoClearMarks,
+    autoFillSingleCages,
   };
 }
 
@@ -249,6 +264,64 @@ function clearPeerMarks(marks: Marks, cell: CellIndex, value: number, size: numb
     }
   }
   return cleared;
+}
+
+/**
+ * Fill every empty one-cell cage with its target, writing into the given `values`
+ * and `marks` copies, and report whether anything was actually placed.
+ *
+ * A one-cell cage (`op === '='`) has a fixed answer — its target — so filling it
+ * is exactly the player entering that digit by hand: the cell's own marks go, and
+ * its peers' marks are swept when `autoClearMarks` is on, so the two settings
+ * compose the same way a manual entry does. Cells already filled are left alone,
+ * which is what lets an already-filled board stay put when the setting flips on.
+ * `values` and `marks` must already be copies; entries are replaced, not mutated.
+ */
+function fillSingleCages(
+  puzzle: Puzzle,
+  values: Grid,
+  marks: Marks,
+  autoClearMarks: boolean,
+): boolean {
+  let filled = false;
+  for (const cage of puzzle.cages) {
+    if (cage.op !== '=') continue;
+    const cell = cage.cells[0];
+    if (values[cell] != null) continue;
+    values[cell] = cage.target;
+    if (marks[cell].length > 0) marks[cell] = [];
+    if (autoClearMarks) clearPeerMarks(marks, cell, cage.target, puzzle.size);
+    filled = true;
+  }
+  return filled;
+}
+
+/**
+ * The board a fresh start — or a restart — opens with for these preferences:
+ * the freebies already placed when auto-fill is on, an empty grid otherwise.
+ * Marks are always empty, since there is nothing on an empty grid to sweep.
+ */
+function freshBoard(
+  puzzle: Puzzle,
+  autoClearMarks: boolean,
+  autoFillSingleCages: boolean,
+): { values: Grid; marks: Marks } {
+  const values = emptyValues(puzzle.size);
+  const marks = emptyMarks(puzzle.size);
+  if (autoFillSingleCages) fillSingleCages(puzzle, values, marks, autoClearMarks);
+  return { values, marks };
+}
+
+/**
+ * Whether the board holds any of the player's own work — anything a restart
+ * would discard. The auto-filled freebies are not work: a board showing only
+ * them, with no marks, is still a fresh start, so this stays false until the
+ * player actually enters or erases something. Drives whether Restart is offered.
+ */
+export function hasProgress(state: GameState): boolean {
+  if (state.marks.some((cell) => cell.length > 0)) return true;
+  const fresh = freshBoard(state.puzzle, state.autoClearMarks, state.autoFillSingleCages).values;
+  return state.values.some((value, i) => value !== fresh[i]);
 }
 
 /**
@@ -386,6 +459,34 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return { ...state, ...pushHistory(state), marks, autoClearMarks: true, hint: IDLE_HINT };
     }
 
+    /*
+     * Mirrors the auto-clear preference above. Switching it on fills every empty
+     * one-cell cage right away, in one undoable step; switching it off only stops
+     * future fills — cells already placed stay, since the player can undo or erase
+     * them by hand.
+     */
+    case 'SET_AUTO_FILL_SINGLE_CAGES': {
+      if (action.enabled === state.autoFillSingleCages) return state;
+      if (!action.enabled) return { ...state, autoFillSingleCages: false };
+
+      const values = state.values.slice();
+      const marks = state.marks.slice();
+      const filled = fillSingleCages(state.puzzle, values, marks, state.autoClearMarks);
+      // Nothing empty to fill (every freebie already placed) must not leave a
+      // dead undo entry behind.
+      if (!filled) return { ...state, autoFillSingleCages: true };
+      const status: Status = isGridSolved(state.puzzle, values) ? 'solved' : 'playing';
+      return {
+        ...state,
+        ...pushHistory(state),
+        values,
+        marks,
+        status,
+        autoFillSingleCages: true,
+        hint: IDLE_HINT,
+      };
+    }
+
     case 'UNDO': {
       if (state.past.length === 0) return state;
       const prev = state.past[state.past.length - 1];
@@ -430,11 +531,19 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'RESET': {
       const history = pushHistory(state);
+      // Restarting puts the board back to how a new game would open it, so the
+      // freebies come back too when the preference is on — the same starting
+      // position a fresh game produces.
+      const { values, marks } = freshBoard(
+        state.puzzle,
+        state.autoClearMarks,
+        state.autoFillSingleCages,
+      );
       return {
         ...state,
         ...history,
-        values: emptyValues(state.puzzle.size),
-        marks: emptyMarks(state.puzzle.size),
+        values,
+        marks,
         status: 'playing',
         hint: IDLE_HINT,
         verdict: NO_VERDICT,
@@ -444,7 +553,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'NEW_PUZZLE':
-      return createInitialState(action.puzzle, state.autoClearMarks);
+      return createInitialState(
+        action.puzzle,
+        state.autoClearMarks,
+        undefined,
+        state.autoFillSingleCages,
+      );
 
     case 'REQUEST_HINT': {
       const { result } = action;

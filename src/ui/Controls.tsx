@@ -21,6 +21,9 @@ export interface ControlsProps {
   /** Whether entering a value also strips it from the row/column peers' pencil marks. */
   autoClearMarks: boolean;
   onAutoClearMarksChange: (enabled: boolean) => void;
+  /** Whether the one-cell "freebie" cages are filled in for the player. */
+  autoFillSingleCages: boolean;
+  onAutoFillSingleCagesChange: (enabled: boolean) => void;
   /** Which palette to paint, or `system` to follow the OS. */
   theme: Theme;
   onThemeChange: (theme: Theme) => void;
@@ -53,6 +56,8 @@ export function Controls({
   canRestart,
   autoClearMarks,
   onAutoClearMarksChange,
+  autoFillSingleCages,
+  onAutoFillSingleCagesChange,
   theme,
   onThemeChange,
   openMenu,
@@ -112,6 +117,8 @@ export function Controls({
       <SettingsMenu
         autoClearMarks={autoClearMarks}
         onAutoClearMarksChange={onAutoClearMarksChange}
+        autoFillSingleCages={autoFillSingleCages}
+        onAutoFillSingleCagesChange={onAutoFillSingleCagesChange}
         theme={theme}
         onThemeChange={onThemeChange}
         open={openMenu === 'settings'}

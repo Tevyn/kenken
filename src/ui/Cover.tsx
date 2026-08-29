@@ -21,6 +21,8 @@ export interface CoverProps {
   onStartGame: (size: number, difficulty: Difficulty) => void;
   autoClearMarks: boolean;
   onAutoClearMarksChange: (enabled: boolean) => void;
+  autoFillSingleCages: boolean;
+  onAutoFillSingleCagesChange: (enabled: boolean) => void;
   theme: Theme;
   onThemeChange: (theme: Theme) => void;
   /** The shared open-popover slot, owned by the app. */
@@ -54,6 +56,8 @@ export function Cover({
   onStartGame,
   autoClearMarks,
   onAutoClearMarksChange,
+  autoFillSingleCages,
+  onAutoFillSingleCagesChange,
   theme,
   onThemeChange,
   openMenu,
@@ -140,6 +144,8 @@ export function Cover({
         <SettingsMenu
           autoClearMarks={autoClearMarks}
           onAutoClearMarksChange={onAutoClearMarksChange}
+          autoFillSingleCages={autoFillSingleCages}
+          onAutoFillSingleCagesChange={onAutoFillSingleCagesChange}
           theme={theme}
           onThemeChange={onThemeChange}
           open={openMenu === 'settings'}

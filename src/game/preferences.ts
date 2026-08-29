@@ -1,6 +1,9 @@
 /** localStorage key for the auto-clear-pencil-marks preference, namespaced to the app. */
 const AUTO_CLEAR_MARKS_KEY = 'kenken:autoClearMarks';
 
+/** localStorage key for the auto-fill-single-cell-cages preference. */
+const AUTO_FILL_SINGLE_CAGES_KEY = 'kenken:autoFillSingleCages';
+
 /** localStorage key for the colour-theme preference. */
 const THEME_KEY = 'kenken:theme';
 
@@ -72,6 +75,30 @@ export function loadAutoClearMarks(): boolean {
 export function saveAutoClearMarks(enabled: boolean): void {
   try {
     localStorage.setItem(AUTO_CLEAR_MARKS_KEY, String(enabled));
+  } catch {
+    // Storage unavailable or full - the preference just won't persist this time.
+  }
+}
+
+/**
+ * Read the persisted auto-fill-single-cages preference, defaulting to `false`.
+ *
+ * Off by default, unlike auto-clear: filling the one-cell cages hands the
+ * player answers they might rather place themselves, so it is opt-in. Same
+ * storage caveats — any failure falls back to the default.
+ */
+export function loadAutoFillSingleCages(): boolean {
+  try {
+    return localStorage.getItem(AUTO_FILL_SINGLE_CAGES_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+/** Persist the auto-fill-single-cages preference. A storage failure drops the write. */
+export function saveAutoFillSingleCages(enabled: boolean): void {
+  try {
+    localStorage.setItem(AUTO_FILL_SINGLE_CAGES_KEY, String(enabled));
   } catch {
     // Storage unavailable or full - the preference just won't persist this time.
   }

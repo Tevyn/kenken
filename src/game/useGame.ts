@@ -25,6 +25,12 @@ export interface UseGameOptions {
   /** Initial value of the auto-clear-pencil-marks preference. Defaults to true. */
   autoClearMarks?: boolean;
   /**
+   * Initial value of the auto-fill-single-cages preference. Defaults to false.
+   * Read once, at mount, like `autoClearMarks`: when true the one-cell cages are
+   * already filled in on the board the reducer opens with.
+   */
+  autoFillSingleCages?: boolean;
+  /**
    * Hand the keyboard back to the rest of the page.
    *
    * While true the window handler returns before it inspects the key — no
@@ -102,9 +108,10 @@ function directionForKey(key: string): Direction | null {
  */
 export function useGame(initialPuzzle: Puzzle, options?: UseGameOptions) {
   const initialAutoClearMarks = options?.autoClearMarks ?? true;
+  const initialAutoFillSingleCages = options?.autoFillSingleCages ?? false;
   const suspended = options?.suspended ?? false;
   const [state, dispatch] = useReducer(gameReducer, initialPuzzle, (puzzle: Puzzle) =>
-    createInitialState(puzzle, initialAutoClearMarks, options?.seed),
+    createInitialState(puzzle, initialAutoClearMarks, options?.seed, initialAutoFillSingleCages),
   );
 
   // The panel's three choices all have to read the live grid but must stay
@@ -130,6 +137,10 @@ export function useGame(initialPuzzle: Puzzle, options?: UseGameOptions) {
   const toggleMode = useCallback(() => dispatch({ type: 'TOGGLE_MODE' }), []);
   const setAutoClearMarks = useCallback(
     (enabled: boolean) => dispatch({ type: 'SET_AUTO_CLEAR_MARKS', enabled }),
+    [],
+  );
+  const setAutoFillSingleCages = useCallback(
+    (enabled: boolean) => dispatch({ type: 'SET_AUTO_FILL_SINGLE_CAGES', enabled }),
     [],
   );
   const undo = useCallback(() => dispatch({ type: 'UNDO' }), []);
@@ -324,6 +335,7 @@ export function useGame(initialPuzzle: Puzzle, options?: UseGameOptions) {
       setMode,
       toggleMode,
       setAutoClearMarks,
+      setAutoFillSingleCages,
       undo,
       redo,
       reset,
@@ -346,6 +358,7 @@ export function useGame(initialPuzzle: Puzzle, options?: UseGameOptions) {
       setMode,
       toggleMode,
       setAutoClearMarks,
+      setAutoFillSingleCages,
       undo,
       redo,
       reset,

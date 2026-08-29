@@ -2,8 +2,10 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   applyTheme,
   loadAutoClearMarks,
+  loadAutoFillSingleCages,
   loadTheme,
   saveAutoClearMarks,
+  saveAutoFillSingleCages,
   saveTheme,
 } from './preferences';
 
@@ -27,6 +29,25 @@ describe('preferences', () => {
   it('falls back to the default when the stored value is unrecognised', () => {
     localStorage.setItem('kenken:autoClearMarks', 'nonsense');
     expect(loadAutoClearMarks()).toBe(true);
+  });
+
+  describe('auto-fill single cages', () => {
+    it('defaults to false when nothing is stored', () => {
+      expect(loadAutoFillSingleCages()).toBe(false);
+    });
+
+    it('round-trips true and false through save/load', () => {
+      saveAutoFillSingleCages(true);
+      expect(loadAutoFillSingleCages()).toBe(true);
+
+      saveAutoFillSingleCages(false);
+      expect(loadAutoFillSingleCages()).toBe(false);
+    });
+
+    it('falls back to false when the stored value is unrecognised', () => {
+      localStorage.setItem('kenken:autoFillSingleCages', 'nonsense');
+      expect(loadAutoFillSingleCages()).toBe(false);
+    });
   });
 
   describe('with a throwing storage', () => {
@@ -60,6 +81,12 @@ describe('preferences', () => {
 
     it('save silently does nothing instead of throwing', () => {
       expect(() => saveAutoClearMarks(false)).not.toThrow();
+    });
+
+    it('auto-fill load falls back to false and save does not throw', () => {
+      expect(() => loadAutoFillSingleCages()).not.toThrow();
+      expect(loadAutoFillSingleCages()).toBe(false);
+      expect(() => saveAutoFillSingleCages(true)).not.toThrow();
     });
 
     it('loadTheme falls back to system instead of throwing', () => {
