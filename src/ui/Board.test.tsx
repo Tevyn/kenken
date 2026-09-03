@@ -152,13 +152,16 @@ describe('Board', () => {
     expect(container.querySelector('.kk-board__errors')).toHaveTextContent('1 cell conflicts');
   });
 
-  it('draws the completion glow layer with a per-cell delay on exactly the rippling cells', () => {
+  it('draws the ripple glow layer with a per-cell delay on exactly the rippling cells', () => {
     const glow = {
-      delays: new Map([
-        [0, 0],
-        [1, 60],
-      ]),
-      token: 7,
+      ripple: {
+        delays: new Map([
+          [0, 0],
+          [1, 60],
+        ]),
+        token: 7,
+      },
+      sweep: null,
     };
     const { container } = renderBoard({ glow });
 
@@ -170,6 +173,33 @@ describe('Board', () => {
     expect(cells[1].querySelector('.kk-cell__glow')).toHaveStyle({ '--kk-glow-delay': '60ms' });
     // A cell not in the ripple carries no glow layer.
     expect(cells[2].querySelector('.kk-cell__glow')).toBeNull();
+  });
+
+  it('stacks the sweep layer over the ripple on the winning move', () => {
+    // Cell 0 is in both layers: it keeps its ripple bloom and gets a second,
+    // later-delayed sweep bloom on top rather than the ripple being replaced.
+    const glow = {
+      ripple: { delays: new Map([[0, 0]]), token: 3 },
+      sweep: {
+        delays: new Map([
+          [0, 120],
+          [1, 180],
+        ]),
+        token: 3,
+      },
+    };
+    const { container } = renderBoard({ glow });
+    const cells = container.querySelectorAll('.kk-cell');
+
+    const cell0Layers = cells[0].querySelectorAll('.kk-cell__glow');
+    expect(cell0Layers).toHaveLength(2);
+    expect(cell0Layers[0]).toHaveStyle({ '--kk-glow-delay': '0ms' }); // ripple
+    expect(cell0Layers[1]).toHaveStyle({ '--kk-glow-delay': '120ms' }); // sweep, on top
+
+    // A cell only in the sweep carries just the one layer.
+    const cell1Layers = cells[1].querySelectorAll('.kk-cell__glow');
+    expect(cell1Layers).toHaveLength(1);
+    expect(cell1Layers[0]).toHaveStyle({ '--kk-glow-delay': '180ms' });
   });
 
   it('renders no glow layer when nothing is completing', () => {

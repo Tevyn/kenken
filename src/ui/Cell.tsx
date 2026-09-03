@@ -50,11 +50,18 @@ export interface CellProps {
   /** Space-separated edge classes from `edgeClassNames` (see `cageBorders.ts`). */
   edgeClassName: string;
   /**
-   * This cell's start delay, in ms, in the completion glow currently rippling
-   * across the board (see `completionGlow.ts`); absent when nothing is glowing.
+   * This cell's start delay, in ms, on the ripple layer of the completion glow —
+   * the cage/row/column bloom (see `completionGlow.ts`); absent when this cell is
+   * not in the ripple.
    */
-  glowDelay?: number;
-  /** Bumped per ripple, so a fresh completion restarts the bloom mid-fade. */
+  rippleDelay?: number;
+  /**
+   * This cell's start delay, in ms, on the sweep layer — the whole-grid finale,
+   * which rides above the ripple so it never restarts it. Absent off the winning
+   * move.
+   */
+  sweepDelay?: number;
+  /** Bumped per completion, so a fresh one restarts the blooms mid-fade. */
   glowToken?: number;
   onSelect: (index: CellIndex) => void;
 }
@@ -80,7 +87,8 @@ export function Cell({
   cageLabelText,
   showCageLabel,
   edgeClassName,
-  glowDelay,
+  rippleDelay,
+  sweepDelay,
   glowToken,
   onSelect,
 }: CellProps) {
@@ -128,16 +136,27 @@ export function Cell({
       onClick={() => onSelect(index)}
     >
       {/*
-        The completion bloom, on its own layer beneath the value and the label
-        (see Cell.css). Keyed on the ripple's token so a new completion mounts a
-        fresh element and the animation restarts rather than freezing mid-fade.
+        The completion bloom, on its own layer(s) beneath the value and the label
+        (see Cell.css). Two independent layers: the cage/row/column ripple and,
+        on the winning move, the whole-grid sweep riding above it — so the sweep
+        never restarts a ripple mid-bloom. Each is keyed on the completion's token
+        so a new completion mounts a fresh element and the animation restarts
+        rather than freezing mid-fade.
       */}
-      {glowDelay != null && (
+      {rippleDelay != null && (
         <span
-          key={glowToken}
+          key={`ripple-${glowToken}`}
           className="kk-cell__glow"
           aria-hidden="true"
-          style={{ '--kk-glow-delay': `${glowDelay}ms` } as CSSProperties}
+          style={{ '--kk-glow-delay': `${rippleDelay}ms` } as CSSProperties}
+        />
+      )}
+      {sweepDelay != null && (
+        <span
+          key={`sweep-${glowToken}`}
+          className="kk-cell__glow"
+          aria-hidden="true"
+          style={{ '--kk-glow-delay': `${sweepDelay}ms` } as CSSProperties}
         />
       )}
       {showCageLabel && <span className="kk-cell__cage-label">{cageLabelText}</span>}

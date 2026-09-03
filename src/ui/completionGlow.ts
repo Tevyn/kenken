@@ -22,23 +22,71 @@ export const CAGE_STEP_MS = 80;
 export const GLOW_DURATION_MS = 600;
 export const GLOW_INTENSITY = 0.7;
 
+/**
+ * How long after the ripple's slowest cell starts the finish sweep hands off and
+ * sets out. Around the bloom's 38%-of-run brightness peak (~228ms), pulled in so
+ * the finale flows out of the ripple while it is still bright. Tuned by feel.
+ */
+export const SWEEP_HANDOFF_MS = 114;
+
 /** A little slack past the last cell's animation before the glow layer is torn down. */
 const CLEANUP_SLACK_MS = 80;
 
+/** The viewer's motion preference, read live so a mid-session change is honoured. */
+export function prefersReducedMotion(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
+}
+
 /**
- * How long the whole-grid finish sweep takes, start to finish.
+ * The longest a single cage/row/column ripple can run on this puzzle, whichever
+ * cell turns out to be placed last: rows and columns sweep at most
+ * `(size - 1) * LINE_STEP_MS`, and a cage at its Manhattan diameter — the widest
+ * gap between two of its cells — times `CAGE_STEP_MS`. This bounds the first
+ * phase of the finish celebration (the row/column/cage ripples), so the sweep can
+ * be timed to start the instant they finish.
+ */
+function maxUnitRippleMs(puzzle: Puzzle): number {
+  const { size } = puzzle;
+  let maxCageDist = 0;
+  for (const cage of puzzle.cages) {
+    for (const a of cage.cells) {
+      for (const b of cage.cells) {
+        const dist =
+          Math.abs(rowOf(a, size) - rowOf(b, size)) + Math.abs(colOf(a, size) - colOf(b, size));
+        if (dist > maxCageDist) maxCageDist = dist;
+      }
+    }
+  }
+  return Math.max((size - 1) * LINE_STEP_MS, maxCageDist * CAGE_STEP_MS);
+}
+
+/**
+ * How long the whole finish celebration takes, from the winning move to the last
+ * cell going dark.
  *
- * The corner-to-corner sweep lights its last cell — the bottom-right one — at
- * `2 * (size - 1) * LINE_STEP_MS` (see `computeGlowDelays`' `'puzzle'` branch),
- * and that cell then blooms for `GLOW_DURATION_MS`. Reduced motion collapses the
- * stagger to zero (Cell.css zeroes every delay), leaving only the single bloom.
+ * The row/column/cage ripples run first; `SWEEP_HANDOFF_MS` after their slowest
+ * last cell starts — while it is still bright (bounded by `maxUnitRippleMs`,
+ * whichever cell is placed last) — the corner-to-corner sweep takes over, the two
+ * overlapping. The sweep then lights its
+ * own last cell — the bottom-right one — at a further `2 * (size - 1) *
+ * LINE_STEP_MS` (see `computeGlowDelays`' `'puzzle'` branch), which blooms for
+ * `GLOW_DURATION_MS`. Reduced motion collapses the stagger to zero (the hook
+ * zeroes the hand-off, Cell.css zeroes every stagger), leaving a single bloom.
  *
  * The success overlay uses this to hold itself back until the board has finished
- * celebrating rather than landing on top of the ripple.
+ * celebrating rather than landing on top of the ripple. It is an upper bound on
+ * the real celebration — the sweep hands off from the actual last cell, which is
+ * never later than this — so the overlay never lands early.
  */
-export function puzzleFinishSweepMs(size: number, reducedMotion: boolean): number {
-  const sweep = reducedMotion ? 0 : 2 * (size - 1) * LINE_STEP_MS;
-  return sweep + GLOW_DURATION_MS;
+export function puzzleFinishSweepMs(puzzle: Puzzle, reducedMotion: boolean): number {
+  if (reducedMotion) return GLOW_DURATION_MS;
+  const handOff = maxUnitRippleMs(puzzle) + SWEEP_HANDOFF_MS;
+  const sweep = 2 * (puzzle.size - 1) * LINE_STEP_MS + GLOW_DURATION_MS;
+  return handOff + sweep;
 }
 
 /**
@@ -48,15 +96,30 @@ export function puzzleFinishSweepMs(size: number, reducedMotion: boolean): numbe
  */
 type UnitKey = string;
 
-/** What the Board needs to draw one ripple: a per-cell start delay, plus a token. */
-export interface CompletionGlow {
+/** What the Board needs to draw one glow layer: a per-cell start delay, plus a token. */
+export interface GlowLayer {
   /** Start delay in ms, keyed by flat cell index. Cells absent from the map do not glow. */
   readonly delays: ReadonlyMap<CellIndex, number>;
   /**
-   * Bumped for every ripple. The Board keys each glow layer on it so a fresh
+   * Bumped for every fresh glow. The Board keys each layer on it so a new
    * completion restarts the CSS animation even while an earlier one is mid-fade.
    */
   readonly token: number;
+}
+
+/**
+ * The completion bloom currently on the board, as two independent layers so the
+ * finale never disturbs the ripples it rides over.
+ *
+ * `ripple` is the cage/row/column bloom from the placed cell; `sweep` is the
+ * whole-grid finish sweep, present only on the winning move. They live on
+ * separate cell layers with their own delays, so a cell already blooming in the
+ * last row/column/cage keeps that bloom to its natural end while the sweep lights
+ * it again on top — the finale overtakes the ripples rather than cutting them off.
+ */
+export interface CompletionGlow {
+  readonly ripple: GlowLayer | null;
+  readonly sweep: GlowLayer | null;
 }
 
 /**
@@ -192,6 +255,13 @@ export function computeGlowDelays(
   return delays;
 }
 
+/** The largest value in a delay map, or 0 for an empty one. */
+function lastDelay(delays: ReadonlyMap<CellIndex, number>): number {
+  let last = 0;
+  for (const d of delays.values()) if (d > last) last = d;
+  return last;
+}
+
 /**
  * Fire a completion glow whenever a forward placement finishes a fresh
  * cage/row/column/puzzle with no red digit in it.
@@ -199,8 +269,14 @@ export function computeGlowDelays(
  * Derived, never stored in the reducer: it watches `values` (against the board
  * as it stood before the edit) together with the same `errors` and `verdict`
  * the board already paints, works out which units are newly clean-complete, and
- * returns the ripple for the Board to draw. The layer tears itself down once the
- * last cell has finished blooming.
+ * returns the bloom for the Board to draw. It tears itself down once the last
+ * cell has finished blooming.
+ *
+ * On the winning move it returns two layers at once. The ripple layer carries the
+ * final cage/row/column bloom; the sweep layer carries the whole-grid finale, its
+ * delays shifted so the sweep front sets off just as the slowest ripple reaches
+ * its last cell. Because they ride separate cell layers, the sweep never restarts
+ * a ripple already blooming beneath it — it overtakes it.
  */
 export function useCompletionGlow(
   puzzle: Puzzle,
@@ -229,16 +305,37 @@ export function useCompletionGlow(
     for (const key of clean) if (!prior.clean.has(key)) newlyComplete.push(key);
     if (newlyComplete.length === 0) return;
 
-    const delays = computeGlowDelays(puzzle, origin, newlyComplete);
-    if (delays.size === 0) return;
+    // The cage/row/column bloom(s) from the placed cell.
+    const rippleDelays = computeGlowDelays(
+      puzzle,
+      origin,
+      newlyComplete.filter((key) => key !== 'puzzle'),
+    );
+    let end = rippleDelays.size > 0 ? lastDelay(rippleDelays) + GLOW_DURATION_MS : 0;
+
+    // On the winning move, the whole-grid sweep rides its own layer, its delays
+    // shifted so the front sets off as the slowest ripple reaches its brightest —
+    // the two overlap at their peak and the finale flows straight out of the
+    // ripples. Reduced motion drops the hand-off, so both layers bloom at once.
+    let sweepDelays: Map<CellIndex, number> | null = null;
+    if (newlyComplete.includes('puzzle')) {
+      const handOff = prefersReducedMotion() ? 0 : lastDelay(rippleDelays) + SWEEP_HANDOFF_MS;
+      sweepDelays = new Map();
+      for (const [cell, delay] of computeGlowDelays(puzzle, origin, ['puzzle'])) {
+        sweepDelays.set(cell, delay + handOff);
+      }
+      end = Math.max(end, lastDelay(sweepDelays) + GLOW_DURATION_MS);
+    }
 
     tokenRef.current += 1;
-    setGlow({ delays, token: tokenRef.current });
+    const token = tokenRef.current;
+    setGlow({
+      ripple: rippleDelays.size > 0 ? { delays: rippleDelays, token } : null,
+      sweep: sweepDelays ? { delays: sweepDelays, token } : null,
+    });
 
-    let last = 0;
-    for (const d of delays.values()) if (d > last) last = d;
     clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => setGlow(null), last + GLOW_DURATION_MS + CLEANUP_SLACK_MS);
+    timerRef.current = setTimeout(() => setGlow(null), end + CLEANUP_SLACK_MS);
   }, [puzzle, values, errors, verdict]);
 
   useEffect(() => () => clearTimeout(timerRef.current), []);

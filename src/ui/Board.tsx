@@ -201,8 +201,9 @@ export function Board({
               cageLabelText={cageLabelByCell[index]}
               showCageLabel={anchorLabels.has(index)}
               edgeClassName={edgeClassNames(edges)}
-              glowDelay={glow?.delays.get(index)}
-              glowToken={glow?.token}
+              rippleDelay={glow?.ripple?.delays.get(index)}
+              sweepDelay={glow?.sweep?.delays.get(index)}
+              glowToken={glow?.ripple?.token ?? glow?.sweep?.token}
               onSelect={onSelect}
             />
           );

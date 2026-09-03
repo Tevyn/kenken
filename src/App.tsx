@@ -20,7 +20,7 @@ import { loadSession, saveSession } from './game/session';
 import { hasProgress } from './game/state';
 import { useGame } from './game/useGame';
 import { Board } from './ui/Board';
-import { puzzleFinishSweepMs, useCompletionGlow } from './ui/completionGlow';
+import { prefersReducedMotion, puzzleFinishSweepMs, useCompletionGlow } from './ui/completionGlow';
 import { Controls } from './ui/Controls';
 import { Cover } from './ui/Cover';
 import { HamburgerIcon } from './ui/icons';
@@ -201,19 +201,15 @@ function App() {
    * before it elapses — an undo on the winning move — cancels the reveal, since
    * the effect re-runs with `solvedSeen` false and clears the pending timer.
    */
-  const puzzleSize = game.state.puzzle.size;
+  const { puzzle } = game.state;
   useEffect(() => {
     if (!solvedSeen) return;
-    const reduced =
-      typeof window !== 'undefined' &&
-      typeof window.matchMedia === 'function' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const timer = window.setTimeout(
       () => setWinReady(true),
-      puzzleFinishSweepMs(puzzleSize, reduced),
+      puzzleFinishSweepMs(puzzle, prefersReducedMotion()),
     );
     return () => window.clearTimeout(timer);
-  }, [solvedSeen, puzzleSize]);
+  }, [solvedSeen, puzzle]);
 
   const handleWinDismiss = useCallback(() => setWinDismissed(true), []);
 
